@@ -79,10 +79,3 @@ git pull
 Only files that changed are copied; anything you had edited yourself is backed
 up to `~/.dotfiles-backup/<date>/` before being replaced, so you can diff or
 restore it. Skip the `copy` to stay on what you have.
-
-## Not in the repo
-
-Kept out on purpose: secrets and per-machine identity (git name/email, the
-aria2 RPC secret — generated on install, OBS passwords and capture tokens, API
-client IDs), device pairings, browser profiles, and backup files (`*.pre-*`,
-`*.bak`).
