@@ -5,6 +5,20 @@ theme + accent switching across the whole desktop, yazi as the file manager and
 file picker, live wallpapers, screen recording, clipboard history, and the
 scripts that tie it together.
 
+## Screenshots
+
+![Desktop: floating-island bars and the sidebar dock](screenshots/desktop.jpg)
+<sub>Floating-island top and bottom bars, the sidebar dock (`SUPER+A`), Tokyo Night with a peach accent.</sub>
+
+| | |
+|:---:|:---:|
+| ![Tiled apps](screenshots/apps.jpg) | ![Scratchpad](screenshots/scratchpad.jpg) |
+| Tiled apps — yazi's grid view (`Alt+G`), btop, fastfetch | The scratchpad (`SUPER+S`) floating over a workspace |
+| ![Live wallpaper](screenshots/live-wallpaper.webp) | ![Wallpaper picker](screenshots/wallpaper-picker.jpg) |
+| A live (video) wallpaper playing | The wallpaper picker (`SUPER+W`) — colour filters, live previews |
+| ![Theme picker](screenshots/theme-picker.jpg) | |
+| The theme picker (`SUPER+T`) — 8 themes across the whole desktop | |
+
 ## Install
 
 ```bash
