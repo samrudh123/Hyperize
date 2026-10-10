@@ -1,0 +1,203 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 40,
+  "spacing": 0,
+  // All zero: the bar is flush to the top and both edges, one continuous panel.
+  // A 5px top margin left a wallpaper strip above a square-cornered full-width
+  // bar, which read as a mistake rather than as floating.
+  // NOTE: this shrinks waybar's exclusive zone 45 -> 40, so the dock's `-mt 6`
+  // now lands it at y=46 instead of y=51. Same 6px gap below the bar.
+  "margin-top": 0,
+  "margin-left": 0,
+  "margin-right": 0,
+  // custom/logo is deliberately NOT listed: its format was two literal spaces
+  // (the glyph had gone missing), so it rendered ~50px of invisible padding to
+  // the left of workspace 1. Its definition is kept below in case a real icon
+  // is ever wanted back; SUPER+D and the dock's grid button already open fuzzel.
+  "modules-left": [
+    "hyprland/workspaces",
+    "hyprland/submap"
+  ],
+  "modules-center": [
+    "hyprland/window"
+  ],
+  "modules-right": [
+    "tray",
+    "cpu",
+    "memory",
+    "temperature",
+    "pulseaudio",
+    "backlight",
+    "network",
+    "battery",
+    "clock",
+    "custom/settings",
+    "custom/power"
+  ],
+  "custom/logo": {
+    "format": "  ",
+    "tooltip": false,
+    "on-click": "fuzzel"
+  },
+  "hyprland/workspaces": {
+    "format": "{icon}",
+    "on-click": "activate",
+    "format-icons": {
+      "1": "1",
+      "2": "2",
+      "3": "3",
+      "4": "4",
+      "5": "5",
+      "6": "6",
+      "7": "7",
+      "8": "8",
+      "9": "9",
+      "10": "10",
+      "urgent": "",
+      "default": ""
+    },
+    "persistent-workspaces": {
+      "*": 7
+    }
+  },
+  "hyprland/submap": {
+    "format": "󰌌 {}",
+    "tooltip": false
+  },
+  "hyprland/window": {
+    "format": "{title}",
+    "max-length": 55,
+    "separate-outputs": true,
+    "rewrite": {
+      "(.*) — Mozilla Firefox": "󰈹  $1",
+      "(.*)Ghostty": "  terminal",
+      "(.*) - Visual Studio Code": "󰨞  $1"
+    }
+  },
+  "tray": {
+    "icon-size": 15,
+    "spacing": 10
+  },
+  "cpu": {
+    "interval": 3,
+    "format": "󰻠 {usage}%",
+    "tooltip": true,
+    "on-click": "ghostty -e btop"
+  },
+  "memory": {
+    "interval": 5,
+    "format": " {percentage}%",
+    "tooltip-format": "{used:0.1f} GiB / {total:0.1f} GiB",
+    "on-click": "ghostty -e btop"
+  },
+  "temperature": {
+    "interval": 5,
+    "critical-threshold": 82,
+    "format": "{icon} {temperatureC}°",
+    "format-icons": [
+      "",
+      "",
+      ""
+    ],
+    "tooltip": true
+  },
+  "backlight": {
+    "format": "{icon} {percent}%",
+    "format-icons": [
+      "󰛨",
+      "󰛨",
+      "󰛨"
+    ],
+    "on-scroll-up": "~/.config/hypr/brightness.sh up 5",
+    "on-scroll-down": "~/.config/hypr/brightness.sh down 5",
+    "tooltip": true,
+    "tooltip-format": "Screen brightness {percent}%  ·  scroll to change, click for 50%",
+    "on-click": "~/.config/hypr/brightness.sh set 50"
+  },
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": "󰝟 muted",
+    "format-bluetooth": "󰂯 {volume}%",
+    "format-icons": {
+      "default": [
+        "󰕿",
+        "󰖀",
+        "󰕾"
+      ]
+    },
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-click-right": "pavucontrol",
+    "scroll-step": 5
+  },
+  "network": {
+    "format-wifi": "󰤨 {signalStrength}%",
+    "format-ethernet": "󰈀 wired",
+    "format-linked": "󰤫 no IP",
+    "format-disconnected": "󰤭 offline",
+    "tooltip-format-wifi": "{essid}  ·  {ipaddr}\n󰇚 {bandwidthDownBits}  󰕒 {bandwidthUpBits}",
+    "tooltip-format-ethernet": "{ifname}  ·  {ipaddr}",
+    "on-click": "nm-connection-editor",
+    "interval": 5
+  },
+  "battery": {
+    "states": {
+      "warning": 25,
+      "critical": 12
+    },
+    "format": "{icon} {capacity}%",
+    "format-charging": "󰂄 {capacity}%",
+    "format-plugged": "󰂅 {capacity}%",
+    "format-icons": [
+      "󰁺",
+      "󰁻",
+      "󰁼",
+      "󰁽",
+      "󰁾",
+      "󰁿",
+      "󰂀",
+      "󰂁",
+      "󰂂",
+      "󰁹"
+    ],
+    "tooltip-format": "{timeTo}  ·  {power:0.1f} W",
+    "interval": 15
+  },
+  "clock": {
+    "interval": 30,
+    "format": "󰥔 {:%H:%M}",
+    "format-alt": "󰃭 {:%a %d %b}",
+    "tooltip-format": "<tt>{calendar}</tt>",
+    "calendar": {
+      "mode": "month",
+      "on-scroll": 1,
+      "format": {
+        "months": "<span color='#cba6f7'><b>{}</b></span>",
+        "days": "<span color='#cdd6f4'>{}</span>",
+        "weekdays": "<span color='#89b4fa'><b>{}</b></span>",
+        "today": "<span color='#f38ba8'><b><u>{}</u></b></span>"
+      }
+    }
+  },
+  // Power menu. custom/* with a Nerd Font glyph on purpose: waybar's `image`
+  // module makes every module on the bar vanish (landmine 1).
+  // U+F011 verified present in JetBrainsMonoNerdFont via fontTools.
+  "custom/power": {
+    "format": "\uf011",
+    "tooltip": true,
+    "tooltip-format": "Lock · Suspend · Log out · Restart · Power off",
+    // nwg-bar (apt, 0.1.6) — config in ~/.config/nwg-bar/{bar.json,style.css}.
+    // No -f: that flag only stretches an EDGE-positioned bar, and the default
+    // position is centred, so the window stays content-sized either way.
+    // power-menu.sh is the fuzzel fallback if nwg-bar ever misbehaves — swap
+    // this one line back to it, no other change needed.
+    "on-click": "nwg-bar"
+  },
+
+  "custom/settings": {
+    "format": "󰒓",
+    "on-click": "gtk-launch org.gnome.Settings",
+    "tooltip": true,
+    "tooltip-format": "Settings"
+  }
+}

@@ -1,0 +1,77 @@
+/* Firefox in-content pages — Catppuccin Mocha + the desktop accent.
+ *
+ * ⚠ GENERATED. In set-accent.sh's manifest; run
+ *     ~/.config/hypr/set-accent.sh --resync
+ * after editing, or the next accent change reverts it.
+ *
+ * userChrome.css styles the browser frame; this file styles what is INSIDE
+ * the viewport, and only for Firefox's own pages. It deliberately does not
+ * touch ordinary websites — recolouring arbitrary pages breaks them.
+ */
+
+:root {
+    --ctp-base:     #282828;
+    --ctp-mantle:   #1d2021;
+    --ctp-surface0: #32302f;
+    --ctp-surface2: #504945;
+    --ctp-text:     #ebdbb2;
+    --ctp-accent:   #@@ACCENT@@;
+}
+
+/* Blank and new-tab pages. Without this there is a white flash on every new
+ * tab, which is the single most visible break in an otherwise dark desktop —
+ * ui.systemUsesDarkTheme in user.js handles the styled about: pages, but not
+ * the bare background these paint before content loads. */
+@-moz-document url("about:blank"),
+               url("about:newtab"),
+               url("about:home"),
+               url("about:privatebrowsing") {
+    :root, body { background-color: #282828 !important; }
+}
+
+/* Scrollbars on Firefox's own pages. Left off ordinary websites on purpose:
+ * scrollbar-color on arbitrary sites overrides their design and is a common
+ * cause of invisible scrollbars on light pages. */
+@-moz-document url-prefix("about:") {
+    :root { scrollbar-color: #504945 #282828 !important; }
+}
+
+/* Accent the links on Firefox's own pages so about:config, about:support and
+ * the error pages agree with the chrome around them. */
+@-moz-document url-prefix("about:"), url-prefix("chrome://") {
+    a, a:visited { color: #@@ACCENT@@ !important; }
+}
+
+/* ── Firefox's own pages (settings, add-ons, new tab, about:…) ─────────
+ * They are built from the same design tokens, so setting those recolours
+ * every one of them: Mocha surfaces, the desktop accent for the "primary"
+ * colour (buttons, toggles, links, focus rings). */
+@-moz-document url-prefix("about:"), url-prefix("chrome://") {
+    :root {
+        --background-color-canvas:       #282828 !important;
+        --background-color-box:          #1d2021 !important;
+        --in-content-page-background:    #282828 !important;
+        --in-content-box-background:     #1d2021 !important;
+        --in-content-box-border-color:   #32302f !important;
+        --in-content-page-color:         #ebdbb2 !important;
+        --text-color:                    #ebdbb2 !important;
+        --text-color-deemphasized:       #a89984 !important;
+        --border-color:                  #32302f !important;
+        --border-color-card:             #32302f !important;
+        --color-accent-primary:          #@@ACCENT@@ !important;
+        --color-accent-primary-hover:    color-mix(in srgb, #@@ACCENT@@ 85%, white) !important;
+        --color-accent-primary-active:   color-mix(in srgb, #@@ACCENT@@ 75%, white) !important;
+        --button-text-color-primary:     #141617 !important;
+        --button-background-color:       #32302f !important;
+        --button-background-color-hover: #3c3836 !important;
+        --focus-outline-color:           #@@ACCENT@@ !important;
+        --link-color:                    #@@ACCENT@@ !important;
+        --link-color-hover:              color-mix(in srgb, #@@ACCENT@@ 85%, white) !important;
+        --newtab-background-color:       #282828 !important;
+        --newtab-background-color-secondary: #32302f !important;
+        --newtab-text-primary-color:     #ebdbb2 !important;
+        --newtab-primary-action-background: #@@ACCENT@@ !important;
+        --newtab-element-hover-color:    #32302f !important;
+        --newtab-wallpaper-color:        #282828 !important;
+    }
+}

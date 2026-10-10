@@ -1,0 +1,17 @@
+[Unit]
+Description=Tasks check-ins at 09:00, 12:00, 15:00, 18:00, 21:00 and 24:00
+
+[Timer]
+OnCalendar=*-*-* 09:00:00
+OnCalendar=*-*-* 12:00:00
+OnCalendar=*-*-* 15:00:00
+OnCalendar=*-*-* 18:00:00
+OnCalendar=*-*-* 21:00:00
+OnCalendar=*-*-* 24:00:00
+
+# Fire once at login if one was missed while the laptop was off or asleep.
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

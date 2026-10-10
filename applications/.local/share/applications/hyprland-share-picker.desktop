@@ -1,0 +1,33 @@
+[Desktop Entry]
+# There is no upstream .desktop for /usr/bin/hyprland-share-picker — the
+# xdg-desktop-portal-hyprland package ships the binary alone. nwg-dock resolves
+# a running window's icon by matching its CLASS to a desktop entry, so with no
+# entry to find, the share picker appeared in the sidebar as the generic
+# missing-icon fallback (an orange circle with a white X) every time anything
+# asked to capture the screen.
+#
+# This file exists only so that lookup succeeds. It is never launched from here:
+# the portal spawns the binary itself when an app requests a capture.
+#
+# StartupWMClass is the whole point — it is what the class matches against.
+# Verified with `hyprctl clients`: class is `hyprland-share-picker`, native
+# Wayland (not XWayland).
+#
+# NoDisplay keeps it out of the app grid (SUPER+D), where a picker you cannot
+# usefully start by hand would just be noise.
+#
+# Icon: screen-shared-symbolic is a monitor with an arrow leaving it — the
+# meaning is exactly right, and Yaru draws its symbolics light enough to read
+# against the dark sidebar. Papirus's video-display/display are dark-on-dark and
+# effectively invisible there; swap in `video-display` (Adwaita) if you would
+# rather have colour.
+Type=Application
+Name=Screen Share
+GenericName=Screen share picker
+Comment=Choose a window, screen or region to share
+Exec=/usr/bin/hyprland-share-picker
+Icon=screen-shared-symbolic
+StartupWMClass=hyprland-share-picker
+Terminal=false
+NoDisplay=true
+Categories=Utility;

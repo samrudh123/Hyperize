@@ -1,0 +1,7 @@
+[[plugin.deps]]
+use = "KKV9/compress"
+rev = "80e5268"
+hash = "868db729374b97871bc30b96d0e9061f"
+
+[flavor]
+deps = []

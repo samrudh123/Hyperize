@@ -1,0 +1,212 @@
+#!/bin/bash
+# Measure real battery draw, so Hyprland vs GNOME can be compared on numbers
+# instead of impressions.
+#
+#   power-bench run [minutes]   record a session (default 20)
+#   power-bench report          compare everything recorded so far
+#   power-bench list            show individual runs
+#
+# WHY A HARNESS AND NOT JUST upower's HISTORY
+#
+# upower does keep a rate history, but it records whatever you happened to be
+# doing. Mining it for this machine produced a GNOME median of 25.6 W against
+# a Hyprland median of 6.8 W — a number that looks decisive and is worthless,
+# because the 25 minutes of GNOME data sat inside a heavy workload that was
+# ALSO running under Hyprland immediately before it (Hyprland's own worst
+# 25-minute stretch that afternoon was 23.8 W). The comparison measured the
+# workload, not the desktop.
+#
+# So the only thing that settles the question is matched conditions. This
+# script enforces the ones that actually move the needle and records the rest
+# so a bad pair can be thrown out afterwards rather than silently averaged in.
+#
+# WHAT MATTERS, ROUGHLY IN ORDER
+#
+#   backlight   The single biggest controllable draw on this panel — sweeping
+#               it end to end is worth several watts, which is comfortably
+#               larger than any plausible compositor difference. The script
+#               refuses to compare runs whose brightness differs by >2%.
+#   workload    Idle is the only honest default. A browser tab playing video
+#               swamps everything else.
+#   settling    Both desktops index, sync and start services for the first few
+#               minutes after login. The first 5 minutes are discarded.
+#   SoC band    Discharge rate varies with state of charge, so runs are
+#               tagged with their battery range and wildly different bands
+#               are flagged.
+
+set -u
+
+BAT=/sys/class/power_supply/BAT0
+AC=/sys/class/power_supply/AC
+BL=/sys/class/backlight/intel_backlight
+DIR="$HOME/.local/share/power-bench"
+INTERVAL=10          # seconds between samples
+SETTLE=300           # seconds of post-login noise to discard
+
+mkdir -p "$DIR"
+
+de() {
+    local d="${XDG_CURRENT_DESKTOP:-unknown}"
+    case "$d" in
+        *Hyprland*|*hyprland*) echo "Hyprland" ;;
+        *GNOME*|*ubuntu*)      echo "GNOME" ;;
+        *)                     echo "${d//:/-}" ;;
+    esac
+}
+
+brightness_pct() {
+    [ -r "$BL/brightness" ] || { echo "-1"; return; }
+    echo $(( $(cat "$BL/brightness") * 100 / $(cat "$BL/max_brightness") ))
+}
+
+soc() { cat "$BAT/capacity"; }
+
+on_ac() { [ "$(cat $AC/online 2>/dev/null)" = "1" ]; }
+
+cmd_run() {
+    local mins="${1:-20}"
+    local total=$(( mins * 60 ))
+
+    if on_ac; then
+        echo "On AC power — unplug first. power_now measures CHARGE rate while" >&2
+        echo "plugged in, which is not what we are after." >&2
+        exit 1
+    fi
+
+    local d; d="$(de)"
+    local b; b="$(brightness_pct)"
+    local prof; prof="$(powerprofilesctl get 2>/dev/null || echo unknown)"
+    local start_soc; start_soc="$(soc)"
+    local stamp; stamp="$(date +%Y%m%d-%H%M%S)"
+    local out="$DIR/${d}-${stamp}.csv"
+
+    echo "# de=$d brightness=$b% profile=$prof start_soc=$start_soc%" >  "$out"
+    echo "# kernel=$(uname -r) started=$(date -Is)"                   >> "$out"
+    echo "epoch,watts,soc"                                            >> "$out"
+
+    echo "Recording $d for $mins min (first $((SETTLE/60)) min discarded as settling)."
+    echo "  brightness $b%   profile $prof   battery $start_soc%"
+    echo "  Leave the machine IDLE and do not plug in. Ctrl-C aborts."
+    echo "  -> $out"
+
+    local end=$(( $(date +%s) + total ))
+    while [ "$(date +%s)" -lt "$end" ]; do
+        if on_ac; then
+            echo "AC reconnected — run aborted, results would be meaningless." >&2
+            echo "# ABORTED: ac-reconnected" >> "$out"
+            exit 1
+        fi
+        # power_now is microwatts. Some firmware reports 0 briefly on wakeup;
+        # those samples are dropped rather than averaged in as free energy.
+        local uw; uw="$(cat $BAT/power_now 2>/dev/null || echo 0)"
+        if [ "$uw" -gt 0 ]; then
+            printf '%s,%s,%s\n' "$(date +%s)" \
+                "$(awk -v x="$uw" 'BEGIN{printf "%.3f", x/1000000}')" "$(soc)" >> "$out"
+        fi
+        sleep "$INTERVAL"
+    done
+
+    echo "# finished=$(date -Is) end_soc=$(soc)%" >> "$out"
+    echo "Done. Run 'power-bench report' once you have a run from each desktop."
+}
+
+cmd_report() {
+    python3 - "$DIR" "$SETTLE" <<'PY'
+import sys, os, glob, statistics, re, collections
+
+d, settle = sys.argv[1], int(sys.argv[2])
+files = sorted(glob.glob(os.path.join(d, "*.csv")))
+if not files:
+    sys.exit("No runs recorded yet. Use: power-bench run 20")
+
+try:
+    full = int(open("/sys/class/power_supply/BAT0/energy_full").read()) / 1e6
+except Exception:
+    full = None
+
+runs = []
+for f in files:
+    meta, rows, aborted = {}, [], False
+    for ln in open(f):
+        if ln.startswith("#"):
+            if "ABORTED" in ln: aborted = True
+            meta.update(dict(re.findall(r"(\w+)=(\S+)", ln)))
+        elif not ln.startswith("epoch"):
+            p = ln.split(",")
+            if len(p) == 3: rows.append((int(p[0]), float(p[1]), int(p[2])))
+    if aborted or not rows: continue
+    t0 = rows[0][0]
+    kept = [r for r in rows if r[0] - t0 >= settle]
+    if len(kept) < 6: continue          # under a minute of usable data
+    runs.append(dict(
+        file=os.path.basename(f), de=meta.get("de", "?"),
+        bright=int(meta.get("brightness", "-1").rstrip("%")),
+        prof=meta.get("profile", "?"),
+        w=[r[1] for r in kept],
+        soc=(kept[0][2], kept[-1][2]),
+        mins=(kept[-1][0] - kept[0][0]) / 60,
+    ))
+
+if not runs:
+    sys.exit("Runs exist but none has enough post-settling data yet.")
+
+by = collections.defaultdict(list)
+for r in runs: by[r["de"]].append(r)
+
+print("=== per desktop ===")
+res = {}
+for de, rs in sorted(by.items()):
+    allw = [w for r in rs for w in r["w"]]
+    med = statistics.median(allw)
+    res[de] = med
+    mins = sum(r["mins"] for r in rs)
+    br = {r["bright"] for r in rs}
+    print(f"\n{de}:  {len(rs)} run(s), {mins:.0f} min usable")
+    print(f"  median   {med:6.2f} W")
+    print(f"  mean     {statistics.mean(allw):6.2f} W")
+    if len(allw) > 10:
+        q = statistics.quantiles(allw, n=10)
+        print(f"  p10/p90  {q[0]:6.2f} / {q[8]:6.2f} W")
+    print(f"  brightness seen: {sorted(br)}")
+    if full: print(f"  implied runtime at this median: {full/med:.1f} h on a {full:.1f} Wh battery")
+
+if len(res) >= 2:
+    print("\n=== comparison ===")
+    (a, av), (b, bv) = sorted(res.items(), key=lambda kv: kv[1])[:2]
+    diff = bv - av
+    print(f"  {a} draws {diff:.2f} W less than {b}  ({diff/bv*100:.0f}% lower)")
+    if full:
+        print(f"  that is {full/av - full/bv:+.1f} h of runtime ({full/av:.1f} h vs {full/bv:.1f} h)")
+
+    brs = {r["de"]: {r2["bright"] for r2 in by[r["de"]]} for r in runs}
+    flat = [x for s in brs.values() for x in s]
+    if flat and max(flat) - min(flat) > 2:
+        print(f"\n  ⚠ BRIGHTNESS DIFFERS ACROSS DESKTOPS: {brs}")
+        print(f"    The panel is worth several watts end to end, which is larger")
+        print(f"    than the difference above. This comparison is NOT valid —")
+        print(f"    re-run both at the same brightness.")
+    socs = [r["soc"] for r in runs]
+    lo, hi = min(s[1] for s in socs), max(s[0] for s in socs)
+    if hi - lo > 40:
+        print(f"\n  ⚠ Runs span very different charge levels ({lo}%-{hi}%);")
+        print(f"    discharge rate drifts with state of charge.")
+else:
+    have = ", ".join(res)
+    print(f"\nOnly {have} recorded so far — log into the other desktop and run")
+    print("  power-bench run 20")
+PY
+}
+
+cmd_list() {
+    for f in "$DIR"/*.csv; do
+        [ -f "$f" ] || { echo "no runs yet"; return; }
+        printf '%-34s %s\n' "$(basename "$f")" "$(head -1 "$f" | sed 's/^# //')"
+    done
+}
+
+case "${1:-}" in
+    run)    shift; cmd_run "${1:-20}" ;;
+    report) cmd_report ;;
+    list)   cmd_list ;;
+    *) echo "usage: power-bench run [minutes] | report | list" >&2; exit 2 ;;
+esac

@@ -1,0 +1,78 @@
+/* ─── nwg-dock-hyprland · Catppuccin Mocha ──────────────────────────────────
+   Vertical dock on the left edge. Kept visually identical to the waybar top
+   bar: same translucent base, same 1px surface1 border, same radius.       */
+
+window {
+  background: rgba(30, 30, 46, 0.82);     /* base @ 82% - Hyprland blurs behind */
+  border-radius: 20px;
+  border-style: solid;
+  border-width: 1px;
+  border-color: rgba(69, 71, 90, 0.75);   /* surface1 */
+}
+
+#box {
+  /* horizontal padding here is dead space either side of every icon — keep it
+     tight, the icons already have their own padding. */
+  padding: 12px 5px;
+}
+
+/* the app buttons */
+button, image {
+  background: none;
+  border-style: none;
+  box-shadow: none;
+  color: #cdd6f4;                          /* text */
+}
+
+button {
+  /* Tight padding paired with a large -i: the dock is sized by its content, so
+     every px cut here is a px narrower bar AND a px more icon.
+     margin is the vertical gap between icons — this is what "compact" means. */
+  padding: 3px;
+  margin: 3px 0;
+  border-radius: 15px;
+  transition: background-color 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+button:hover {
+  background-color: rgba(49, 50, 68, 0.95); /* surface0 */
+}
+
+/* running-app indicator */
+#active {
+  border-right: solid 2px;
+  border-color: #cba6f7;                   /* mauve */
+}
+
+/* the launcher / exit buttons at the end of the strip */
+/* The "more apps" button is pinned to the BOTTOM of the dock (-lp end plus the
+   PackEnd patch). The border above it separates it from the app icons; the
+   margin keeps the icons from crowding the line. */
+#launcher-button, #exit-button {
+  color: #9399b2;                          /* overlay2 */
+}
+
+/* The bottom group: the -bottom pins (disk, trash) plus the launcher, packed
+   together at the foot of the dock. The separator belongs to this whole row,
+   so it sits above the disk icon rather than just above the grid.
+   The row is anchored to the bottom, so padding-top here IS the gap between
+   the line and the first icon under it — shrink it and the line moves down. */
+#bottom-box {
+  border-top: 1px solid rgba(69, 71, 90, 0.9);   /* surface1 */
+  margin: 18px 6px 0 6px;
+  padding-top: 2px;
+}
+#launcher-button:hover, #exit-button:hover {
+  color: #cba6f7;
+}
+
+tooltip {
+  background: rgba(17, 17, 27, 0.97);      /* crust */
+  border-radius: 9px;
+  border: 1px solid #45475a;
+}
+
+tooltip label {
+  color: #cdd6f4;
+  padding: 3px 5px;
+}

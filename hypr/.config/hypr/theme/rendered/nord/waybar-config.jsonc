@@ -1,0 +1,249 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 40,
+  // Re-read the CSS (and its @imports) whenever it changes on disk. This is
+  // how set-accent.sh recolours the bars live: SIGUSR2 reload is NOT safe with
+  // two waybar instances — both share the GApplication id fr.arouillard.waybar,
+  // and the one that doesn't own that D-Bus name aborts on reload
+  // (g_application_impl_command_line: assertion failed: object_id != 0).
+  "reload_style_on_change": true,
+  "spacing": 0,
+  // All zero: the bar is flush to the top and both edges, one continuous panel.
+  // A 5px top margin left a wallpaper strip above a square-cornered full-width
+  // bar, which read as a mistake rather than as floating.
+  // NOTE: this also sets how much vertical space is left for the sidebar.
+  // The dock claims no exclusive zone of its own, so it centres itself in
+  // whatever the bar does not reserve: zone 40 -> the dock is centred in
+  // 40..1200 rather than 0..1200.
+  "margin-top": 0,
+  "margin-left": 0,
+  "margin-right": 0,
+  // custom/logo is deliberately NOT listed: its format was two literal spaces
+  // (the glyph had gone missing), so it rendered ~50px of invisible padding to
+  // the left of workspace 1. Its definition is kept below in case a real icon
+  // is ever wanted back; SUPER+D and the dock's grid button already open fuzzel.
+  "modules-left": [
+    "hyprland/workspaces",
+    "custom/downloads",
+    "hyprland/submap"
+  ],
+  "modules-center": [
+    "hyprland/window"
+  ],
+  "modules-right": [
+    "tray",
+    "cpu",
+    "memory",
+    "temperature",
+    "pulseaudio",
+    "backlight",
+    "network",
+    "battery",
+    "clock",
+    "custom/notifications",
+    "custom/settings",
+    "custom/power"
+  ],
+  "custom/logo": {
+    "format": "  ",
+    "tooltip": false,
+    "on-click": "fuzzel"
+  },
+  "hyprland/workspaces": {
+    "format": "{icon}",
+    "on-click": "activate",
+    "format-icons": {
+      "1": "1",
+      "2": "2",
+      "3": "3",
+      "4": "4",
+      "5": "5",
+      "6": "6",
+      "7": "7",
+      "8": "8",
+      "9": "9",
+      "10": "10",
+      "urgent": "",
+      "default": ""
+    },
+    "persistent-workspaces": {
+      "*": 7
+    }
+  },
+  // ── downloads: aria2 + JDownloader progress, hidden when nothing is queued ──
+  // ~/.local/bin/dl-popup bar (never starts either backend). Polled like
+  // the bottom bar's modules: a signal would hit both bars.
+  "custom/downloads": {
+    "exec": "~/.local/bin/dl-popup bar",
+    "return-type": "json",
+    "interval": 2,
+    "on-click": "~/.local/bin/dl-popup status",
+    "on-click-right": "~/.local/bin/dl-popup bar-toggle"
+  },
+  "hyprland/submap": {
+    "format": "󰌌 {}",
+    "tooltip": false
+  },
+  "hyprland/window": {
+    "format": "{title}",
+    "max-length": 55,
+    "separate-outputs": true,
+    "rewrite": {
+      "(.*) — Mozilla Firefox": "󰈹  $1",
+      "(.*)Ghostty": "  terminal",
+      "(.*) - Visual Studio Code": "󰨞  $1"
+    }
+  },
+  "tray": {
+    "icon-size": 15,
+    "spacing": 10
+  },
+  "cpu": {
+    "interval": 3,
+    "format": "󰻠 {usage}%",
+    "tooltip": true,
+    "on-click": "ghostty -e btop"
+  },
+  "memory": {
+    "interval": 5,
+    "format": " {percentage}%",
+    "tooltip-format": "{used:0.1f} GiB / {total:0.1f} GiB",
+    "on-click": "ghostty -e btop"
+  },
+  "temperature": {
+    "interval": 5,
+    "critical-threshold": 82,
+    "format": "{icon} {temperatureC}°",
+    "format-icons": [
+      "",
+      "",
+      ""
+    ],
+    "tooltip": true
+  },
+  "backlight": {
+    // natural_scroll flips the touchpad; flip it back here so it matches the wheel
+    "reverse-scrolling": true,
+    "format": "{icon} {percent}%",
+    "format-icons": [
+      "󰛨",
+      "󰛨",
+      "󰛨"
+    ],
+    "on-scroll-up": "~/.config/hypr/brightness.sh up 5",
+    "on-scroll-down": "~/.config/hypr/brightness.sh down 5",
+    "tooltip": true,
+    "tooltip-format": "Screen brightness {percent}%  ·  scroll to change, click for 50%",
+    "on-click": "~/.config/hypr/brightness.sh set 50"
+  },
+  "pulseaudio": {
+    // natural_scroll flips the touchpad; flip it back here so it matches the wheel
+    "reverse-scrolling": true,
+    "format": "{icon} {volume}%",
+    "format-muted": "󰝟 muted",
+    "format-bluetooth": "󰂯 {volume}%",
+    "format-icons": {
+      "default": [
+        "󰕿",
+        "󰖀",
+        "󰕾"
+      ]
+    },
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-click-right": "pavucontrol",
+    "scroll-step": 5
+  },
+  "network": {
+    "format-wifi": "󰤨 {signalStrength}%",
+    "format-ethernet": "󰈀 wired",
+    "format-linked": "󰤫 no IP",
+    "format-disconnected": "󰤭 offline",
+    "tooltip-format-wifi": "{essid}  ·  {ipaddr}\n󰇚 {bandwidthDownBits}  󰕒 {bandwidthUpBits}",
+    "tooltip-format-ethernet": "{ifname}  ·  {ipaddr}",
+    // Two tabs: available networks (scan/connect/disconnect) + the saved
+    // profiles nm-connection-editor used to show. The editor itself is still
+    // one click away inside, for per-type forms and 802.1X.
+    "on-click": "~/.config/hypr/network-panel.py",
+    "on-click-right": "nm-connection-editor",
+    "interval": 5
+  },
+  "battery": {
+    "states": {
+      "warning": 25,
+      "critical": 12
+    },
+    "format": "{icon} {capacity}%",
+    "format-charging": "󰂄 {capacity}%",
+    "format-plugged": "󰂅 {capacity}%",
+    "format-icons": [
+      "󰁺",
+      "󰁻",
+      "󰁼",
+      "󰁽",
+      "󰁾",
+      "󰁿",
+      "󰂀",
+      "󰂁",
+      "󰂂",
+      "󰁹"
+    ],
+    "tooltip-format": "{timeTo}  ·  {power:0.1f} W",
+    "interval": 15
+  },
+  "clock": {
+    "interval": 30,
+    "format": "󰥔 {:%H:%M}",
+    "format-alt": "󰃭 {:%a %d %b}",
+    "tooltip-format": "<tt>{calendar}</tt>",
+    // Scroll over the clock to page the calendar tooltip by month. on-scroll
+    // alone does nothing — the shift_* actions are what move it.
+    "actions": {
+      "on-scroll-up": "shift_up",
+      "on-scroll-down": "shift_down"
+    },
+    // natural_scroll flips the touchpad; flip it back here so it matches the wheel
+    "reverse-scrolling": true,
+    "calendar": {
+      "mode": "month",
+      "on-scroll": 1,
+      "format": {
+        "months": "<span color='#@@ACCENT@@'><b>{}</b></span>",
+        "days": "<span color='#eceff4'>{}</span>",
+        "weekdays": "<span color='#5e81ac'><b>{}</b></span>",
+        "today": "<span color='#bf616a'><b><u>{}</u></b></span>"
+      }
+    }
+  },
+  // Power menu. custom/* with a Nerd Font glyph on purpose: waybar's `image`
+  // module makes every module on the bar vanish (landmine 1).
+  // U+F011 verified present in JetBrainsMonoNerdFont via fontTools.
+  "custom/power": {
+    "format": "\uf011",
+    "tooltip": true,
+    "tooltip-format": "Lock · Suspend · Log out · Restart · Power off",
+    // nwg-bar (apt, 0.1.6) — config in ~/.config/nwg-bar/{bar.json,style.css}.
+    // No -f: that flag only stretches an EDGE-positioned bar, and the default
+    // position is centred, so the window stays content-sized either way.
+    // power-menu.sh is the fuzzel fallback if nwg-bar ever misbehaves — swap
+    // this one line back to it, no other change needed.
+    "on-click": "nwg-bar"
+  },
+
+  // ── notification centre: bell + unread count ─────────────────────────────
+  // ~/.config/hypr/notif-center.py; history from notif-log.py (exec-once).
+  // Long-running (one JSON line per change), so no signal needed.
+  "custom/notifications": {
+    "exec": "/usr/bin/python3 ~/.config/hypr/notif-center.py bar",
+    "return-type": "json",
+    "restart-interval": 5,
+    "on-click": "/usr/bin/python3 ~/.config/hypr/notif-center.py",
+    "on-click-right": "/usr/bin/python3 ~/.config/hypr/notif-center.py dnd"
+  },
+  "custom/settings": {
+    "format": "󰒓",
+    "on-click": "gtk-launch org.gnome.Settings",
+    "tooltip": true,
+    "tooltip-format": "Settings"
+  }
+}

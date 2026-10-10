@@ -1,0 +1,11 @@
+[Unit]
+Description=Tasks check-in notification (morning / midday / evening)
+Documentation=file://%h/.config/hypr/tasks.py
+
+[Service]
+Type=oneshot
+# The kind (morning/midday/evening) is picked from the clock, so a check-in
+# that fires late after a suspend still says the right thing.
+ExecStart=/usr/bin/python3 %h/.config/hypr/tasks.py checkin
+# notify-send waits up to 20 s for the "Open tasks" button.
+TimeoutStartSec=90

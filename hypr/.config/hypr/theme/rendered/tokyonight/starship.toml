@@ -1,0 +1,147 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+format = """
+[](surface0)\
+$os\
+$username\
+[](bg:peach fg:surface0)\
+$directory\
+[](fg:peach bg:green)\
+$git_branch\
+$git_status\
+[](fg:green bg:sapphire)\
+$c$rust$golang$nodejs$php$java$kotlin$haskell$python\
+[](fg:sapphire bg:lavender)\
+$docker_context$conda\
+[ ](fg:lavender)\
+$fill\
+$cmd_duration\
+$line_break$character"""
+
+palette = 'catppuccin_mocha'
+
+[palettes.catppuccin_mocha]
+rosewater = "#f7c3c6"
+flamingo  = "#f7a8b0"
+pink      = "#fca7ea"
+mauve     = "#@@ACCENT@@"
+red       = "#f7768e"
+maroon    = "#db4b4b"
+peach     = "#ff9e64"
+yellow    = "#e0af68"
+green     = "#9ece6a"
+teal      = "#73daca"
+sky       = "#7dcfff"
+sapphire  = "#2ac3de"
+blue      = "#7aa2f7"
+lavender  = "#b4bcf7"
+text      = "#c0caf5"
+overlay0  = "#545c7e"
+surface0  = "#24283b"
+base      = "#1a1b26"
+
+[os]
+disabled = false
+style = "bg:surface0 fg:text"
+format = '[ $symbol]($style)'
+
+[os.symbols]
+Ubuntu = ""
+Linux  = ""
+
+[username]
+show_always = true
+style_user = "bg:surface0 fg:text"
+style_root = "bg:surface0 fg:red"
+format = '[ $user ]($style)'
+
+[directory]
+style = "fg:base bg:peach"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+read_only = " 󰌾"
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music"     = "󰝚 "
+"Pictures"  = " "
+"Developer" = "󰲋 "
+
+[git_branch]
+symbol = ""
+style = "bg:green fg:base"
+format = '[ $symbol $branch ]($style)'
+
+[git_status]
+style = "bg:green fg:base"
+format = '[($all_status$ahead_behind )]($style)'
+conflicted = "󰞇 "
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+untracked = "?${count}"
+stashed = " ${count}"
+modified = "!${count}"
+staged = "+${count}"
+renamed = "»${count}"
+deleted = "✘${count}"
+
+[nodejs]
+symbol = ""
+style = "bg:sapphire fg:base"
+format = '[ $symbol $version ]($style)'
+
+[python]
+symbol = ""
+style = "bg:sapphire fg:base"
+format = '[ $symbol $version ]($style)'
+
+[rust]
+symbol = ""
+style = "bg:sapphire fg:base"
+format = '[ $symbol $version ]($style)'
+
+[golang]
+symbol = ""
+style = "bg:sapphire fg:base"
+format = '[ $symbol $version ]($style)'
+
+[c]
+symbol = " "
+style = "bg:sapphire fg:base"
+format = '[ $symbol $version ]($style)'
+
+[java]
+symbol = ""
+style = "bg:sapphire fg:base"
+format = '[ $symbol $version ]($style)'
+
+[haskell]
+symbol = ""
+style = "bg:sapphire fg:base"
+format = '[ $symbol $version ]($style)'
+
+[docker_context]
+symbol = ""
+style = "bg:lavender fg:base"
+format = '[ $symbol $context ]($style)'
+
+[conda]
+symbol = "󱔎"
+style = "bg:lavender fg:base"
+format = '[ $symbol $environment ]($style)'
+
+[fill]
+symbol = " "
+
+[cmd_duration]
+min_time = 500
+style = "fg:overlay0"
+format = '[󱎫 $duration ]($style)'
+
+[character]
+success_symbol = '[❯](bold green)'
+error_symbol   = '[❯](bold red)'
+vicmd_symbol   = '[❮](bold mauve)'

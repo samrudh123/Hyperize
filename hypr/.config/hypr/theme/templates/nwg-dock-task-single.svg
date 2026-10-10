@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="5" height="30" viewBox="0 0 5 30">
+  <!-- Running-app indicator beside a sidebar icon (one window): a rounded
+       accent bar. nwg-dock draws it at (-indicator) x (-i) px, 5 x 30 here
+       (dock-start.sh). Upstream's strip is -i / 8 wide, 3px at -i 30, where
+       its dot was nearly invisible.
+       The <svg> tag must come FIRST: gdk-pixbuf sniffs only the start of the
+       file, and a leading comment made it reject the file, which made the dock
+       drop the whole icon of every running app.
+       Template: set-accent.sh renders @@ACCENT@@. -->
+  <rect x="0.5" y="6" width="4" height="18" rx="2" fill="#@@ACCENT@@"/>
+</svg>

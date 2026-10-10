@@ -1,0 +1,6 @@
+Row icons for media-menu.sh. fuzzel can't colour text, so the bottom bar's
+player colour coding — Spotify green, YouTube apps red (#bf616a),
+Firefox peach, YouTube Music pink, anything else blue — is carried by these
+instead (the menu is GTK now and colours its text too). Catppuccin Mocha, fixed
+(not accent-themed), same as the bar's player colours.
+    <app>-{playing,paused,stopped,open}.svg

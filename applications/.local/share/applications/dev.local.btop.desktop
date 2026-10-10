@@ -1,0 +1,23 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=btop++
+GenericName=System Monitor
+Comment=Resource monitor for processor, memory, disks, network and processes
+# The system entry (/usr/share/applications/btop.desktop) is Exec=btop +
+# Terminal=true. nwg-dock has no terminal option (no -term flag), so it execs
+# the entry directly and btop dies instantly with "No tty detected!".
+#
+# Wrapping it in ghostty gives it a TTY. --class makes the window class match
+# this file's basename, which is also the line in ~/.cache/nwg-dock-pinned, so
+# the dock can show a running indicator — a bare `btop` pin never can, because
+# a TUI's class is the terminal's (com.mitchellh.ghostty).
+#
+# NOTE: ghostty SILENTLY IGNORES an invalid class — it must be reverse-DNS
+# form (>=2 dots). --class=btop does nothing; dev.local.btop works.
+Exec=ghostty --class=dev.local.btop -e btop
+Icon=btop
+Terminal=false
+StartupWMClass=dev.local.btop
+Categories=System;Monitor;
+Keywords=system;process;task

@@ -1,0 +1,93 @@
+// App dock - horizontal, bottom.
+// NOTE: waybar 0.15.0's `image` module silently breaks the ENTIRE bar
+// (verified: adding one to a working config blanks every module), and
+// `position: left` renders a background but no modules at all. Hence
+// Nerd Font glyphs on a horizontal bar.
+{
+  "name": "dock",
+  "layer": "top",
+  "position": "bottom",
+  "height": 54,
+  "spacing": 0,
+  "margin-bottom": 8,
+  "exclusive": false,
+  "modules-center": [
+    "custom/ghostty",
+    "custom/brave",
+    "custom/firefox",
+    "custom/code",
+    "custom/dbeaver",
+    "custom/files",
+    "custom/discord",
+    "custom/obs",
+    "custom/kdenlive",
+    "custom/jdownload",
+    "custom/btop"
+  ],
+  "custom/ghostty": {
+    "format": "󰆍",
+    "on-click": "gtk-launch com.mitchellh.ghostty",
+    "tooltip": true,
+    "tooltip-format": "Terminal"
+  },
+  "custom/brave": {
+    "format": "󰖟",
+    "on-click": "gtk-launch brave-browser",
+    "tooltip": true,
+    "tooltip-format": "Brave"
+  },
+  "custom/firefox": {
+    "format": "󰈹",
+    "on-click": "gtk-launch firefox",
+    "tooltip": true,
+    "tooltip-format": "Firefox"
+  },
+  "custom/code": {
+    "format": "󰨞",
+    "on-click": "gtk-launch com.microsoft.VSCode",
+    "tooltip": true,
+    "tooltip-format": "VS Code"
+  },
+  "custom/dbeaver": {
+    "format": "󰆼",
+    "on-click": "gtk-launch dbeaver-ce",
+    "tooltip": true,
+    "tooltip-format": "DBeaver"
+  },
+  "custom/files": {
+    "format": "󰉋",
+    "on-click": "gtk-launch org.gnome.Nautilus",
+    "tooltip": true,
+    "tooltip-format": "Files"
+  },
+  "custom/discord": {
+    "format": "󰙯",
+    "on-click": "gtk-launch discord",
+    "tooltip": true,
+    "tooltip-format": "Discord"
+  },
+  "custom/obs": {
+    "format": "󰕧",
+    "on-click": "gtk-launch com.obsproject.Studio",
+    "tooltip": true,
+    "tooltip-format": "OBS Studio"
+  },
+  "custom/kdenlive": {
+    "format": "󰈯",
+    "on-click": "gtk-launch org.kde.kdenlive",
+    "tooltip": true,
+    "tooltip-format": "Kdenlive"
+  },
+  "custom/jdownload": {
+    "format": "󰇚",
+    "on-click": "gtk-launch install4j_1nco9fl-JDownloader2",
+    "tooltip": true,
+    "tooltip-format": "JDownloader"
+  },
+  "custom/btop": {
+    "format": "󰺛",
+    "on-click": "ghostty -e btop",
+    "tooltip": true,
+    "tooltip-format": "btop"
+  }
+}

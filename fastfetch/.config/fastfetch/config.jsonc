@@ -1,0 +1,148 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "small",
+    "padding": {
+      "top": 1,
+      "left": 2,
+      "right": 3
+    },
+    "color": {
+      "1": "magenta",
+      "2": "blue"
+    }
+  },
+  "display": {
+    "separator": "  ",
+    "color": {
+      "keys": "magenta",
+      "title": "blue"
+    },
+    "percent": {
+      "type": [
+        "bar"
+      ]
+    },
+    "bar": {
+      "char": {
+        "elapsed": "━",
+        "total": "─"
+      },
+      "width": 12,
+      "border": {
+        "left": " ",
+        "right": " "
+      }
+    }
+  },
+  "modules": [
+    "break",
+    {
+      "type": "title",
+      "color": {
+        "user": "magenta",
+        "at": "white",
+        "host": "blue"
+      }
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[38;2;88;91;112m╭────────────────────────────────────────╮"
+    },
+    {
+      "type": "os",
+      "key": "  󰍹 os     ",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "kernel",
+      "key": "   kernel ",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "uptime",
+      "key": "  󰅐 uptime ",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "packages",
+      "key": "  󰏖 pkgs   ",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "shell",
+      "key": "   shell  ",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "terminal",
+      "key": "   term   ",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[38;2;88;91;112m├────────────────────────────────────────┤"
+    },
+    {
+      "type": "wm",
+      "key": "  󰖲 wm     ",
+      "keyColor": "blue"
+    },
+    {
+      "type": "theme",
+      "key": "  󰉼 theme  ",
+      "keyColor": "blue"
+    },
+    {
+      "type": "icons",
+      "key": "  󰀻 icons  ",
+      "keyColor": "blue"
+    },
+    {
+      "type": "display",
+      "key": "  󰍺 display",
+      "keyColor": "blue"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[38;2;88;91;112m├────────────────────────────────────────┤"
+    },
+    {
+      "type": "cpu",
+      "key": "  󰻠 cpu    ",
+      "keyColor": "green",
+      "showPeCoreCount": true
+    },
+    {
+      "type": "gpu",
+      "key": "  󰢮 gpu    ",
+      "keyColor": "green"
+    },
+    {
+      "type": "memory",
+      "key": "   memory ",
+      "keyColor": "green"
+    },
+    {
+      "type": "disk",
+      "key": "  󰋊 disk   ",
+      "keyColor": "green"
+    },
+    {
+      "type": "battery",
+      "key": "  󰂄 battery",
+      "keyColor": "green"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[38;2;88;91;112m╰────────────────────────────────────────╯"
+    },
+    "break",
+    {
+      "type": "colors",
+      "paddingLeft": 4,
+      "symbol": "circle"
+    },
+    "break"
+  ]
+}

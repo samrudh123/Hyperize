@@ -1,0 +1,12 @@
+[Unit]
+Description=aria2 download daemon (JSON-RPC on 127.0.0.1:6800, used by dl-popup)
+After=network-online.target
+
+[Service]
+ExecStartPre=/usr/bin/mkdir -p %h/.local/state/aria2
+ExecStartPre=/usr/bin/touch %h/.local/state/aria2/session
+ExecStart=/usr/bin/aria2c --conf-path=%h/.config/aria2/aria2.conf
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

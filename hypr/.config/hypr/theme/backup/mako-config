@@ -1,0 +1,26 @@
+# ─── mako · Catppuccin Mocha ───
+font=JetBrainsMono Nerd Font 10
+background-color=#1e1e2edd
+text-color=#cdd6f4
+border-color=#cba6f7
+progress-color=over #313244
+border-size=2
+border-radius=10
+padding=12,16
+margin=10
+default-timeout=5000
+max-visible=4
+anchor=top-right
+layer=overlay
+width=380
+height=120
+icon-path=/usr/share/icons/Papirus-Dark
+
+[urgency=low]
+border-color=#89b4fa
+default-timeout=3000
+
+[urgency=high]
+border-color=#f38ba8
+text-color=#f38ba8
+default-timeout=0

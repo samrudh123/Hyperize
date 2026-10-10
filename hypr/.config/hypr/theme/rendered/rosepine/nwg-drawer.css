@@ -1,0 +1,97 @@
+/* ─── nwg-drawer · Catppuccin Mocha ─────────────────────────────────────────
+   The SUPER+D grid launcher. Kept visually identical to waybar and the dock:
+   same translucent base, same mauve accent, same radii.                     */
+
+window {
+  background-color: rgba(25, 23, 36, 0.93);   /* base — Hyprland blurs behind */
+  color: #e0def4;                             /* text */
+}
+
+/* search entry */
+entry {
+  background-color: rgba(31, 29, 46, 0.85);   /* surface0 */
+  color: #e0def4;
+  caret-color: #@@ACCENT@@;                       /* mauve */
+  border: 1px solid rgba(38, 35, 58, 0.9);    /* surface1 */
+  border-radius: 12px;
+  padding: 6px 12px;
+  margin: 10px 0;
+}
+
+entry:focus {
+  border-color: #@@ACCENT@@;
+}
+
+entry selection {
+  background-color: #@@ACCENT@@;
+  color: #12101a;                             /* crust */
+}
+
+button, image {
+  background: none;
+  border: none;
+  color: #e0def4;
+}
+
+/* app tiles */
+button {
+  border-radius: 15px;
+  padding: 8px;
+  transition: background-color 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+button:hover {
+  background-color: rgba(31, 29, 46, 0.95);   /* surface0 */
+}
+
+button:focus {
+  background-color: rgba(38, 35, 58, 0.95);   /* surface1 */
+  outline: none;
+}
+
+/* category filter row */
+#category-button {
+  margin: 0 6px;
+  padding: 4px 12px;
+  color: #908caa;                             /* overlay2 */
+  border-radius: 10px;
+}
+
+#category-button:hover {
+  color: #e0def4;
+}
+
+/* favourites row — right-click an app to pin/unpin it here */
+#pinned-box {
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(38, 35, 58, 0.7);
+}
+
+#files-box {
+  padding: 6px;
+  border: 1px solid rgba(38, 35, 58, 0.7);
+  border-radius: 15px;
+}
+
+/* calculator result */
+#math-label {
+  font-weight: bold;
+  font-size: 16px;
+  color: #95c4a8;                             /* green */
+}
+
+/* the hint line at the bottom */
+#desc-label {
+  color: #6e6a86;                             /* overlay1 */
+}
+
+tooltip {
+  background: rgba(18, 16, 26, 0.97);         /* crust */
+  border-radius: 9px;
+  border: 1px solid #26233a;
+}
+
+tooltip label {
+  color: #e0def4;
+  padding: 3px 5px;
+}

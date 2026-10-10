@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="5" height="30" viewBox="0 0 5 30">
+  <!-- Running-app indicator, two or more windows: two bars (see
+       nwg-dock-task-single.svg). Template: set-accent.sh renders @@ACCENT@@. -->
+  <rect x="0.5" y="3" width="4" height="10.5" rx="2" fill="#@@ACCENT@@"/>
+  <rect x="0.5" y="16.5" width="4" height="10.5" rx="2" fill="#@@ACCENT@@"/>
+</svg>

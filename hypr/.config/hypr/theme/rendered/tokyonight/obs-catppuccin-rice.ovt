@@ -1,0 +1,55 @@
+@OBSThemeMeta {
+    name: 'Mocha (desktop accent)';
+    id: 'com.obsproject.Catppuccin.MochaRice';
+    extends: 'com.obsproject.Catppuccin';
+    author: 'Xurdejl';
+    dark: 'true';
+}
+
+/* Catppuccin Mocha with the DESKTOP accent: a local variant of
+ * Catppuccin_Mocha.ovt (catppuccin/obs). The theme's accent role is
+ * "blue" (lavender = its hover, sapphire = its darker shade) — all three are
+ * the accent here. Rendered by set-accent.sh from
+ * ~/.config/hypr/theme/templates/obs-catppuccin-rice.ovt; edit, then
+ * `set-accent.sh --resync`. OBS reads themes at start. */
+@OBSThemeVars {
+    --ctp_rosewater: #f7c3c6;
+    --ctp_flamingo: #f7a8b0;
+    --ctp_pink: #fca7ea;
+    --ctp_mauve: rgb(187, 154, 247);   /* not #hex: that would read as the accent token */
+    --ctp_red: #f7768e;
+    --ctp_maroon: #db4b4b;
+    --ctp_peach: #ff9e64;
+    --ctp_yellow: #e0af68;
+    --ctp_green: #9ece6a;
+    --ctp_teal: #73daca;
+    --ctp_sky: #7dcfff;
+    --ctp_sapphire: #@@ACCENT@@;
+    --ctp_blue: #@@ACCENT@@;
+    --ctp_lavender: #@@ACCENT@@;
+    --ctp_text: #c0caf5;
+    --ctp_subtext1: #a9b1d6;
+    --ctp_subtext0: #9aa5ce;
+    --ctp_overlay2: #737aa2;
+    --ctp_overlay1: #5f6890;
+    --ctp_overlay0: #545c7e;
+    --ctp_surface2: #414868;
+    --ctp_surface1: #343a52;
+    --ctp_surface0: #24283b;
+    --ctp_base: #1a1b26;
+    --ctp_mantle: #16161e;
+    --ctp_crust: #13131a;
+    --ctp_selection_background: #353649;
+}
+
+/*
+ * VolumeMeter foreground peak colors are tuned per-flavor.
+ * Dark flavors subtract lightness to avoid blowout on dark tracks.
+ * Latte adds lightness for contrast on the light track background.
+ */
+VolumeMeter {
+    qproperty-foregroundNominalColor: #6fd266;
+    qproperty-foregroundWarningColor: #f7853f;
+    qproperty-foregroundErrorColor:   #ec4675;
+}
+

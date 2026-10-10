@@ -1,0 +1,72 @@
+/* ─── Waybar dock (bottom) · Catppuccin Mocha ───────────────────────────── */
+
+@define-color base     #1e1e2e;
+@define-color crust    #11111b;
+@define-color surface0 #313244;
+@define-color surface1 #45475a;
+@define-color text     #cdd6f4;
+@define-color mauve    #@@ACCENT@@;
+@define-color blue     #89b4fa;
+@define-color peach    #fab387;
+@define-color green    #a6e3a1;
+@define-color teal     #94e2d5;
+@define-color red      #f38ba8;
+@define-color yellow   #f9e2af;
+@define-color pink     #f5c2e7;
+@define-color sapphire #74c7ec;
+@define-color lavender #b4befe;
+
+* {
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 22px;
+}
+
+window#waybar { background: transparent; }
+
+/* one rounded translucent slab; Hyprland blurs behind it */
+.modules-center {
+  background-color: alpha(@base, 0.82);
+  border: 1px solid alpha(@surface1, 0.75);
+  border-radius: 16px;
+  padding: 3px 7px;
+}
+
+.modules-center > widget > * {
+  padding: 5px 11px;
+  margin: 3px 2px;
+  border-radius: 11px;
+  transition: background-color 160ms cubic-bezier(0.23, 1, 0.32, 1),
+              color 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.modules-center > widget > *:hover {
+  background-color: alpha(@surface0, 0.95);
+}
+
+/* each app keeps its own hue so the row is scannable */
+#custom-ghostty   { color: @text; }
+#custom-brave     { color: @peach; }
+#custom-firefox   { color: @yellow; }
+#custom-code      { color: @blue; }
+#custom-dbeaver   { color: @sapphire; }
+#custom-files     { color: @lavender; }
+#custom-discord   { color: @mauve; }
+#custom-obs       { color: @red; }
+#custom-kdenlive  { color: @pink; }
+#custom-jdownload { color: @green; }
+#custom-btop      { color: @teal; }
+
+tooltip {
+  background-color: alpha(@crust, 0.97);
+  border: 1px solid @surface1;
+  border-radius: 9px;
+}
+tooltip label {
+  color: @text;
+  font-family: "IBM Plex Sans", "Ubuntu", sans-serif;
+  font-size: 12px;
+  padding: 3px 5px;
+}

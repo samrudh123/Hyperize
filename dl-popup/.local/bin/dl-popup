@@ -1,0 +1,1151 @@
+#!/usr/bin/python3
+"""dl-popup: IDM-style download popup (fuzzel) in front of aria2 and JDownloader.
+
+    dl-popup add URL [--filename NAME] [--referrer URL]   popup for one URL
+    dl-popup add --stdin                                  job as JSON on stdin (the Firefox
+                                                          native host uses this, so cookies
+                                                          never show up in `ps`)
+    dl-popup status                                       aria2 queue: pause / resume / remove / open
+    dl-popup jd                                           start JDownloader (or check it is up)
+    dl-popup fetch curl|wget ARGS...                      a terminal download via JDownloader
+                                                          (exit 3 = run the real tool instead)
+    dl-popup bar / bar-toggle                             waybar module output / pause-resume all
+
+`add` prints one JSON line on stdout, which the Firefox extension acts on:
+    {"action": "aria2" | "jd" | "firefox" | "cancel" | "error", ...}
+
+Pieces:
+    ~/.config/dl-popup/config.json     defaults (folder, chunks, parallel, JD hoster list, ...)
+    ~/.config/aria2/aria2.conf         aria2 daemon, run by `systemctl --user ... aria2.service`
+    ~/.local/share/dl-popup/           Firefox extension + native-messaging host
+    ~/jd2                              JDownloader; its local API ("deprecated API") must be on
+
+GLYPHS: written as \\U escapes, never literal characters (see ~/.config/hypr/power-menu.sh).
+All codepoints checked present in JetBrainsMonoNerdFont.
+"""
+
+import argparse
+import fcntl
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+HOME = os.path.expanduser("~")
+CONFIG = os.path.join(HOME, ".config/dl-popup/config.json")
+ARIA2_CONF = os.path.join(HOME, ".config/aria2/aria2.conf")
+LOCK = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "dl-popup.lock")
+
+I_DOWNLOAD = "\U000F01DA"   # md-download
+I_FOLDER = "\U000F024B"     # md-folder
+I_BROWSE = "\U000F0770"     # md-folder_open
+I_FILE = "\U000F0214"       # md-file
+I_SPEED = "\U000F04C5"      # md-speedometer
+I_CHUNKS = "\U000F00FB"     # md-call_split
+I_PARALLEL = "\U000F0328"   # md-layers
+I_BACKEND = "\U000F048B"    # md-server
+I_FIREFOX = "\U000F0239"    # md-firefox
+I_CANCEL = "\U000F0156"     # md-close
+I_PLAY = "\U000F040A"       # md-play
+I_PAUSE = "\U000F03E4"      # md-pause
+I_WAIT = "\U000F051F"       # md-timer_sand
+I_DONE = "\U000F05E0"       # md-check_circle
+I_ERROR = "\U000F0028"      # md-alert_circle
+I_DELETE = "\U000F01B4"     # md-delete
+I_BROOM = "\U000F00E2"      # md-broom
+I_OPEN = "\U000F03CC"       # md-open_in_new
+I_LINK = "\U000F0337"       # md-link
+I_REFRESH = "\U000F0450"    # md-refresh
+I_PENCIL = "\U000F03EB"     # md-pencil
+I_PACKAGE = "\U000F03D4"    # md-package_down
+
+DEFAULTS = {
+    "default_dir": "~/Downloads",   # used until a folder has been picked once
+    "recent_dirs": [],
+    "chunks": 8,                 # connections per file (aria2 caps this at 16)
+    "parallel": 3,               # downloads running at once (global setting in both backends)
+    "speed_presets": ["unlimited", "256K", "512K", "1M", "2M", "5M", "10M"],
+    # Links on these sites go to JDownloader by default (hoster plugins, waits, captchas).
+    # Matched against the download URL and the page it was clicked on.
+    "jd_domains": ["rapidgator.net", "rg.to", "1fichier.com", "nitroflare.com", "katfile.com",
+                   "ddownload.com", "turbobit.net", "filefactory.com", "uploaded.net",
+                   "mega.nz", "mega.co.nz", "filecrypt.cc", "keeplinks.org"],
+    "jd_dir": "~/jd2",
+    "jd_headless": False,        # True = no JD window at all (captchas then need the browser solver)
+    "fuzzel_width": 64,
+}
+
+
+# ---------------------------------------------------------------- helpers
+
+def load_config():
+    cfg = dict(DEFAULTS)
+    try:
+        with open(CONFIG) as f:
+            cfg.update(json.load(f))
+    except FileNotFoundError:
+        save_config(cfg)
+    except json.JSONDecodeError as e:
+        notify("dl-popup: config.json is broken, using defaults", str(e), urgency="critical")
+    return cfg
+
+
+def save_config(cfg):
+    os.makedirs(os.path.dirname(CONFIG), exist_ok=True)
+    tmp = CONFIG + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(cfg, f, indent=2)
+        f.write("\n")
+    os.replace(tmp, CONFIG)
+
+
+def notify(title, body="", urgency="normal", icon="emblem-downloads"):
+    subprocess.run(["notify-send", "-a", "Downloads", "-u", urgency, "-i", icon, title, body],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def tilde(path):
+    return "~" + path[len(HOME):] if path == HOME or path.startswith(HOME + "/") else path
+
+
+def human(n):
+    if n is None or n < 0:
+        return "?"
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+
+
+def parse_speed(text):
+    """'unlimited' / '0' -> 0, '512K' -> 524288, '1.5M' -> 1572864 (bytes per second)."""
+    s = text.strip().lower().replace(" ", "")
+    if s in ("", "0", "none", "off", "unlimited", "no", "max"):
+        return 0
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)([kmg]?)(?:i?b)?(?:/s|ps)?", s)
+    if not m:
+        raise ValueError(text)
+    return int(float(m.group(1)) * {"": 1, "k": 1024, "m": 1024 ** 2, "g": 1024 ** 3}[m.group(2)])
+
+
+def _speed_or_none(text):
+    try:
+        return parse_speed(text)
+    except ValueError:
+        return None
+
+
+def fmt_speed(bps):
+    return "unlimited" if not bps else human(bps) + "/s"
+
+
+def host_of(url):
+    try:
+        return (urllib.parse.urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+def matches_domain(host, domains):
+    return any(host == d or host.endswith("." + d) for d in domains)
+
+
+# ---------------------------------------------------------------- fuzzel
+
+def fuzzel(args, lines=None):
+    """Run fuzzel; returns stdout stripped, or None on Escape. If another fuzzel
+    (launcher, clipboard menu, ...) is open, close it and take over."""
+    cmd = ["fuzzel", "--no-icons"] + args
+    stdin = None if lines is None else "\n".join(lines) + "\n"
+    for _ in range(2):
+        p = subprocess.run(cmd, input=stdin, capture_output=True, text=True)
+        if p.returncode == 0:
+            return p.stdout.rstrip("\n")
+        if "already running" in p.stderr.lower():
+            subprocess.run(["pkill", "-x", "fuzzel"])
+            time.sleep(0.3)
+            continue
+        return None
+    return None
+
+
+def menu(rows, prompt, placeholder="", width=None, select=0):
+    """rows: list of (key, label). Returns the chosen key, or None."""
+    out = fuzzel(["--dmenu", "--index", "--no-sort", "--prompt", prompt,
+                  "--placeholder", placeholder, "--lines", str(min(len(rows), 15)),
+                  "--width", str(width or CFG["fuzzel_width"]),
+                  "--select-index", str(select)],
+                 [label for _, label in rows])
+    if out is None or not out.lstrip("-").isdigit():
+        return None
+    i = int(out)
+    return rows[i][0] if 0 <= i < len(rows) else None
+
+
+def pick(options, prompt, placeholder, current=None):
+    """List picker that also accepts free text (type it, then Shift+Enter or
+    Enter when nothing matches). Returns the chosen/typed string or None."""
+    args = ["--dmenu", "--no-sort", "--prompt", prompt, "--placeholder", placeholder,
+            "--lines", str(min(len(options), 12)), "--width", str(CFG["fuzzel_width"])]
+    if current in options:
+        args += ["--select-index", str(options.index(current))]
+    return fuzzel(args, options)
+
+
+def ask(prompt, initial=""):
+    """Single free-text line, pre-filled with `initial`."""
+    return fuzzel(["--dmenu", "--prompt-only", prompt, "--search", initial,
+                   "--width", str(CFG["fuzzel_width"])])
+
+
+# ---------------------------------------------------------------- aria2
+
+def aria2_settings():
+    port, secret = 6800, ""
+    try:
+        with open(ARIA2_CONF) as f:
+            for line in f:
+                k, _, v = line.strip().partition("=")
+                if k == "rpc-listen-port":
+                    port = int(v)
+                elif k == "rpc-secret":
+                    secret = v
+    except FileNotFoundError:
+        pass
+    return port, secret
+
+
+def aria2(method, *params):
+    port, secret = aria2_settings()
+    body = {"jsonrpc": "2.0", "id": "dl-popup", "method": method,
+            "params": ([f"token:{secret}"] if secret else []) + list(params)}
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/jsonrpc",
+                                 data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            res = json.load(r)
+    except urllib.error.HTTPError as e:      # aria2 answers RPC errors with 400 + JSON body
+        res = json.load(e)
+    if "error" in res:
+        raise RuntimeError(res["error"].get("message", str(res["error"])))
+    return res["result"]
+
+
+def ensure_aria2():
+    try:
+        aria2("aria2.getVersion")
+        return
+    except (OSError, RuntimeError):
+        pass
+    subprocess.run(["systemctl", "--user", "start", "aria2.service"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(50):
+        time.sleep(0.1)
+        try:
+            aria2("aria2.getVersion")
+            return
+        except (OSError, RuntimeError):
+            pass
+    raise RuntimeError("aria2 is not running (systemctl --user status aria2)")
+
+
+def send_aria2(job, st):
+    ensure_aria2()
+    aria2("aria2.changeGlobalOption", {"max-concurrent-downloads": str(st["parallel"])})
+    opts = {
+        "dir": st["dir"],
+        "split": str(st["chunks"]),
+        "max-connection-per-server": str(min(st["chunks"], 16)),
+        "max-download-limit": str(st["speed"]),
+    }
+    if st["filename"]:
+        opts["out"] = st["filename"]
+    if job.get("referrer"):
+        opts["referer"] = job["referrer"]
+    if job.get("userAgent"):
+        opts["user-agent"] = job["userAgent"]
+    if job.get("cookies"):
+        opts["header"] = [f"Cookie: {job['cookies']}"]
+    gid = aria2("aria2.addUri", [job["url"]], opts)
+    notify("Downloading", f"{st['filename'] or job['url']}\n→ {tilde(st['dir'])}")
+    return gid
+
+
+# ---------------------------------------------------------------- JDownloader
+
+def jd_dir():
+    return os.path.expanduser(CFG["jd_dir"])
+
+
+def jd_port():
+    try:
+        with open(os.path.join(jd_dir(), "cfg/org.jdownloader.api.RemoteAPIConfig.json")) as f:
+            c = json.load(f)
+        if not c.get("deprecatedapienabled"):
+            raise RuntimeError("JDownloader's local API is off (Advanced Settings → "
+                               "RemoteAPI: Deprecated Api Enabled)")
+        return c.get("deprecatedapiport", 3128)
+    except FileNotFoundError:
+        raise RuntimeError(f"JDownloader not found in {tilde(jd_dir())}")
+
+
+def jd(path, *args, timeout=10):
+    """Call JD's local API: every argument is JSON, positional, URL-encoded."""
+    q = "&".join(urllib.parse.quote(json.dumps(a), safe="") for a in args)
+    url = f"http://127.0.0.1:{jd_port()}/{path}" + (f"?{q}" if q else "")
+    with urllib.request.urlopen(url, timeout=timeout) as r:
+        return json.load(r).get("data")
+
+
+def jd_running():
+    try:
+        jd("jd/version", timeout=2)
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def ensure_jd():
+    if jd_running():
+        return
+    jd_port()   # raises a readable error if the API is off
+    if CFG["jd_headless"]:
+        cmd = ["java", "-Djava.awt.headless=true", "-jar", os.path.join(jd_dir(), "JDownloader.jar")]
+    else:
+        cmd = [os.path.join(jd_dir(), "JDownloader2")]
+    subprocess.Popen(cmd, cwd=jd_dir(), start_new_session=True, stdin=subprocess.DEVNULL,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    notify("Starting JDownloader…", "the link is added as soon as it is up")
+    for _ in range(120):
+        time.sleep(0.5)
+        if jd_running():
+            return
+    raise RuntimeError("JDownloader did not start within 60 s")
+
+
+GS = "org.jdownloader.settings.GeneralSettings"
+
+
+def send_jd(job, st):
+    ensure_jd()
+    # Chunks, parallel downloads and speed limit are global in JD.
+    jd("config/set", GS, None, "MaxChunksPerFile", st["chunks"])
+    jd("config/set", GS, None, "MaxSimultaneDownloads", st["parallel"])
+    jd("config/set", GS, None, "DownloadSpeedLimitEnabled", bool(st["speed"]))
+    if st["speed"]:
+        jd("config/set", GS, None, "DownloadSpeedLimit", st["speed"])
+    query = {"links": job["url"], "destinationFolder": st["dir"], "autostart": True,
+             "overwritePackagizerRules": True}
+    if job.get("referrer"):
+        query["sourceUrl"] = job["referrer"]
+    jd("linkgrabberv2/addLinks", query)
+    notify("Sent to JDownloader", f"{job['url']}\n→ {tilde(st['dir'])}")
+
+
+# ---------------------------------------------------------------- the popup
+
+def last_dir():
+    """Most recently used folder that still exists, else default_dir."""
+    for d in CFG.get("recent_dirs", []):
+        d = os.path.expanduser(d)
+        if os.path.isdir(d):
+            return d
+    return os.path.expanduser(CFG["default_dir"])
+
+
+def choose_dir(current):
+    dirs = []
+    for d in [current, os.path.expanduser(CFG["default_dir"])] + CFG["recent_dirs"] + [
+            os.path.join(HOME, x) for x in ("Downloads", "Videos", "Music", "Documents",
+                                             "Pictures", "Desktop")]:
+        d = os.path.expanduser(d)
+        if d not in dirs and os.path.isdir(d):
+            dirs.append(d)
+    labels = [f"{I_FOLDER}  {tilde(d)}" for d in dirs]
+    browse = f"{I_BROWSE}  Browse…"
+    out = pick(labels + [browse], f"{I_FOLDER}  ", "folder, or type a path + Shift+Enter",
+               current=labels[0])
+    if out is None:
+        return None
+    if out == browse:
+        return yazi_pick_dir(current)
+    if out in labels:
+        return dirs[labels.index(out)]
+    path = os.path.abspath(os.path.expanduser(out.strip()))
+    return path if out.strip() else None
+
+
+def yazi_pick_dir(start):
+    """Folder picker: yazi in the same floating ghostty as the system file
+    dialogs (class com.samrudh.filepicker, see hyprland.conf).
+      q            use the folder yazi is in
+      Space+Enter  use the marked folder instead
+      Q            cancel (quits without writing the cwd file)
+    --gtk-single-instance=false so ghostty blocks until the window closes."""
+    tmp = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), f"dl-popup-pick.{os.getpid()}")
+    chooser, cwd = tmp + ".chosen", tmp + ".cwd"
+    try:
+        subprocess.run(["ghostty", "--gtk-single-instance=false",
+                        "--class=com.samrudh.filepicker",
+                        "--title=Save downloads to  (q = this folder, Q = cancel)",
+                        "-e", os.path.join(HOME, ".local/bin/yazi"),
+                        f"--chooser-file={chooser}", f"--cwd-file={cwd}", start],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for f in (chooser, cwd):
+            try:
+                with open(f) as fh:
+                    picked = fh.read().splitlines()
+            except FileNotFoundError:
+                continue
+            if picked and picked[0]:
+                p = picked[0]
+                return p if os.path.isdir(p) else os.path.dirname(p)
+        return None
+    finally:
+        for f in (chooser, cwd):
+            try:
+                os.remove(f)
+            except FileNotFoundError:
+                pass
+
+
+def choose_number(prompt, options, current, lo, hi):
+    labels = [str(o) for o in options]
+    out = pick(labels, prompt, f"{lo}–{hi}, or type a number", current=str(current))
+    if out is None:
+        return current
+    try:
+        return max(lo, min(hi, int(out.strip())))
+    except ValueError:
+        notify("dl-popup", f"not a number: {out}", urgency="low")
+        return current
+
+
+def choose_speed(current):
+    presets = CFG["speed_presets"]
+    now = next((p for p in presets if _speed_or_none(p) == current), None)
+    out = pick(presets, f"{I_SPEED}  ", "limit, e.g. 750K or 3M (Shift+Enter)", current=now)
+    if out is None:
+        return current
+    try:
+        return parse_speed(out)
+    except ValueError:
+        notify("dl-popup", f"can't read speed '{out}' (try 500K, 2M, unlimited)", urgency="low")
+        return current
+
+
+def popup(job):
+    url = job["url"]
+    filename = (job.get("filename") or "").strip()
+    if not filename:
+        filename = urllib.parse.unquote(os.path.basename(urllib.parse.urlsplit(url).path))
+    host = host_of(url)
+    to_jd = matches_domain(host, CFG["jd_domains"]) or \
+        matches_domain(host_of(job.get("referrer") or ""), CFG["jd_domains"])
+    st = {
+        "dir": last_dir(),
+        "filename": filename,
+        "speed": 0,                         # never inherited: no limit unless chosen
+        "chunks": int(CFG["chunks"]),
+        "parallel": int(CFG["parallel"]),
+        "backend": "jd" if to_jd else "aria2",
+    }
+    size = job.get("size")
+    info = " · ".join(x for x in (filename or "(name from server)",
+                                  human(size) if size and size > 0 else "", host) if x)
+
+    sel = 0
+    while True:
+        jd_mode = st["backend"] == "jd"
+        rows = [("go", f"{I_DOWNLOAD}  Download" + ("  (JDownloader)" if jd_mode else ""))]
+        rows.append(("dir", f"{I_FOLDER}  Save to     {tilde(st['dir'])}"))
+        if not jd_mode:   # JD names files itself
+            rows.append(("name", f"{I_FILE}  Filename    {st['filename'] or '(from server)'}"))
+        rows += [
+            ("speed", f"{I_SPEED}  Speed       {fmt_speed(st['speed'])}"),
+            ("chunks", f"{I_CHUNKS}  Chunks      {st['chunks']} per file"),
+            ("parallel", f"{I_PARALLEL}  Parallel    {st['parallel']} at once"
+                         + ("  (all of JD)" if jd_mode else "")),
+            ("backend", f"{I_BACKEND}  Using       "
+                        + ("JDownloader  (switch to aria2)" if jd_mode
+                           else "aria2  (switch to JDownloader)")),
+            ("firefox", f"{I_FIREFOX}  Let Firefox download it"),
+            ("cancel", f"{I_CANCEL}  Cancel"),
+        ]
+        keys = [k for k, _ in rows]
+        key = menu(rows, f"{I_DOWNLOAD}  ", info, select=sel)
+        if key is None or key == "cancel":
+            return {"action": "cancel"}
+        sel = keys.index(key)
+        if key == "dir":
+            st["dir"] = choose_dir(st["dir"]) or st["dir"]
+        elif key == "name":
+            out = ask(f"{I_PENCIL}  Filename: ", st["filename"])
+            if out is not None:
+                st["filename"] = out.strip().replace("/", "_")
+        elif key == "speed":
+            st["speed"] = choose_speed(st["speed"])
+        elif key == "chunks":
+            st["chunks"] = choose_number(f"{I_CHUNKS}  Chunks: ", [1, 2, 4, 8, 16],
+                                         st["chunks"], 1, 20 if jd_mode else 16)
+        elif key == "parallel":
+            st["parallel"] = choose_number(f"{I_PARALLEL}  Parallel: ", [1, 2, 3, 4, 5, 6, 8],
+                                           st["parallel"], 1, 20)
+        elif key == "backend":
+            st["backend"] = "aria2" if jd_mode else "jd"
+            sel = 0
+        elif key == "firefox":
+            return {"action": "firefox"}
+        elif key == "go":
+            try:
+                if jd_mode:
+                    send_jd(job, st)
+                    result = {"action": "jd"}
+                else:
+                    result = {"action": "aria2", "gid": send_aria2(job, st)}
+            except Exception as e:   # surface anything to the user; Firefox falls back
+                notify("Download could not be started", f"{e}\nFirefox will download it instead.",
+                       urgency="critical", icon="dialog-error")
+                return {"action": "error", "error": str(e)}
+            remember(st)
+            return result
+
+
+def remember(st):
+    """Folder goes to the recents list; chunks and parallel become the new defaults."""
+    cfg = load_config()
+    recents = [d for d in cfg.get("recent_dirs", []) if d != tilde(st["dir"])]
+    cfg["recent_dirs"] = [tilde(st["dir"])] + recents[:7]
+    cfg["chunks"], cfg["parallel"] = st["chunks"], st["parallel"]
+    save_config(cfg)
+
+
+# ---------------------------------------------------------------- status
+
+KEYS = ["gid", "status", "totalLength", "completedLength", "downloadSpeed", "files",
+        "dir", "errorMessage"]
+
+
+def item_name(it):
+    f = (it.get("files") or [{}])[0]
+    if f.get("path"):
+        return os.path.basename(f["path"])
+    uris = f.get("uris") or [{}]
+    return os.path.basename(urllib.parse.urlsplit(uris[0].get("uri", "")).path) or it["gid"]
+
+
+def item_line(it):
+    total, done = int(it["totalLength"]), int(it["completedLength"])
+    speed = int(it["downloadSpeed"])
+    pct = f"{done * 100 // total:3d}%" if total else "  ?%"
+    st = it["status"]
+    icon = {"active": I_DOWNLOAD, "waiting": I_WAIT, "paused": I_PAUSE,
+            "complete": I_DONE, "error": I_ERROR, "removed": I_CANCEL}.get(st, I_WAIT)
+    name = item_name(it)
+    if len(name) > 38:
+        name = name[:35] + "…"
+    extra = ""
+    if st == "active":
+        eta = (total - done) // speed if speed and total else None
+        extra = f"{human(speed)}/s" + (f"  {eta // 60}m{eta % 60:02d}s" if eta is not None else "")
+    elif st == "error":
+        extra = (it.get("errorMessage") or "error")[:30]
+    elif st != "complete":
+        extra = st
+    return f"{icon} {pct}  {name:<38}  {extra}"
+
+
+def status():
+    try:
+        ensure_aria2()
+    except RuntimeError as e:
+        notify("aria2", str(e), urgency="critical", icon="dialog-error")
+        return
+    while True:
+        items = (aria2("aria2.tellActive", KEYS) + aria2("aria2.tellWaiting", 0, 100, KEYS)
+                 + aria2("aria2.tellStopped", 0, 30, KEYS))
+        stat = aria2("aria2.getGlobalStat")
+        rows = [("refresh", f"{I_REFRESH}  Refresh"),
+                ("pauseall", f"{I_PAUSE}  Pause all"),
+                ("resumeall", f"{I_PLAY}  Resume all"),
+                ("purge", f"{I_BROOM}  Clear finished / failed"),
+                ("folder", f"{I_FOLDER}  Open {tilde(os.path.expanduser(CFG['default_dir']))}"),
+                ("jd", f"{I_BACKEND}  Open JDownloader")]
+        rows += [(it["gid"], item_line(it)) for it in items]
+        info = (f"{stat['numActive']} active · {stat['numWaiting']} queued · "
+                f"{human(int(stat['downloadSpeed']))}/s")
+        key = menu(rows, f"{I_DOWNLOAD}  ", info, width=90)
+        if key is None:
+            return
+        if key == "refresh":
+            continue
+        if key == "pauseall":
+            aria2("aria2.forcePauseAll")
+        elif key == "resumeall":
+            aria2("aria2.unpauseAll")
+        elif key == "purge":
+            aria2("aria2.purgeDownloadResult")
+        elif key == "folder":
+            subprocess.Popen(["xdg-open", os.path.expanduser(CFG["default_dir"])])
+            return
+        elif key == "jd":
+            open_jd()
+            return
+        else:
+            it = next(i for i in items if i["gid"] == key)
+            if item_actions(it) == "exit":
+                return
+
+
+def item_actions(it):
+    gid, st = it["gid"], it["status"]
+    f = (it.get("files") or [{}])[0]
+    path = f.get("path") or ""
+    uri = ((f.get("uris") or [{}])[0]).get("uri", "")
+    rows = []
+    if st in ("active", "waiting"):
+        rows.append(("pause", f"{I_PAUSE}  Pause"))
+    if st == "paused":
+        rows.append(("resume", f"{I_PLAY}  Resume"))
+    if st == "error" and uri:
+        rows.append(("retry", f"{I_REFRESH}  Retry"))
+    if st == "complete" and path:
+        rows.append(("open", f"{I_OPEN}  Open file"))
+    rows.append(("folder", f"{I_FOLDER}  Show in folder"))
+    if uri:
+        rows.append(("copy", f"{I_LINK}  Copy URL"))
+    rows.append(("remove", f"{I_DELETE}  Remove from list"
+                           + ("  (keeps partial file)" if st not in ("complete", "error") else "")))
+    key = menu(rows, f"{I_FILE}  ", item_name(it))
+    if key == "pause":
+        aria2("aria2.forcePause", gid)
+    elif key == "resume":
+        aria2("aria2.unpause", gid)
+    elif key == "retry":
+        aria2("aria2.addUri", [uri], {"dir": it["dir"], "out": os.path.basename(path)} if path
+              else {"dir": it["dir"]})
+        aria2("aria2.removeDownloadResult", gid)
+    elif key == "open":
+        subprocess.Popen(["xdg-open", path], start_new_session=True)
+        return "exit"
+    elif key == "folder":
+        if path and os.path.exists(path) and subprocess.run(
+                ["which", "nautilus"], capture_output=True).returncode == 0:
+            subprocess.Popen(["nautilus", "--select", path], start_new_session=True)
+        else:
+            subprocess.Popen(["xdg-open", it["dir"]], start_new_session=True)
+        return "exit"
+    elif key == "copy":
+        subprocess.run(["wl-copy", uri])
+    elif key == "remove":
+        if st in ("active", "waiting", "paused"):
+            aria2("aria2.forceRemove", gid)
+            time.sleep(0.3)
+        aria2("aria2.removeDownloadResult", gid)
+    return None
+
+
+def open_jd():
+    try:
+        ensure_jd()
+    except RuntimeError as e:
+        notify("JDownloader", str(e), urgency="critical", icon="dialog-error")
+
+
+# ---------------------------------------------------------------- terminal curl / wget
+
+FALLBACK = 3   # exit code: "not mine, run the real curl/wget" (see terminal.zsh)
+
+CURL_FLAGS = set("LsSf#J")          # harmless single-letter flags
+CURL_LONG = {"--location", "--silent", "--show-error", "--fail", "--progress-bar",
+             "--remote-header-name", "--create-dirs"}
+WGET_FLAGS = {"-c", "--continue", "-q", "--quiet", "--show-progress", "-nv", "--no-verbose",
+              "--content-disposition"}
+
+
+def parse_curl(args):
+    """Plain file downloads only: one URL plus -O or -o FILE and harmless
+    flags. Anything else (headers, POST, auth, stdout, several URLs, ...) -> None."""
+    url, out, remote, quiet = None, None, False, False
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in ("-O", "--remote-name"):
+            remote = True
+        elif a in ("-o", "--output"):
+            i += 1
+            out = args[i] if i < len(args) else None
+        elif a.startswith("--output="):
+            out = a.split("=", 1)[1]
+        elif a in ("-C", "--continue-at"):
+            i += 1
+            if i >= len(args) or args[i] != "-":
+                return None
+        elif a in CURL_LONG:
+            quiet |= a == "--silent"
+        elif a.startswith("-") and not a.startswith("--") and len(a) > 1:
+            letters = a[1:]
+            for j, c in enumerate(letters):
+                if c == "O":
+                    remote = True
+                elif c == "o":
+                    rest = letters[j + 1:]
+                    if rest:
+                        out = rest
+                    else:
+                        i += 1
+                        out = args[i] if i < len(args) else None
+                    break
+                elif c in CURL_FLAGS:
+                    quiet |= c == "s"
+                else:
+                    return None
+        elif re.match(r"(?i)^(https?|ftp)://", a) and url is None:
+            url = a
+        else:
+            return None
+        i += 1
+    if not url or out == "-" or (not remote and not out):
+        return None
+    return {"url": url, "out": out, "quiet": quiet, "overwrite": True}
+
+
+def parse_wget(args):
+    url, out, prefix, quiet = None, None, None, False
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in ("-O", "--output-document"):
+            i += 1
+            out = args[i] if i < len(args) else None
+        elif a.startswith("--output-document="):
+            out = a.split("=", 1)[1]
+        elif a.startswith("-O") and len(a) > 2:
+            out = a[2:]
+        elif a in ("-P", "--directory-prefix"):
+            i += 1
+            prefix = args[i] if i < len(args) else None
+        elif a.startswith("--directory-prefix="):
+            prefix = a.split("=", 1)[1]
+        elif a in WGET_FLAGS:
+            quiet |= a in ("-q", "--quiet")
+        elif re.match(r"(?i)^(https?|ftp)://", a) and url is None:
+            url = a
+        else:
+            return None
+        i += 1
+    if not url or out == "-" or (out and prefix):
+        return None
+    # wget -O truncates an existing file; plain wget saves as name.1 instead
+    return {"url": url, "out": out, "dir": prefix, "quiet": quiet, "overwrite": bool(out)}
+
+
+def fetch(tool, args):
+    """curl/wget from an interactive shell, done by JDownloader. Blocks like
+    the real tool, prints progress, then puts the file where curl/wget would
+    have. Returns FALLBACK whenever JD can't take it, so nothing is lost."""
+    spec = (parse_curl if tool == "curl" else parse_wget)(args)
+    if spec is None:
+        return FALLBACK
+    out = os.path.abspath(os.path.expanduser(spec["out"])) if spec["out"] else None
+    dest_dir = os.path.dirname(out) if out else os.path.abspath(
+        os.path.expanduser(spec.get("dir") or "."))
+    if not os.path.isdir(dest_dir) or not os.access(dest_dir, os.W_OK):
+        return FALLBACK
+    tty = sys.stderr.isatty() and not spec["quiet"]
+
+    def say(msg):
+        if not spec["quiet"]:
+            print(msg, file=sys.stderr, flush=True)
+
+    try:
+        if not jd_running():
+            say("jd: starting JDownloader…")
+        ensure_jd()
+    except Exception as e:
+        say(f"jd: {e} — using {tool}")
+        return FALLBACK
+
+    # A private folder per run: JD can't collide with existing files (its
+    # "file exists" question would pop up in the GUI), and finding our
+    # package is just "the package saving to this folder".
+    staging = os.path.join(dest_dir, f".jd-fetch-{os.getpid()}")
+    os.makedirs(staging, exist_ok=True)
+    pkg = None
+    staging_keep = [False]
+
+    def packages(where):
+        try:
+            return [p["uuid"] for p in jd(f"{where}/queryPackages", {"saveTo": True}) or []
+                    if p.get("saveTo") == staging]
+        except (OSError, ValueError, RuntimeError):
+            return []
+
+    def cleanup(remove_from_jd):
+        for where, ids in (("downloadsV2", [pkg] if remove_from_jd and pkg else []),
+                           ("linkgrabberv2", packages("linkgrabberv2"))):
+            if ids:
+                try:
+                    jd(f"{where}/removeLinks", [], ids)
+                except (OSError, ValueError, RuntimeError):
+                    pass
+        if not staging_keep[0]:
+            subprocess.run(["rm", "-rf", "--", staging])
+
+    try:
+        # directhttp:// = "this is a file": without it JD treats text/plain
+        # (install.sh, README, JSON) as a web page and silently drops it.
+        jd("linkgrabberv2/addLinks", {
+            "links": "directhttp://" + spec["url"], "destinationFolder": staging,
+            "autostart": True, "autoExtract": False, "overwritePackagizerRules": True})
+        say(f"jd: {spec['url']}")
+        t0 = time.time()
+        last_change, last_bytes, err_since = t0, -1, None
+        while True:
+            time.sleep(0.5)
+            pk = packages("downloadsV2")
+            if not pk:
+                waiting = bool(packages("linkgrabberv2")) or jd("linkgrabberv2/isCollecting")
+                if time.time() - t0 > (30 if waiting else 5):
+                    say(f"jd: JDownloader didn't take the link — using {tool}")
+                    cleanup(False)
+                    return FALLBACK
+                continue
+            if pkg is None:
+                pkg = pk[0]
+                # JD would unpack archives next to the download (a global
+                # setting); a terminal download should arrive as-is.
+                try:
+                    for a in jd("extraction/getArchiveInfo", [], [pkg]) or []:
+                        aid = a.get("archiveId") or a.get("archiveID")
+                        jd("extraction/setArchiveSettings", aid, {"archiveId": aid, "autoExtract": False})
+                except (OSError, ValueError, RuntimeError, KeyError):
+                    pass
+            links = jd("downloadsV2/queryLinks", {
+                "packageUUIDs": [pkg], "bytesLoaded": True, "bytesTotal": True, "speed": True,
+                "finished": True, "running": True, "status": True}) or []
+            if not links:
+                continue
+            l = links[0]
+            done, total = l.get("bytesLoaded", 0), l.get("bytesTotal", -1)
+            if l.get("finished"):
+                break
+            status = (l.get("status") or "").lower()
+            failing = any(w in status for w in ("offline", "error", "failed", "not found",
+                                                "forbidden", "unavailable"))
+            err_since = (err_since or time.time()) if failing else None
+            if done != last_bytes:
+                last_change, last_bytes = time.time(), done
+            if (err_since and time.time() - err_since > 8) or time.time() - last_change > 120:
+                if tty:
+                    print(file=sys.stderr)
+                say(f"jd: {l.get('status') or 'stalled'} — using {tool}")
+                cleanup(True)
+                return FALLBACK
+            if tty:
+                pct = f"{done * 100 // total:3d}%" if total > 0 else "    "
+                line = (f"\rjd {pct}  {human(done)}"
+                        + (f" / {human(total)}" if total > 0 else "")
+                        + f"  {human(l.get('speed', 0))}/s  {l.get('name', '')[:40]}")
+                print(line.ljust(100)[:100], end="", file=sys.stderr, flush=True)
+
+        if tty:
+            print(file=sys.stderr)
+        src = os.path.join(staging, l.get("name") or "")
+        if not os.path.isfile(src):
+            files = [f for f in os.listdir(staging) if os.path.isfile(os.path.join(staging, f))]
+            if len(files) != 1:
+                say(f"jd: finished, but can't tell which file in {tilde(staging)} is it "
+                    f"({', '.join(files)}); left them there")
+                staging_keep[0] = True
+                cleanup(True)
+                return 1
+            src = os.path.join(staging, files[0])
+        # Like curl -O / wget: name from the URL (JD may have added an
+        # extension, e.g. README -> README.txt); JD's name only if the URL has none.
+        url_name = urllib.parse.unquote(os.path.basename(urllib.parse.urlsplit(spec["url"]).path))
+        target = out or os.path.join(dest_dir, url_name or os.path.basename(src))
+        if not spec["overwrite"] and os.path.exists(target):   # wget: name.1, name.2, …
+            n = 1
+            while os.path.exists(f"{target}.{n}"):
+                n += 1
+            target = f"{target}.{n}"
+        os.replace(src, target)
+        say(f"jd: saved {tilde(target)}  ({human(os.path.getsize(target))})")
+        cleanup(True)
+        return 0
+    except KeyboardInterrupt:
+        if tty:
+            print(file=sys.stderr)
+        say("jd: cancelled")
+        cleanup(True)
+        return 130
+    except (OSError, ValueError, RuntimeError) as e:
+        say(f"jd: {e} — using {tool}")
+        cleanup(True)
+        return FALLBACK
+
+
+# ---------------------------------------------------------------- waybar
+
+BAR_KEYS = ["status", "totalLength", "completedLength", "downloadSpeed", "files"]
+
+
+def bar_items():
+    """Unfinished downloads from aria2 and (if it is up) JDownloader, as
+    dicts {name, done, total, speed, state}. Never starts either backend."""
+    items = []
+    try:
+        for it in aria2("aria2.tellActive", BAR_KEYS) + aria2("aria2.tellWaiting", 0, 100, BAR_KEYS):
+            items.append({"name": item_name(it), "done": int(it["completedLength"]),
+                          "total": int(it["totalLength"]), "speed": int(it["downloadSpeed"]),
+                          "state": it["status"], "via": "aria2"})
+    except (OSError, RuntimeError, ValueError):
+        pass
+    try:
+        q = {"running": True, "finished": True, "enabled": True, "bytesLoaded": True,
+             "bytesTotal": True, "speed": True}
+        for l in jd("downloadsV2/queryLinks", q, timeout=1) or []:
+            if l.get("finished") or not l.get("enabled", True):
+                continue
+            items.append({"name": l.get("name", "?"), "done": l.get("bytesLoaded", 0),
+                          "total": l.get("bytesTotal", 0), "speed": l.get("speed", 0),
+                          "state": "active" if l.get("running") else "waiting", "via": "JD"})
+    except (OSError, RuntimeError, ValueError):
+        pass
+    return items + proc_items()
+
+
+PROC_STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "dl-popup-bar.json")
+
+FETCHERS = ("curl", "wget", "wget2")
+# Package managers: process name -> subcommands that download. Anything else
+# (`uv run`, `conda activate`, `pip list`, …) is ignored, so a long `uv run`
+# doesn't sit in the bar for hours.
+PKG_TOOLS = {
+    "uv": {"add", "sync", "lock", "install", "pip", "tool", "python", "venv", "remove",
+           "upgrade", "export"},
+    "pip": {"install", "download", "wheel"},
+    "conda": {"install", "create", "update", "upgrade", "env", "remove"},
+    "mamba": {"install", "create", "update", "upgrade", "env", "remove"},
+    "micromamba": {"install", "create", "update", "env", "remove"},
+}
+PKG_IDLE_HIDE = 6      # s: a package manager that stopped writing (resolving, building) drops off
+
+
+def _pkg_tool(comm, argv):
+    """('pip', 'pip install') if this process is a package manager doing a
+    download-ish command, else None. Handles pip3, pip3.12, python -m pip."""
+    if comm.startswith("pip") and comm.rstrip("0123456789.") == "pip":
+        tool = "pip"
+    elif comm in PKG_TOOLS:
+        tool = comm
+    else:
+        tool = None
+    if tool:
+        # pip/conda are Python scripts: argv is [python, /path/to/pip3, install, …]
+        start = next((i for i, x in enumerate(argv)
+                      if os.path.basename(x).rstrip("0123456789.") == tool), 0)
+        rest = argv[start + 1:]
+    elif comm.startswith("python") and "-m" in argv:
+        i = argv.index("-m")
+        if i + 1 >= len(argv) or argv[i + 1] not in ("pip", "conda"):
+            return None
+        tool, rest = argv[i + 1], argv[i + 2:]
+    else:
+        return None
+    words = [x for x in rest if x and not x.startswith("-")]
+    if not words or words[0] not in PKG_TOOLS[tool]:
+        return None
+    # two words for nested commands: "uv pip install", "conda env create"
+    label = words[:2] if words[0] in ("pip", "tool", "python", "env") else words[:1]
+    return tool, " ".join([tool] + label)
+
+
+def proc_items():
+    """Downloads not going through JD/aria2, read from /proc (own processes
+    only; never anything inside a docker build, which runs as root):
+      curl / wget     run by scripts, Makefiles, the real tool after a fallback.
+                      Size of the output file, or bytes written to stdout when
+                      piped (`curl … | tar x`).
+      uv / pip / conda / mamba   installing: bytes the process has written
+                      (cache + unpacking, so "busy and how fast", not an exact
+                      download count).
+    Total size is unknown for all of these: bytes + speed only. Short calls
+    are skipped (< 2 s old or < 256 KB)."""
+    uid, now = os.getuid(), time.time()
+    try:
+        with open(PROC_STATE) as f:
+            prev = json.load(f)
+    except (OSError, ValueError):
+        prev = {}
+    seen, items = {}, []
+    try:
+        hz = os.sysconf("SC_CLK_TCK")
+        with open("/proc/uptime") as f:
+            uptime = float(f.read().split()[0])
+    except (OSError, ValueError):
+        return []
+    for pid in filter(str.isdigit, os.listdir("/proc")):
+        base = f"/proc/{pid}"
+        try:
+            if os.stat(base).st_uid != uid:
+                continue
+            with open(f"{base}/comm") as f:
+                comm = f.read().strip()
+            if not (comm in FETCHERS or comm in PKG_TOOLS or comm.startswith(("pip", "python"))):
+                continue
+            with open(f"{base}/cmdline") as f:
+                argv = f.read().split("\0")
+            pkg = None if comm in FETCHERS else _pkg_tool(comm, argv)
+            if comm not in FETCHERS and not pkg:
+                continue
+            with open(f"{base}/stat") as f:
+                age = uptime - int(f.read().rsplit(")", 1)[1].split()[19]) / hz
+            out, size = None, None
+            if not pkg:
+                # Output file = a regular file open for writing. Prefer fds > 2:
+                # stdout/stderr often go to a log; `curl URL > file` is the fallback.
+                for fd in sorted(map(int, os.listdir(f"{base}/fd")), key=lambda n: (n <= 2, n)):
+                    if fd == 2:
+                        continue
+                    target = os.readlink(f"{base}/fd/{fd}")
+                    if not target.startswith("/") or target.startswith(("/dev/", "/proc/")):
+                        continue
+                    with open(f"{base}/fdinfo/{fd}") as f:
+                        flags = next(int(l.split()[1], 8) for l in f if l.startswith("flags:"))
+                    if flags & 0o3 and os.path.isfile(target):      # O_WRONLY / O_RDWR
+                        out, size = target, os.path.getsize(target)
+                        break
+            if size is None:
+                with open(f"{base}/io") as f:                 # wchar: bytes written
+                    size = next(int(l.split()[1]) for l in f if l.startswith("wchar:"))
+        except (OSError, ValueError, IndexError, StopIteration):
+            continue
+        p = prev.get(pid)
+        raw = max((size - p[0]) / (now - p[1]), 0) if p and now > p[1] else 0
+        last_active = now if raw > 0 or not p else (p[2] if len(p) > 2 else now)
+        # writes come in bursts (unpacking, cache flushes): smooth the number
+        speed = int(0.4 * raw + 0.6 * p[3]) if p and len(p) > 3 else int(raw)
+        seen[pid] = [size, now, last_active, speed]
+        if age < 2 or size < 256 * 1024:
+            continue
+        if pkg:
+            if now - last_active > PKG_IDLE_HIDE:
+                continue
+            items.append({"name": pkg[1], "done": size, "total": 0, "speed": speed,
+                          "state": "active", "via": pkg[0], "kind": "pkg"})
+        else:
+            url = next((a for a in argv if "://" in a), "")
+            name = os.path.basename(out) if out else (urllib.parse.urlsplit(url).hostname or comm)
+            items.append({"name": name, "done": size, "total": 0, "speed": speed,
+                          "state": "active", "via": comm, "kind": "fetch"})
+    try:
+        with open(PROC_STATE, "w") as f:
+            json.dump(seen, f)
+    except OSError:
+        pass
+    return items
+
+
+def bar():
+    """One JSON line for waybar's custom/downloads. Empty text hides the module."""
+    items = bar_items()
+    active = [i for i in items if i["state"] == "active"]
+    if not items:
+        print(json.dumps({"text": "", "class": "idle", "tooltip": ""}))
+        return
+    sized = [i for i in items if i["total"] > 0]     # curl/wget from scripts: size unknown
+    done = sum(i["done"] for i in sized)
+    total = sum(i["total"] for i in sized)
+    speed = sum(i["speed"] for i in active)
+    pct = done * 100 // total if total else 0
+    blocks = 8
+    filled = pct * blocks // 100
+    meter = "▰" * filled + "▱" * (blocks - filled)   # ▰▱
+    if not sized:      # only curl/wget/package managers: no size to compare against
+        icon = I_PACKAGE if all(i.get("kind") == "pkg" for i in items) else I_DOWNLOAD
+        label = f"{items[0]['name']}  " if len(items) == 1 and items[0].get("kind") == "pkg" else ""
+        text = f"{icon}  {label}{human(sum(i['done'] for i in items))}  {human(speed)}/s"
+        cls = "active"
+    elif active:
+        text = f"{I_DOWNLOAD}  {pct}% {meter}  {human(speed)}/s"
+        cls = "active"
+    else:
+        text = f"{I_PAUSE}  {pct}% {meter}"
+        cls = "paused"
+    if len(items) > 1:
+        text += f"  ×{len(items)}"
+    lines = []
+    for i in items[:12]:
+        p = f"{i['done'] * 100 // i['total']:3d}%" if i["total"] else human(i["done"])
+        extra = f"{human(i['speed'])}/s" if i["state"] == "active" else i["state"]
+        lines.append(f"{p}  {i['name'][:50]}  ({extra}, {i['via']})")
+    if len(items) > 12:
+        lines.append(f"… and {len(items) - 12} more")
+    lines.append("\nClick: downloads menu · Right-click: pause / resume all (aria2)")
+    print(json.dumps({"text": text, "class": cls, "percentage": pct,
+                      "tooltip": "\n".join(lines).replace("&", "&amp;").replace("<", "&lt;")},
+                     ensure_ascii=False))
+
+
+def bar_toggle():
+    try:
+        active = aria2("aria2.tellActive", ["gid"])
+        aria2("aria2.forcePauseAll" if active else "aria2.unpauseAll")
+    except (OSError, RuntimeError):
+        pass
+
+
+# ---------------------------------------------------------------- main
+
+def main():
+    global CFG
+    CFG = load_config()
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    a = sub.add_parser("add")
+    a.add_argument("url", nargs="?")
+    a.add_argument("--stdin", action="store_true")
+    a.add_argument("--filename")
+    a.add_argument("--referrer")
+    sub.add_parser("status")
+    sub.add_parser("jd")
+    f = sub.add_parser("fetch")
+    f.add_argument("tool", choices=["curl", "wget"])
+    f.add_argument("args", nargs=argparse.REMAINDER)
+    sub.add_parser("bar")
+    sub.add_parser("bar-toggle")
+    args = ap.parse_args()
+
+    if args.cmd == "fetch":
+        sys.exit(fetch(args.tool, args.args))
+    elif args.cmd == "bar":
+        bar()
+    elif args.cmd == "bar-toggle":
+        bar_toggle()
+    elif args.cmd == "status":
+        status()
+    elif args.cmd == "jd":
+        open_jd()
+    else:
+        job = json.load(sys.stdin) if args.stdin else {
+            "url": args.url, "filename": args.filename, "referrer": args.referrer}
+        if not job.get("url"):
+            ap.error("add needs a URL")
+        # One popup at a time: several clicks queue up instead of fighting over fuzzel.
+        with open(LOCK, "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            result = popup(job)
+        print(json.dumps(result), flush=True)
+
+
+CFG = DEFAULTS
+if __name__ == "__main__":
+    main()

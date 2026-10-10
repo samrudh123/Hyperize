@@ -1,0 +1,467 @@
+diff --git a/go.mod b/go.mod
+index b12761a..456adda 100644
+--- a/go.mod
++++ b/go.mod
+@@ -13,6 +13,7 @@ require (
+ 
+ require (
+ 	github.com/KarpelesLab/weak v0.1.1 // indirect
++	github.com/fsnotify/fsnotify v1.9.0 // indirect
+ 	github.com/joshuarubin/go-sway v1.2.0 // indirect
+ 	github.com/joshuarubin/lifecycle v1.0.0 // indirect
+ 	go.uber.org/atomic v1.3.2 // indirect
+diff --git a/main.go b/main.go
+index 7242730..1350b6f 100644
+--- a/main.go
++++ b/main.go
+@@ -20,6 +20,7 @@ import (
+ 	"time"
+ 
+ 	"github.com/allan-simon/go-singleinstance"
++	"github.com/fsnotify/fsnotify"
+ 	log "github.com/sirupsen/logrus"
+ 
+ 	"github.com/diamondburned/gotk4-layer-shell/pkg/gtklayershell"
+@@ -72,10 +73,16 @@ var debug = flag.Bool("debug", false, "turn on debug messages")
+ var displayVersion = flag.Bool("v", false, "display Version information")
+ var exclusive = flag.Bool("x", false, "set eXclusive zone: move other windows aside; overrides the \"-l\" argument")
+ var full = flag.Bool("f", false, "take Full screen width/height")
++
++// local patch
++var bottomEntries = flag.String("bottom", "", "comma-separated pin name prefixes to pack at the BOTTOM, above the launcher")
++var reorder = flag.Bool("reorder", false, "enable drag-to-REORDER of pinned icons (excludes -bottom entries and the launcher)")
+ var ignoreClasses = flag.String("g", "", "quote-delimited, space-separated class list to iGnore in the dock")
+ var hotspotDelay = flag.Int64("hd", 20, "Hotspot Delay [ms]; the smaller, the faster mouse pointer needs to enter hotspot for the dock to appear; set 0 to disable")
+ var hotspotLayer = flag.String("hl", "overlay", "Hotspot Layer \"overlay\" or \"top\"")
+ var ico = flag.String("ico", "", "alternative name or path for the launcher ICOn")
++var indicator = flag.Int("indicator", 0, "width in px of the running-app INDICATOR strip beside each icon (default: icon size / 8)")
++var iconDir = flag.String("icondir", "", "directory of per-app ICON overrides: <class>.svg or <class>.png, tried before the icon theme")
+ var ignoreWorkspaces = flag.String("iw", "", "Ignore the running applications on these Workspaces based on the workspace's name or id, e.g. \"special,10\"")
+ var imgSize = flag.Int("i", 48, "Icon size")
+ var launcherCmd = flag.String("c", "nwg-drawer", "Command assigned to the launcher button")
+@@ -101,8 +108,21 @@ func buildMainBox() {
+ 	}
+ 	mainBox = gtk.NewBox(innerOrientation, 0)
+ 
++	// local patch: pins matching -bottom share a box with the launcher at the
++	// very bottom of the dock, so the separator (#bottom-box in css) sits above
++	// the whole group rather than just above the launcher.
++	bottomBox := gtk.NewBox(innerOrientation, 0)
++	bottomBox.SetObjectProperty("name", "bottom-box")
++
++	// buttons are recreated on every rebuild, so the reorder registry must be
++	// emptied here or it accumulates pointers to destroyed widgets.
++	reorderItems = nil
++
+ 	if *alignment == "start" {
+-		alignmentBox.PackStart(mainBox, false, true, 0)
++		// local patch: with -f and the launcher at the end, mainBox must expand
++		// to the full height, otherwise it is only as tall as its icons and
++		// PackEnd lands the launcher directly under the last one.
++		alignmentBox.PackStart(mainBox, *full && *launcherPos == "end", true, 0)
+ 	} else if *alignment == "end" {
+ 		alignmentBox.PackEnd(mainBox, false, true, 0)
+ 	} else {
+@@ -164,12 +184,20 @@ func buildMainBox() {
+ 		}
+ 	}
+ 
++	packPinned := func(name string, b *gtk.Box) {
++		if isBottomPin(name) {
++			bottomBox.PackStart(b, false, false, 0)
++		} else {
++			mainBox.PackStart(b, false, false, 0)
++		}
++	}
++
+ 	var alreadyAdded []string
+ 	for _, pin := range pinned {
+ 		if !inTasks(pin) {
+ 			if !isIn(classesToIgnore, pin) {
+ 				button := pinnedButton(pin, position)
+-				mainBox.PackStart(button, false, false, 0)
++				packPinned(pin, button)
+ 			} else {
+ 				log.Debugf("Ignoring pin '%s'", pin)
+ 			}
+@@ -179,7 +207,7 @@ func buildMainBox() {
+ 			if !isIn(classesToIgnore, c.Class) {
+ 				if len(instances) == 1 {
+ 					button := taskButton(c, instances, position)
+-					mainBox.PackStart(button, false, false, 0)
++					packPinned(pin, button)
+ 					if c.Class == activeClient.Class && !*autohide {
+ 						button.SetObjectProperty("name", "active")
+ 					} else {
+@@ -187,7 +215,7 @@ func buildMainBox() {
+ 					}
+ 				} else if !isIn(alreadyAdded, c.Class) {
+ 					button := taskButton(c, instances, position)
+-					mainBox.PackStart(button, false, false, 0)
++					packPinned(pin, button)
+ 					if c.Class == activeClient.Class && !*autohide {
+ 						button.SetObjectProperty("name", "active")
+ 					} else {
+@@ -241,9 +269,14 @@ func buildMainBox() {
+ 	if *launcherPos == "end" {
+ 		button := launcherButton(position)
+ 		if button != nil {
+-			mainBox.PackStart(button, false, false, 0)
++			// local patch: the launcher goes last INSIDE bottomBox, so it sits
++			// below the -bottom pins; bottomBox is then packed to the far edge
++			// of mainBox. fill=true makes it span the dock width so the
++			// border-top on #bottom-box reads as a full separator.
++			bottomBox.PackStart(button, false, true, 0)
+ 		}
+ 	}
++	mainBox.PackEnd(bottomBox, false, true, 0)
+ 
+ 	mainBox.ShowAll()
+ }
+@@ -691,6 +724,54 @@ func main() {
+ 		}
+ 	}
+ 
++	// ── local patch ──────────────────────────────────────────────────────────
++	// buildMainBox() re-reads pinnedFile every time, but it only ever runs via
++	// refreshMainBox, which fires on an `activewindowv2` event carrying a NEW
++	// window address. So anything editing ~/.cache/nwg-dock-pinned from the
++	// outside — dock-pin.sh from the drawer's context menu, dock-places.sh, a
++	// hand edit — left the dock drawing a stale icon list until the user
++	// happened to focus a different window. Watch the file and rebuild at once.
++	//
++	// The DIRECTORY is watched rather than the file: the helper scripts replace
++	// it with mv, which swaps the inode and would silently kill a file watch.
++	go func() {
++		w, err := fsnotify.NewWatcher()
++		if err != nil {
++			log.Warnf("Couldn't create the pinned-file watcher: %s", err)
++			return
++		}
++		defer w.Close()
++		dir := filepath.Dir(pinnedFile)
++		if err := w.Add(dir); err != nil {
++			log.Warnf("Couldn't watch %s: %s", dir, err)
++			return
++		}
++		log.Debugf("Watching %s for changes to %s", dir, pinnedFile)
++		// TRAILING-edge debounce. One append or mv emits several events, and
++		// the early ones can arrive before the new content is all there — so
++		// rebuild once the file has been quiet for a moment, rather than
++		// rebuilding on the first event and dropping the rest (which left the
++		// dock rendering the previous state, one change behind).
++		var timer *time.Timer
++		for {
++			select {
++			case event := <-w.Events:
++				if event.Name != pinnedFile {
++					continue
++				}
++				if timer != nil {
++					timer.Stop()
++				}
++				timer = time.AfterFunc(200*time.Millisecond, func() {
++					log.Debug("Pinned file settled, rebuilding the dock")
++					refreshMainBox(true)
++				})
++			case err := <-w.Errors:
++				log.Warnf("Pinned-file watcher: %s", err)
++			}
++		}
++	}()
++
+ 	err = listClients()
+ 	if err != nil {
+ 		log.Fatalf("Couldn't list clients: %s", err)
+diff --git a/tools.go b/tools.go
+index 0df5f35..792f9f2 100644
+--- a/tools.go
++++ b/tools.go
+@@ -54,6 +54,8 @@ func pinnedButton(ID string, position *string) *gtk.Box {
+ 	button.SetAlwaysShowImage(true)
+ 	button.SetTooltipText(getName(ID))
+ 
++	makeReorderable(button, ID)
++
+ 	button.Connect("clicked", func() {
+ 		launch(ID)
+ 	})
+@@ -76,10 +78,10 @@ func pinnedButton(ID string, position *string) *gtk.Box {
+ 	var pixbuf *gdkpixbuf.Pixbuf
+ 	if !vertical {
+ 		pixbuf, err = gdkpixbuf.NewPixbufFromFileAtSize(filepath.Join(dataHome, "nwg-dock-hyprland/images/task-empty.svg"),
+-			imgSizeScaled, imgSizeScaled/8)
++			imgSizeScaled, indicatorSize())
+ 	} else {
+ 		pixbuf, err = gdkpixbuf.NewPixbufFromFileAtSize(filepath.Join(dataHome, "nwg-dock-hyprland/images/task-empty-vertical.svg"),
+-			imgSizeScaled/8, imgSizeScaled)
++			indicatorSize(), imgSizeScaled)
+ 	}
+ 
+ 	if err == nil {
+@@ -116,8 +118,16 @@ func launcherButton(position *string) *gtk.Box {
+ 		box.SetOrientation(gtk.OrientationHorizontal)
+ 	}
+ 
++	// local patch: name these so CSS can reach them. Upstream sets no widget
++	// names at all (only "active" on running tasks, via SetObjectProperty), so
++	// the #launcher-button rules that style.css has always carried were dead.
++	// #launcher-box is the full-width row, which is what can carry a separator
++	// line; the button inside it is packed without fill and would not span.
++	box.SetObjectProperty("name", "launcher-box")
++
+ 	if !*noLauncher && *launcherCmd != "" {
+ 		button := gtk.NewButton()
++		button.SetObjectProperty("name", "launcher-button")
+ 		var pixbuf *gdkpixbuf.Pixbuf
+ 		var e error
+ 		if *ico == "" {
+@@ -149,10 +159,10 @@ func launcherButton(position *string) *gtk.Box {
+ 
+ 			if !vertical {
+ 				pixbuf, e = gdkpixbuf.NewPixbufFromFileAtSize(filepath.Join(dataHome, "nwg-dock-hyprland/images/task-empty.svg"),
+-					imgSizeScaled, imgSizeScaled/8)
++					imgSizeScaled, indicatorSize())
+ 			} else {
+ 				pixbuf, e = gdkpixbuf.NewPixbufFromFileAtSize(filepath.Join(dataHome, "nwg-dock-hyprland/images/task-empty-vertical.svg"),
+-					imgSizeScaled/8, imgSizeScaled)
++					indicatorSize(), imgSizeScaled)
+ 			}
+ 
+ 			if e == nil {
+@@ -213,32 +223,34 @@ func taskButton(t client, instances []client, position *string) *gtk.Box {
+ 	}
+ 	button.SetTooltipText(getName(t.Class))
+ 
++	makeReorderable(button, t.Class)
++
+ 	var img *gtk.Image
+ 	var pixbuf *gdkpixbuf.Pixbuf
+ 	var err error
+ 	if len(instances) > 1 {
+ 		if !vertical {
+ 			pixbuf, err = gdkpixbuf.NewPixbufFromFileAtSize(filepath.Join(dataHome, "nwg-dock-hyprland/images/task-multiple.svg"),
+-				imgSizeScaled, imgSizeScaled/8)
++				imgSizeScaled, indicatorSize())
+ 		} else {
+ 			pixbuf, err = gdkpixbuf.NewPixbufFromFileAtSize(filepath.Join(dataHome, "nwg-dock-hyprland/images/task-multiple-vertical.svg"),
+-				imgSizeScaled/8, imgSizeScaled)
++				indicatorSize(), imgSizeScaled)
+ 		}
+ 	} else if len(instances) == 1 {
+ 		if !vertical {
+ 			pixbuf, err = gdkpixbuf.NewPixbufFromFileAtSize(filepath.Join(dataHome, "nwg-dock-hyprland/images/task-single.svg"),
+-				imgSizeScaled, imgSizeScaled/8)
++				imgSizeScaled, indicatorSize())
+ 		} else {
+ 			pixbuf, err = gdkpixbuf.NewPixbufFromFileAtSize(filepath.Join(dataHome, "nwg-dock-hyprland/images/task-single-vertical.svg"),
+-				imgSizeScaled/8, imgSizeScaled)
++				indicatorSize(), imgSizeScaled)
+ 		}
+ 	} else {
+ 		if !vertical {
+ 			pixbuf, err = gdkpixbuf.NewPixbufFromFileAtSize(filepath.Join(dataHome, "nwg-dock-hyprland/images/task-empty.svg"),
+-				imgSizeScaled, imgSizeScaled/8)
++				imgSizeScaled, indicatorSize())
+ 		} else {
+ 			pixbuf, err = gdkpixbuf.NewPixbufFromFileAtSize(filepath.Join(dataHome, "nwg-dock-hyprland/images/task-empty-vertical.svg"),
+-				imgSizeScaled/8, imgSizeScaled)
++				indicatorSize(), imgSizeScaled)
+ 		}
+ 	}
+ 	if err == nil {
+@@ -382,7 +394,7 @@ func clientMenuContext(class string, instances []client) gtk.Menu {
+ 			if virtualDesktopsLoaded {
+ 				label = fmt.Sprintf("-> VD %v", i)
+ 			}
+-			
++
+ 			subItem := gtk.NewMenuItemWithLabel(label)
+ 			target := i
+ 			subItem.Connect("activate", func() {
+@@ -453,7 +465,38 @@ func inTasks(pinID string) bool {
+ 	return false
+ }
+ 
++// indicatorSize is the thickness of the running-app indicator strip
++// (task-*.svg): -indicator, else upstream's icon size / 8 — 3px at -i 30,
++// too thin to see.
++func indicatorSize() int {
++	if *indicator > 0 {
++		return *indicator
++	}
++	return imgSizeScaled / 8
++}
++
++// iconOverride returns <-icondir>/<appID>.svg (or .png) when it exists: a
++// themed icon set for the dock only, keyed by the pinned entry / window class,
++// so it does not touch the .desktop files other launchers read.
++func iconOverride(appID string) string {
++	if *iconDir == "" || appID == "" || strings.ContainsRune(appID, '/') {
++		return ""
++	}
++	for _, ext := range []string{".svg", ".png"} {
++		p := filepath.Join(*iconDir, appID+ext)
++		if pathExists(p) {
++			return p
++		}
++	}
++	return ""
++}
++
+ func createImage(appID string, size int) (*gtk.Image, error) {
++	if p := iconOverride(appID); p != "" {
++		if pixbuf, e := gdkpixbuf.NewPixbufFromFileAtSize(p, size, size); e == nil {
++			return gtk.NewImageFromPixbuf(pixbuf), nil
++		}
++	}
+ 	name, err := getIcon(appID)
+ 	if err != nil {
+ 		name = appID
+@@ -994,3 +1037,146 @@ func md5Hash(text string) string {
+ 	hash := md5.Sum([]byte(text))
+ 	return hex.EncodeToString(hash[:])
+ }
++
++// ── local patch: bottom entries + drag-to-reorder ──────────────────────────
++//
++// Reordering here deliberately does NOT use GTK drag-and-drop. A GTK drag is
++// wl_data_device.start_drag, which puts the whole seat into a drag grab; on a
++// layer-shell surface with no keyboard interactivity there is then no way to
++// cancel it, and a drop that never completes freezes the entire desktop. That
++// happened, and cost a logout.
++//
++// What is used instead is the ordinary press/motion/release an unmodified
++// button already gets. The implicit pointer grab that comes with a button press
++// is always released on button-up by the compositor, so the worst case here is
++// a wrong reorder or a swallowed click — never a stuck session.
++//
++// Gated behind -reorder so it can be switched off by editing the dock's
++// arguments, without rebuilding.
++
++type reorderItem struct {
++	id  string
++	btn *gtk.Button
++}
++
++var (
++	reorderItems  []reorderItem
++	reorderSrc    string
++	reorderActive bool
++	reorderStartY float64
++)
++
++const reorderThreshold = 8.0 // px of movement before a click becomes a drag
++
++// isBottomPin reports whether a pin belongs in the bottom group (-bottom).
++func isBottomPin(name string) bool {
++	if *bottomEntries == "" {
++		return false
++	}
++	for _, p := range strings.Split(*bottomEntries, ",") {
++		p = strings.TrimSpace(p)
++		if p != "" && strings.HasPrefix(name, p) {
++			return true
++		}
++	}
++	return false
++}
++
++func makeReorderable(button *gtk.Button, id string) {
++	// Not pinned => no line in the file to move. In the bottom group => the
++	// user asked for those to stay put.
++	if !*reorder || !isIn(pinned, id) || isBottomPin(id) {
++		return
++	}
++	reorderItems = append(reorderItems, reorderItem{id: id, btn: button})
++	button.AddEvents(int(gdk.PointerMotionMask))
++
++	// y of the pointer in toplevel coordinates: the event is relative to the
++	// button, the allocation places the button in the window.
++	pointerY := func(b *gtk.Button, local float64) float64 {
++		return float64(b.Allocation().Y()) + local
++	}
++
++	button.Connect("button-press-event", func(b *gtk.Button, e *gdk.Event) bool {
++		ev := e.AsButton()
++		if ev.Button() == 1 {
++			reorderSrc = id
++			reorderActive = false
++			reorderStartY = pointerY(b, ev.Y())
++		}
++		return false // let the button behave normally
++	})
++
++	button.Connect("motion-notify-event", func(b *gtk.Button, e *gdk.Event) bool {
++		if reorderSrc != id {
++			return false
++		}
++		d := pointerY(b, e.AsMotion().Y()) - reorderStartY
++		if d < 0 {
++			d = -d
++		}
++		if d > reorderThreshold {
++			reorderActive = true
++		}
++		return false
++	})
++
++	// Connected before the existing release handler, so returning true here
++	// stops the emission and the app is not launched for what was a drag.
++	button.Connect("button-release-event", func(b *gtk.Button, e *gdk.Event) bool {
++		if !reorderActive || reorderSrc != id {
++			reorderSrc, reorderActive = "", false
++			return false
++		}
++		y := int(pointerY(b, e.AsButton().Y()))
++		target := ""
++		for _, it := range reorderItems {
++			a := it.btn.Allocation()
++			if y >= a.Y() && y < a.Y()+a.Height() {
++				target = it.id
++				break
++			}
++		}
++		src := reorderSrc
++		reorderSrc, reorderActive = "", false
++		if target != "" && target != src {
++			reorderPinned(src, target)
++		}
++		return true
++	})
++}
++
++// reorderPinned moves src to where dst currently sits and saves the list.
++// savePinned() rewrites the file and the fsnotify watcher rebuilds the dock.
++func reorderPinned(src, dst string) {
++	if src == "" || dst == "" || src == dst {
++		return
++	}
++
++	var without []string
++	for _, v := range pinned {
++		if v != src {
++			without = append(without, v)
++		}
++	}
++
++	idx := -1
++	for i, v := range without {
++		if v == dst {
++			idx = i
++			break
++		}
++	}
++	if idx < 0 {
++		return
++	}
++
++	out := make([]string, 0, len(without)+1)
++	out = append(out, without[:idx]...)
++	out = append(out, src)
++	out = append(out, without[idx:]...)
++
++	pinned = out
++	savePinned()
++	log.Debugf("Moved %s to the position of %s", src, dst)
++}
