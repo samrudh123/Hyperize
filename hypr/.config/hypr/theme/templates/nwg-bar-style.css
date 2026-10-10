@@ -1,0 +1,54 @@
+/* ─── nwg-bar · Catppuccin Mocha ────────────────────────────────────────────
+   The power dialog behind the top bar's power button. Styled to match waybar,
+   the sidebar and the app grid: same translucent base, same surface1 hairline,
+   same radii, mauve on hover.
+
+   Selectors available in nwg-bar 0.1.6: window, #outer-box, #inner-box,
+   button, image. There is no per-button id, so all five share one style.      */
+
+/* The full-screen scrim. crust at ~55% dims the desktop so the dialog reads as
+   modal, the way GNOME's does, without hiding what is behind it completely. */
+window {
+  background-color: rgba(17, 17, 27, 0.55);
+  color: #cdd6f4;                            /* text */
+  font-family: "JetBrainsMono Nerd Font", monospace;
+  font-size: 13px;
+}
+
+#outer-box {
+  margin: 0;
+}
+
+/* The row of buttons */
+#inner-box {
+  background-color: rgba(30, 30, 46, 0.88);  /* base */
+  border: 1px solid rgba(69, 71, 90, 0.75);  /* surface1 */
+  border-radius: 20px;
+  padding: 10px;
+  margin: 10px;
+}
+
+button, image {
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: #cdd6f4;
+}
+
+button {
+  padding: 14px 18px;
+  margin: 4px;
+  border-radius: 15px;
+  transition: background-color 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+button:hover {
+  background-color: rgba(49, 50, 68, 0.95);  /* surface0 */
+}
+
+/* Keyboard navigation: arrow keys move focus, Enter activates. Make the focused
+   button obvious, since the mauve ring is the only cue that Enter is armed. */
+button:focus {
+  background-color: rgba(69, 71, 90, 0.95);  /* surface1 */
+  border: 1px solid #@@ACCENT@@;                 /* mauve */
+}

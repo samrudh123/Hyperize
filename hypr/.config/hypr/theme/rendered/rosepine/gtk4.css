@@ -1,0 +1,165 @@
+/* ─── GTK4 / libadwaita · Catppuccin Mocha ─────────────────────────────────
+   Recolours every libadwaita app — Settings (gnome-control-center), Files
+   (Nautilus), and the rest — to the palette of the bars, dock and panels.
+   libadwaita 1.9 reads its colours from these CSS variables; this file loads
+   at USER priority, after the built-in stylesheet, so it wins. Apps read it at
+   start-up: close and reopen a window to see a change.
+
+   ACCENT: #@@ACCENT@@ below is a set-accent.sh template token (the original
+   accent) — the live file is rendered from theme/templates/gtk4.css with the
+   current accent, so it follows SUPER+ALT+C and the wallpaper picker. Edit
+   this file, then run `set-accent.sh --resync`, or the next accent change
+   reverts the edit.
+
+   Layout of the surfaces, darkest to lightest:
+     sidebar      mantle   #16141f   (Files' places, Settings' page list)
+     window/view  base     #191724   (content, header bars — flat, no seam)
+     cards/rows   surface0 #1f1d2e   (boxed lists, preference rows)
+     popovers     crust    #12101a   (menus, like the bars' tooltips)        */
+
+:root {
+  /* accent */
+  --accent-bg-color: #@@ACCENT@@;
+  --accent-fg-color: #12101a;
+  --accent-color: #@@ACCENT@@;
+
+  /* status colours: Mocha red / green / yellow, dark text on the fills */
+  --destructive-bg-color: #eb6f92;
+  --destructive-fg-color: #12101a;
+  --destructive-color: #eb6f92;
+  --success-bg-color: #95c4a8;
+  --success-fg-color: #12101a;
+  --success-color: #95c4a8;
+  --warning-bg-color: #f6c177;
+  --warning-fg-color: #12101a;
+  --warning-color: #f6c177;
+  --error-bg-color: #eb6f92;
+  --error-fg-color: #12101a;
+  --error-color: #eb6f92;
+
+  /* surfaces */
+  --window-bg-color: #191724;
+  --window-fg-color: #e0def4;
+  --view-bg-color: #191724;
+  --view-fg-color: #e0def4;
+  --headerbar-bg-color: #191724;
+  --headerbar-fg-color: #e0def4;
+  --headerbar-border-color: #e0def4;
+  --headerbar-backdrop-color: #191724;
+  --headerbar-shade-color: rgba(18, 16, 26, 0.6);
+  --headerbar-darker-shade-color: rgba(18, 16, 26, 0.8);
+  --sidebar-bg-color: #16141f;
+  --sidebar-fg-color: #e0def4;
+  --sidebar-backdrop-color: #16141f;
+  --sidebar-border-color: #12101a;
+  --sidebar-shade-color: rgba(18, 16, 26, 0.6);
+  --secondary-sidebar-bg-color: #191724;
+  --secondary-sidebar-fg-color: #e0def4;
+  --secondary-sidebar-backdrop-color: #191724;
+  --secondary-sidebar-border-color: #12101a;
+  --secondary-sidebar-shade-color: rgba(18, 16, 26, 0.6);
+  --card-bg-color: rgba(31, 29, 46, 0.75);
+  --card-fg-color: #e0def4;
+  --card-shade-color: rgba(18, 16, 26, 0.5);
+  --dialog-bg-color: #191724;
+  --dialog-fg-color: #e0def4;
+  --popover-bg-color: #12101a;
+  --popover-fg-color: #e0def4;
+  --popover-shade-color: rgba(0, 0, 0, 0.5);
+  --thumbnail-bg-color: #1f1d2e;
+  --thumbnail-fg-color: #e0def4;
+  --overview-bg-color: #16141f;
+  --overview-fg-color: #e0def4;
+  --active-toggle-bg-color: rgba(224, 222, 244, 0.14);
+  --active-toggle-fg-color: #e0def4;
+  --shade-color: rgba(18, 16, 26, 0.4);
+  --scrollbar-outline-color: rgba(18, 16, 26, 0.6);
+
+  /* same corner radius as Hyprland's windows (decoration:rounding = 10) */
+  --window-radius: 10px;
+  --monospace-font-family: "JetBrainsMono Nerd Font";
+}
+
+/* The same colours under the pre-1.6 names, for GTK4 apps that read those. */
+@define-color accent_bg_color #@@ACCENT@@;
+@define-color accent_fg_color #12101a;
+@define-color accent_color #@@ACCENT@@;
+@define-color destructive_bg_color #eb6f92;
+@define-color destructive_fg_color #12101a;
+@define-color destructive_color #eb6f92;
+@define-color success_color #95c4a8;
+@define-color warning_color #f6c177;
+@define-color error_color #eb6f92;
+@define-color window_bg_color #191724;
+@define-color window_fg_color #e0def4;
+@define-color view_bg_color #191724;
+@define-color view_fg_color #e0def4;
+@define-color headerbar_bg_color #191724;
+@define-color headerbar_fg_color #e0def4;
+@define-color headerbar_backdrop_color #191724;
+@define-color sidebar_bg_color #16141f;
+@define-color sidebar_fg_color #e0def4;
+@define-color sidebar_backdrop_color #16141f;
+@define-color card_bg_color rgba(31, 29, 46, 0.75);
+@define-color card_fg_color #e0def4;
+@define-color dialog_bg_color #191724;
+@define-color dialog_fg_color #e0def4;
+@define-color popover_bg_color #12101a;
+@define-color popover_fg_color #e0def4;
+
+/* ── details the variables don't reach ──────────────────────────────────── */
+
+/* Sidebar rows (Files' places, Settings' pages): a neutral surface0 pill
+   with an accent bar on its left edge and the icon in the accent — the same
+   "this one" mark as the dock's running bars. Not a tint OF the accent: yellow
+   at 16 % over mantle comes out brown. The label keeps the text colour:
+   Settings' sidebar labels ignore a CSS colour (probed — the icon takes it,
+   the label never does), so tinting labels only half-worked. */
+.navigation-sidebar > row:selected,
+.navigation-sidebar row:selected {
+  background-color: #1f1d2e;
+  box-shadow: inset 3px 0 0 #@@ACCENT@@;
+}
+.navigation-sidebar row:selected image {
+  color: #@@ACCENT@@;
+}
+.navigation-sidebar > row:hover:not(:selected) {
+  background-color: rgba(31, 29, 46, 0.6);
+}
+
+/* Boxed lists / preference groups: a hairline surface1 edge, like the bars. */
+list.boxed-list,
+.boxed-list,
+list.content {
+  box-shadow: 0 0 0 1px rgba(38, 35, 58, 0.7);
+}
+
+/* Files: selected items get the accent tint rather than a solid block. */
+gridview > child:selected,
+columnview > listview > row:selected {
+  background-color: alpha(#@@ACCENT@@, 0.22);
+  color: #e0def4;
+}
+
+/* Search / path entries: surface0 pills with an accent focus ring. */
+entry,
+searchbar entry,
+.path-bar {
+  background-color: #1f1d2e;
+}
+entry:focus-within {
+  outline-color: alpha(#@@ACCENT@@, 0.6);
+}
+
+/* Switches and check boxes read from the accent already; keep the knob dark
+   on the light accent so it stays visible. */
+switch:checked > slider {
+  background-color: #12101a;
+}
+
+/* Tooltips match waybar's: crust, surface1 hairline. */
+tooltip {
+  background-color: rgba(18, 16, 26, 0.97);
+  border: 1px solid #26233a;
+  border-radius: 9px;
+}

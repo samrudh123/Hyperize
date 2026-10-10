@@ -1,0 +1,33 @@
+{
+  "default_dir": "~/Downloads",
+  "recent_dirs": [],
+  "chunks": 8,
+  "parallel": 3,
+  "speed_presets": [
+    "unlimited",
+    "256K",
+    "512K",
+    "1M",
+    "2M",
+    "5M",
+    "10M"
+  ],
+  "jd_domains": [
+    "rapidgator.net",
+    "rg.to",
+    "1fichier.com",
+    "nitroflare.com",
+    "katfile.com",
+    "ddownload.com",
+    "turbobit.net",
+    "filefactory.com",
+    "uploaded.net",
+    "mega.nz",
+    "mega.co.nz",
+    "filecrypt.cc",
+    "keeplinks.org"
+  ],
+  "jd_dir": "~/jd2",
+  "jd_headless": false,
+  "fuzzel_width": 64
+}

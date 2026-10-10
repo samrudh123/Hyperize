@@ -1,0 +1,93 @@
+{
+    // ── Theme ───────────────────────────────────────────────────────────────
+    // Catppuccin Mocha, the same palette ghostty and yazi already use — base
+    // #1e1e2e, text #cdd6f4 — so the editor stops being the one window that
+    // disagrees with the rest of the desktop.
+    "workbench.colorTheme": "Catppuccin Mocha",
+    "workbench.iconTheme": "catppuccin-mocha",
+
+    // Left at the extension's default ON PURPOSE. Its default accent is mauve
+    // (#cba6f7), which is exactly set-accent.sh's ORIGINAL — so when the
+    // desktop accent is the stock one, the ~60 accent-tinted keys this file
+    // does NOT override still agree with the ones it does. See the block at
+    // the bottom for why it is only some of them.
+    "catppuccin.accentColor": "mauve",
+
+    // ── Type ────────────────────────────────────────────────────────────────
+    // Same face and features as ghostty's config (font-feature = calt, liga),
+    // so code looks identical in the editor and in a terminal beside it.
+    "editor.fontFamily": "'JetBrainsMono Nerd Font', 'Droid Sans Mono', monospace",
+    "editor.fontLigatures": true,
+    "terminal.integrated.fontFamily": "'JetBrainsMono Nerd Font', monospace",
+
+    // VS Code draws its own title bar instead of letting GTK draw a grey one,
+    // so the window is themed edge to edge like everything else here. The menu
+    // bar becomes a hamburger at the top left; Alt still opens it.
+    "window.titleBarStyle": "custom",
+
+    // ── Sizing for a 162 DPI panel ──────────────────────────────────────────
+    // This display is 1920x1200 on 14", and Hyprland runs it at scale 1.0, so
+    // nothing scales the UI up. VS Code sizes its chrome in raw pixels (13px
+    // UI font, 16px icons), which lands ~13% smaller than GTK apps here
+    // (Ubuntu Sans 11pt = 14.7px) and much smaller than the dock's icons.
+    //
+    // zoomLevel is the right knob: it scales EVERYTHING together — icons,
+    // tabs, sidebar, menus, editor — where editor.fontSize only touches code.
+    // Each step is 1.2x, so 1 = 120%. Nudge it live with Ctrl+= / Ctrl+-
+    // (View > Appearance > Zoom In); VS Code writes the new value back here.
+    "window.zoomLevel": 1,
+
+    // Code text, scaled on top of the zoom above (14 x 1.2 = ~17px effective).
+    "editor.fontSize": 14,
+    "terminal.integrated.fontSize": 14,
+
+    // ── existing settings, unchanged ────────────────────────────────────────
+    "claudeCode.preferredLocation": "panel",
+    "colab.serverMounting": true,
+    "git.autofetch": true,
+    "claudeCode.hideOnboarding": true,
+
+    // ── Desktop accent ──────────────────────────────────────────────────────
+    // ⚠ THE HEXES BELOW ARE GENERATED. This file is in set-accent.sh's
+    // manifest, so SUPER+ALT+C rewrites it from
+    // theme/templates/vscode-settings.json. Edit it freely — but run
+    //     ~/.config/hypr/set-accent.sh --resync
+    // afterwards, or the next accent change silently reverts your edit.
+    // That includes edits VS CODE ITSELF makes: changing the zoom with
+    // Ctrl+= writes window.zoomLevel back here, and it is just as losable.
+    // No other file in the manifest rewrites itself, so this is the one to
+    // watch.
+    //
+    // WHY ONLY THESE KEYS: the theme tints 79 colours with the accent, but
+    // most are semantic, not chrome — editorBracketHighlight.foreground6,
+    // symbolIcon.keywordForeground, charts.purple, the gitlens graph lanes.
+    // Repainting those would recolour language keywords and bracket pairs,
+    // which is the same reason set-accent.sh leaves the .tmTheme files alone
+    // ("syntax highlighting stays Catppuccin on purpose"). So this list is
+    // deliberately the UI chrome you read as "the accent", and nothing that
+    // carries meaning in the code itself.
+    "workbench.colorCustomizations": {
+        "[Catppuccin Mocha]": {
+            "focusBorder": "#cba6f7",
+            "sash.hoverBorder": "#cba6f7",
+            "button.background": "#cba6f7",
+            "button.foreground": "#1e1e2e",
+            "extensionButton.prominentBackground": "#cba6f7",
+            "extensionButton.prominentForeground": "#1e1e2e",
+            "activityBarBadge.background": "#cba6f7",
+            "activityBarBadge.foreground": "#1e1e2e",
+            "sideBarTitle.foreground": "#cba6f7",
+            "panelTitle.activeBorder": "#cba6f7",
+            "tab.activeBorderTop": "#cba6f7",
+            "tab.activeForeground": "#cba6f7",
+            "terminal.tab.activeBorder": "#cba6f7",
+            "progressBar.background": "#cba6f7",
+            "inputOption.activeBorder": "#cba6f7",
+            "list.highlightForeground": "#cba6f7",
+            "pickerGroup.foreground": "#cba6f7",
+            "editorLineNumber.activeForeground": "#cba6f7",
+            "commandCenter.activeBorder": "#cba6f7",
+            "textLink.foreground": "#cba6f7"
+        }
+    }
+}

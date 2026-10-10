@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Accent Colour
+GenericName=Theme accent
+Comment=Recolour the desktop accent — previews live, Esc puts it back
+# The dock resolves a RUNNING window's icon by matching its class against the
+# desktop entries. Without this the picker shows the fallback "missing image"
+# ✕ in the sidebar. The class is "Accent-picker": GTK takes it from
+# GLib.set_prgname() and capitalises the first letter (see accent-picker.py).
+StartupWMClass=Accent-picker
+# sh -c so ~ expands: no username baked into the file
+Exec=sh -c "exec /usr/bin/python3 ~/.config/hypr/accent-picker.py"
+Icon=preferences-desktop-theme
+Terminal=false
+Categories=Settings;DesktopSettings;
+Keywords=accent;colour;color;theme;

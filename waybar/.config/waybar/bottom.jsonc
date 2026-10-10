@@ -1,0 +1,167 @@
+// Bottom bar — second waybar instance. Toggle by hand with ~/.config/hypr/bottom-bar.sh.
+// Autostarted from hyprland.conf exec-once.
+//
+// A second waybar instance with its own config and CSS, so the top bar's files
+// stay untouched. Same height (40) and pill style as the top bar.
+{
+  "name": "bottombar",
+  "layer": "top",
+  "position": "bottom",
+  "height": 40,
+  "reload_style_on_change": true,   // see config.jsonc
+  "spacing": 0,
+  "margin-bottom": 0,
+  "margin-left": 0,
+  "margin-right": 0,
+
+  "modules-left": [
+    // Two players side by side, each [⏮ pill ⏭] with its own line + controls:
+    // this laptop, then the phone (KDE Connect / Spotify on another device).
+    // Was one pill (cffi/now-playing) between custom/media-prev and -next.
+    "cffi/now-playing#local",
+    "cffi/now-playing#remote",
+    "custom/media-idle",
+    "custom/spotify-remote",
+    "custom/media-menu"
+  ],
+  "modules-center": [],
+  "modules-right": [
+    "custom/tasks",
+    "idle_inhibitor",
+    "custom/powerprofile",
+    "custom/wallpaper"
+  ],
+
+  // ── now playing, clickable / draggable progress line ──────────────────────
+  // A CFFI plugin (a real GTK widget in the bar), because a custom module
+  // never learns WHERE it was clicked. ~/.config/waybar/modules/nowplaying.c
+  // (build.sh); the data still comes from now-playing.py --cffi, and the label
+  // is named custom-now-playing so bottom.css/progress.css style it as before.
+  // Line: hover = thicker + knob + time bubble; click = jump; drag = seek on
+  // release. Elsewhere: click play/pause, right-click players, scroll ±5 s.
+  // To go back: put "custom/now-playing" in modules-left instead.
+  // Loaded twice: "scope" picks this laptop's players (local) or another
+  // device's (remote = every kdeconnect.* player, incl. the Spotify bridge).
+  // Each pill brings its own ⏮ ⏭ (skip-cmd) and hides when its side is empty.
+  "cffi/now-playing": {             // single pill, all players (unused; the old setup)
+    "module_path": "nowplaying.so",          // found via LD_LIBRARY_PATH (fallback.sh)
+    // natural_scroll flips the TOUCHPAD; undo that there (only) so both
+    // wheel-up and two-finger-swipe-up seek forward
+    "reverse-scrolling": "true"
+  },
+  "cffi/now-playing#local": {
+    "module_path": "nowplaying.so",          // found via LD_LIBRARY_PATH (fallback.sh)
+    "scope": "local",
+    "reverse-scrolling": "true"
+  },
+  "cffi/now-playing#remote": {
+    "module_path": "nowplaying.so",          // found via LD_LIBRARY_PATH (fallback.sh)
+    "scope": "remote",
+    "reverse-scrolling": "true"
+  },
+
+  // ── now playing (any MPRIS player: Firefox, Brave, Spotify, the phone…) ──
+  // Was waybar's built-in mpris module; it can't draw a progress line or tell
+  // the phone's apps apart (KDE Connect relays them all as "kdeconnect").
+  // See ~/.config/hypr/now-playing.py. Long-running: one JSON line per change,
+  // ticking each second while playing.
+  "custom/now-playing": {
+    "exec": "/usr/bin/python3 ~/.config/hypr/now-playing.py",
+    "return-type": "json",
+    "restart-interval": 5,
+    // the player shown, not playerctld's front one (they can differ briefly)
+    "on-click": "playerctl -p \"$(/usr/bin/python3 ~/.config/hypr/now-playing.py current)\" play-pause",
+    "on-click-right": "~/.config/hypr/media-menu.sh",
+    // natural_scroll flips the touchpad; flip it back here so it matches the wheel
+    "reverse-scrolling": true,
+    // media-seek.sh, not `playerctl position 5+`: KDE Connect ignores relative
+    // seeks, so for the phone it sets the absolute position instead.
+    "on-scroll-up": "~/.config/hypr/media-seek.sh 5+",
+    "on-scroll-down": "~/.config/hypr/media-seek.sh 5-"
+  },
+  // custom/media-prev / -next: unused since the two pills carry their own ⏮ ⏭
+  // (kept for the single-pill setup). "---" shows while neither pill has a player.
+  "custom/media-prev": {
+    "format": "󰒮",
+    "exec": "echo x",          // must print something: empty output hides the module
+    "interval": "once",
+    // The player the bar shows; restarts it when it has no "previous"
+    // (YouTube Morphe); no player -> Spotify on whatever device. media-skip.sh.
+    "on-click": "~/.config/hypr/media-skip.sh prev",
+    "tooltip": false
+  },
+  "custom/media-idle": {
+    "format": "---",
+    "exec": "echo x",
+    // "Nothing to show", not "no players": a phone app can leave an EMPTY player
+    // behind (YouTube Morphe after its notification is dismissed — no title),
+    // which custom/now-playing hides; the old `! playerctl status` then hid
+    // this too and the bar showed nothing at all between prev/next.
+    "exec-if": "! playerctl -a metadata --format '{{title}}' 2>/dev/null | grep -q .",
+    "interval": 2,
+    "tooltip-format": "Nothing playing"
+  },
+  "custom/media-next": {
+    "format": "󰒭",
+    "exec": "echo x",          // must print something: empty output hides the module
+    "interval": "once",
+    "on-click": "~/.config/hypr/media-skip.sh next",
+    "tooltip": false
+  },
+  // Spotify login prompt only. Playback on another device (phone, speaker, …)
+  // shows in custom/now-playing: spotify-remote.py's bridge (exec-once) turns
+  // the Web API into an MPRIS player. Polled, not signalled (see wallpaper).
+  "custom/spotify-remote": {
+    "exec": "~/.config/hypr/spotify-remote.py status",
+    "return-type": "json",
+    "interval": 3,
+    "on-click": "~/.config/hypr/spotify-remote.py login"
+  },
+  // Dropdown: every player + what it's playing, and Spotify / YouTube /
+  // YouTube Music launchers. A fuzzel menu — see ~/.config/hypr/media-menu.sh.
+  "custom/media-menu": {
+    "format": "󰅃",   // md-chevron_up
+    "exec": "echo x",          // must print something: empty output hides the module
+    "interval": "once",
+    "on-click": "~/.config/hypr/media-menu.sh",
+    "tooltip-format": "Players & now playing"
+  },
+
+  // ── to-do: count of open tasks; click for the panel ──────────────────
+  // Remaining / done today / log, all editable — see ~/.config/hypr/tasks.py.
+  // Polled like custom/wallpaper (a signal would hit the top bar too); the
+  // panel and `tasks.py add` write the file, the next poll picks it up.
+  "custom/tasks": {
+    "exec": "~/.config/hypr/tasks.py status",
+    "return-type": "json",
+    "interval": 2,
+    "on-click": "~/.config/hypr/tasks.py toggle",
+    "on-click-right": "~/.config/hypr/tasks.py quickadd"
+  },
+
+  // ── keep the screen awake (blocks hypridle while on) ───────────────────
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": { "activated": "󰅶", "deactivated": "󰾪" },
+    "tooltip-format-activated": "Screen stays awake — click to allow sleep",
+    "tooltip-format-deactivated": "Screen may sleep/lock — click to keep awake"
+  },
+
+  "custom/powerprofile": {
+    "exec": "~/.config/hypr/power-profile.sh status",
+    "return-type": "json",
+    "interval": 5,
+    "on-click": "~/.config/hypr/power-profile.sh next"
+  },
+
+  // Polled (not signalled): pkill -RTMIN+N would hit the top bar too.
+  // exec-on-event (default true) refreshes it straight after a click.
+  "custom/wallpaper": {
+    "exec": "~/.config/hypr/wallpaper-control.sh status",
+    "return-type": "json",
+    "interval": 2,
+    "max-length": 48,
+    "on-click": "~/.config/hypr/wallpaper-control.sh toggle",
+    "on-click-right": "/usr/bin/python3 ~/.config/hypr/wallpaper-picker.py"
+  }
+}

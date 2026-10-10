@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=btop++
+Comment=Superseded by dev.local.btop.desktop — see that file's header
+Exec=ghostty --class=dev.local.btop -e btop
+Icon=btop
+Terminal=false
+NoDisplay=true

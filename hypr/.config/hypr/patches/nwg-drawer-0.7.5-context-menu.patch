@@ -1,0 +1,188 @@
+diff --git a/tools.go b/tools.go
+index 1725779..3b408fc 100644
+--- a/tools.go
++++ b/tools.go
+@@ -517,6 +517,30 @@ func loadTextFile(path string) ([]string, error) {
+ 	return output, nil
+ }
+ 
++// ── local patch ────────────────────────────────────────────────────────────
++// The SIDEBAR (nwg-dock) keeps its own pinned list, keyed by WINDOW CLASS
++// rather than .desktop ID, and there is no dependable static mapping between
++// the two. Delegate to ~/.config/hypr/dock-pin.sh, which resolves the class
++// against running windows / StartupWMClass / X-SnapInstanceName.
++func dockPinScript() string {
++	return filepath.Join(os.Getenv("HOME"), ".config", "hypr", "dock-pin.sh")
++}
++
++func dockPinStatus(desktopID string) string {
++	out, err := exec.Command(dockPinScript(), "status", desktopID).Output()
++	if err != nil {
++		log.Warnf("dock-pin.sh status failed: %s", err)
++		return "unknown"
++	}
++	return strings.TrimSpace(string(out))
++}
++
++func dockPinSet(action, desktopID string) {
++	if err := exec.Command(dockPinScript(), action, desktopID).Run(); err != nil {
++		log.Warnf("dock-pin.sh %s failed: %s", action, err)
++	}
++}
++
+ func pinItem(itemID string) {
+ 	for _, item := range pinned {
+ 		if item == itemID {
+diff --git a/uicomponents.go b/uicomponents.go
+index e2b4a90..f09d884 100644
+--- a/uicomponents.go
++++ b/uicomponents.go
+@@ -12,9 +12,120 @@ import (
+ 
+ 	"github.com/diamondburned/gotk4/pkg/gdk/v3"
+ 	"github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
++	"github.com/diamondburned/gotk4/pkg/glib/v2"
+ 	"github.com/diamondburned/gotk4/pkg/gtk/v3"
+ )
+ 
++// ── local patch ────────────────────────────────────────────────────────────
++// Right-click bookkeeping.
++//
++// THE BUG THIS FIXES
++// appContextMenu() builds a fresh gtk.Menu on every right-click and nothing
++// ever destroyed it. Two consequences, both of which you can see:
++//
++//  1. A GtkMenu takes a pointer grab while it is up, so the tile under the
++//     cursor never receives its leave-notify-event and stays stuck in
++//     PRELIGHT — it looks selected permanently. Right-click a second app and
++//     you have two "selected" tiles; they accumulate for the lifetime of the
++//     drawer, because nothing ever clears the state.
++//  2. Every one of those menus leaks — a GtkMenu plus its items, plus a
++//     reference on the tile it was attached to. That is the slowdown: the
++//     grid gets heavier with each right-click.
++//
++// Fix: keep at most ONE menu alive. Pop the previous one down and destroy it
++// before showing a new one, and explicitly clear the forced state flags on
++// the tile it was attached to.
++//
++// Destruction is deferred with glib.IdleAdd rather than called inline: on the
++// "deactivate" path we are inside the menu's own signal emission, and freeing
++// the widget there risks GTK touching memory it has just dropped. Idle runs
++// once the current emission has unwound, which is also after a chosen item's
++// "activate" handler, so Open/favourites/sidebar still fire.
++var (
++	openMenu       *gtk.Menu
++	openMenuWidget gtk.Widgetter
++)
++
++// clearTileHighlight undoes the state the menu's pointer grab left behind.
++func clearTileHighlight() {
++	if openMenuWidget == nil {
++		return
++	}
++	gtk.BaseWidget(openMenuWidget).UnsetStateFlags(
++		gtk.StateFlagPrelight | gtk.StateFlagActive | gtk.StateFlagSelected)
++	openMenuWidget = nil
++}
++
++// popupAppMenu shows menu at widget, replacing whatever was open before.
++func popupAppMenu(menu *gtk.Menu, at gtk.Widgetter) {
++	if openMenu != nil {
++		prev := openMenu
++		openMenu = nil
++		prev.Popdown()
++		glib.IdleAdd(func() { prev.Destroy() })
++	}
++	// Clear the OLD tile before adopting the new one — this is what stops the
++	// selections from piling up.
++	clearTileHighlight()
++
++	openMenu = menu
++	openMenuWidget = at
++
++	// "deactivate" fires on every dismissal: Escape, click-away, or an item
++	// being chosen.
++	menu.Connect("deactivate", func() {
++		clearTileHighlight()
++		if openMenu == menu {
++			openMenu = nil
++		}
++		glib.IdleAdd(func() { menu.Destroy() })
++	})
++
++	menu.PopupAtWidget(at, gdk.GravitySouth, gdk.GravityNorth, nil)
++}
++
++// ── local patch ────────────────────────────────────────────────────────────
++// Upstream 0.7.5 toggles the favourites row directly on right-click, with no
++// menu at all. This is the GNOME-style context menu instead.
++func appContextMenu(desktopID, execCmd string, terminal bool) *gtk.Menu {
++	menu := gtk.NewMenu()
++
++	itemOpen := gtk.NewMenuItemWithLabel("Open")
++	itemOpen.Connect("activate", func() { launch(execCmd, terminal, true) })
++	menu.Append(itemOpen)
++
++	sep := gtk.NewSeparatorMenuItem()
++	menu.Append(&sep.MenuItem)
++
++	// Favourites = the drawer's own row, ~/.cache/nwg-pin-cache.
++	inFav := isIn(pinned, desktopID)
++	favLabel := "Add to favourites"
++	if inFav {
++		favLabel = "Remove from favourites"
++	}
++	itemFav := gtk.NewMenuItemWithLabel(favLabel)
++	itemFav.Connect("activate", func() {
++		if inFav {
++			unpinItem(desktopID)
++		} else {
++			pinItem(desktopID)
++		}
++	})
++	menu.Append(itemFav)
++
++	// Sidebar = nwg-dock, ~/.cache/nwg-dock-pinned, keyed by window class.
++	sidebarLabel, action := "Pin to sidebar", "add"
++	if dockPinStatus(desktopID) == "pinned" {
++		sidebarLabel, action = "Unpin from sidebar", "remove"
++	}
++	itemSide := gtk.NewMenuItemWithLabel(sidebarLabel)
++	itemSide.Connect("activate", func() { dockPinSet(action, desktopID) })
++	menu.Append(itemSide)
++
++	menu.ShowAll()
++	return menu
++}
++
+ func setUpPinnedFlowBox() *gtk.FlowBox {
+ 	if pinnedFlowBox != nil {
+ 		pinnedFlowBox.Destroy()
+@@ -73,7 +184,8 @@ func setUpPinnedFlowBox() *gtk.FlowBox {
+ 					launch(entry.Exec, entry.Terminal, true)
+ 					return true
+ 				} else if btnEvent.Button() == 3 {
+-					unpinItem(entry.DesktopID)
++					popupAppMenu(
++						appContextMenu(entry.DesktopID, entry.Exec, entry.Terminal), row)
+ 					return true
+ 				}
+ 				return false
+@@ -208,7 +320,7 @@ func setUpAppsFlowBox(categoryList []string, searchPhrase string) *gtk.FlowBox {
+ 		log.Debugf("Skipping appFlowBox.Destroy(); already invalid or nil")
+ 		appFlowBox = nil // to make sure
+ 	}
+-	if  appHWrapper != nil && appHWrapper.Widget.Native() != 0 {
++	if appHWrapper != nil && appHWrapper.Widget.Native() != 0 {
+ 		log.Debugf("Destroying appHWrapper (native=%x)", appHWrapper.Widget.Native())
+ 		appHWrapper.Destroy()
+ 		appHWrapper = nil
+@@ -311,7 +423,7 @@ func flowBoxButton(entry desktopEntry) *gtk.Button {
+ 				return true
+ 			}
+ 		} else if btnEvent.Button() == 3 {
+-			pinItem(ID)
++			popupAppMenu(appContextMenu(ID, exec, terminal), btn)
+ 			return true
+ 		}
+ 		return false

@@ -1,0 +1,32 @@
+[Desktop Entry]
+# nwg-drawer is built from source into ~/.local/bin and ships no .desktop file,
+# so while the app grid is open the sidebar showed it as the generic
+# missing-icon fallback (an orange circle with a white X) — nwg-dock resolves a
+# running window's icon by matching its CLASS to a desktop entry, and there was
+# no entry to find. Same defect, and same one-file fix, as
+# hyprland-share-picker.desktop next to this file.
+#
+# StartupWMClass is the load-bearing field. The class is `Nwg-drawer` with a
+# capital N — GTK derives it from the binary name and capitalises it. Read it
+# off `hyprctl clients` rather than assuming the lowercase form.
+#
+# Exec points at app-grid.sh, not the bare binary, so that the flags stay in one
+# place (see that script); nothing actually launches the drawer from this entry,
+# it is SUPER+D and the dock's launcher button that do.
+#
+# NoDisplay keeps the app grid from listing ITSELF, which would be absurd.
+#
+# Icon: applications-other is a blue tile with a 3x3 grid — the app-grid
+# metaphor, in colour, which sits better among the sidebar's full-colour app
+# logos. `view-app-grid-symbolic` (Yaru) is the same shape in flat grey if you
+# want it subtler.
+Type=Application
+Name=App Grid
+GenericName=Application launcher
+Comment=Browse and launch applications
+Exec=sh -c "exec ~/.config/hypr/app-grid.sh"
+Icon=applications-other
+StartupWMClass=Nwg-drawer
+Terminal=false
+NoDisplay=true
+Categories=Utility;

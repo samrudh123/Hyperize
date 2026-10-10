@@ -1,0 +1,20 @@
+# backups left by in-place edits (name.pre-something, name.bak…)
+*.pre-*
+*.bak
+*.bak-*
+*.orig
+*.tmp
+*~
+__pycache__/
+*.pyc
+
+# never commit: BitLocker key file option in mount-windows.sh
+hypr/.config/hypr/.windows-key
+
+# per-machine identity
+.gitconfig.local
+hypr/.config/hypr/spotify-client-id
+hypr/.config/hypr/media-tests/
+
+# runtime state: the current wallpaper's absolute path (set-wallpaper.sh)
+hypr/.config/hypr/wallpaper

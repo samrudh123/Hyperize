@@ -1,0 +1,72 @@
+/* Bottom bar — reuses the top bar's palette and base rules, then flips the
+   edge line to the top and styles its own modules the same way as the top
+   bar's pills (32px tall inside the 40px bar). */
+@import url("style.css");
+@import url("progress.css");   /* the player's progress line — gen-progress-css.sh */
+
+window#waybar {
+  border-bottom: none;
+  border-top: 1px solid alpha(@surface1, 0.7);
+}
+
+#custom-now-playing, #idle_inhibitor, #custom-powerprofile, #custom-wallpaper,
+#custom-media-prev, #custom-media-next, #custom-media-idle, #custom-media-menu,
+#custom-spotify-remote, #custom-tasks {
+  padding: 0 10px;
+  margin: 4px 2px;               /* (40 - 32) / 2 */
+  border-radius: 8px;
+}
+
+/* The player (custom/now-playing, ~/.config/hypr/now-playing.py). Classes are
+   the APP, not the MPRIS name, so the phone's Spotify and YouTube differ too.
+   .paused comes after the app colours so a paused player still goes grey —
+   and its progress line with it (the line is currentColor, progress.css). */
+#custom-now-playing          { color: @blue; padding: 0 12px; }
+#custom-now-playing.spotify  { color: @green; }
+#custom-now-playing.firefox  { color: @peach; }
+#custom-now-playing.youtube  { color: #bf616a; }   /* dimmed red, on purpose: Mocha red reads as the YT Music pink, brighter reds were too loud */
+#custom-now-playing.ytmusic  { color: @pink; }
+#custom-now-playing.paused   { color: @subtext0; }
+#custom-now-playing.hidden   { padding: 0; margin: 0; }
+/* Two players (cffi/now-playing#local, #remote): each group is [⏮ pill ⏭]. */
+#now-playing-group.local { margin-right: 6px; }
+#custom-spotify-remote         { color: @green; padding: 0 12px; }
+#custom-spotify-remote.paused  { color: @subtext0; }
+#custom-spotify-remote.login   { color: @overlay0; }
+#custom-spotify-remote.hidden  { padding: 0; margin: 0; }
+#custom-media-idle  { color: @overlay0; padding: 0 6px; margin: 4px 0; }
+/* No player open at all (the player module hides, "---" shows): a faint,
+   empty progress line — the "nothing is open" sign. It's a plain label, so
+   nothing on it is clickable. Paused players keep their normal, live line. */
+#custom-media-idle {
+  background-image: linear-gradient(alpha(@surface1, 0.45), alpha(@surface1, 0.45));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 100% 2px;
+}
+#custom-media-prev,
+#custom-media-next  { color: @subtext0; font-size: 15px; padding: 0 8px; }
+#custom-media-menu  { color: @subtext0; font-size: 15px; padding: 0 8px; }
+#custom-media-prev:hover,
+#custom-media-next:hover,
+#custom-media-menu:hover { color: @text; background-color: alpha(@surface0, 0.8); }
+
+#idle_inhibitor             { color: @overlay0; font-size: 15px; }
+#idle_inhibitor.activated   { color: @crust; background-color: @yellow; }
+
+#custom-powerprofile               { color: @green; }
+#custom-powerprofile.balanced      { color: @blue; }
+#custom-powerprofile.performance   { color: @crust; background-color: @peach; }
+
+#custom-wallpaper          { color: @lavender; background-color: alpha(@surface0, 0.7);
+                             margin-right: 8px; }
+#custom-wallpaper.paused   { color: @overlay0; }
+#custom-wallpaper:hover    { color: @crust; background-color: @mauve; }
+
+#custom-tasks          { color: @text; background-color: alpha(@surface0, 0.7); padding: 0 14px; }
+#custom-tasks.pending  { color: @peach; }
+#custom-tasks.clear    { color: @green; }
+#custom-tasks.empty    { color: @overlay0; }
+#custom-tasks.error    { color: @red; }
+#custom-tasks:hover    { color: @crust; background-color: @mauve; }
+

@@ -1,0 +1,65 @@
+# ─── Ghostty · Catppuccin Mocha ───────────────────────────────────────────
+
+font-family = "JetBrainsMono Nerd Font"
+font-size = 12
+font-feature = calt
+font-feature = liga
+font-thicken = true
+
+# Catppuccin Mocha
+background = 191724
+foreground = e0def4
+cursor-color = f4d6d4
+cursor-text = 191724
+selection-background = 201e30
+selection-foreground = e0def4
+
+palette = 0=#26233a
+palette = 1=#eb6f92
+palette = 2=#95c4a8
+palette = 3=#f6c177
+palette = 4=#569fba
+palette = 5=#e6a1c4
+palette = 6=#9ccfd8
+palette = 7=#c8c5e0
+palette = 8=#403d52
+palette = 9=#eb6f92
+palette = 10=#95c4a8
+palette = 11=#f6c177
+palette = 12=#569fba
+palette = 13=#e6a1c4
+palette = 14=#9ccfd8
+palette = 15=#aeaac8
+
+# ─── Look & feel ──────────────────────────────────────────────────────────
+background-opacity = 0.92
+background-blur-radius = 32
+window-padding-x = 14
+window-padding-y = 12
+window-padding-balance = true
+window-decoration = true
+window-theme = ghostty
+gtk-titlebar = false
+unfocused-split-opacity = 0.7
+
+cursor-style = block
+cursor-style-blink = false
+mouse-hide-while-typing = true
+scrollback-limit = 100000
+copy-on-select = clipboard
+confirm-close-surface = false
+shell-integration = detect
+shell-integration-features = cursor,sudo,title
+
+# ─── Keybinds ─────────────────────────────────────────────────────────────
+keybind = ctrl+shift+enter=new_split:right
+keybind = ctrl+shift+backslash=new_split:down
+keybind = ctrl+shift+h=goto_split:left
+keybind = ctrl+shift+l=goto_split:right
+keybind = ctrl+shift+k=goto_split:up
+keybind = ctrl+shift+j=goto_split:down
+keybind = ctrl+shift+z=toggle_split_zoom
+keybind = ctrl+shift+t=new_tab
+keybind = ctrl+plus=increase_font_size:1
+keybind = ctrl+minus=decrease_font_size:1
+keybind = ctrl+zero=reset_font_size

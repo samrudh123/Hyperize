@@ -1,0 +1,91 @@
+# Yazi keybindings — additions only.
+#
+# `prepend_keymap` ADDS to the built-in defaults (it does not replace them), so
+# everything documented under `~` / F1 still works.
+#
+# NOTE on syntax: yazi substitutes files with `%s`, NOT `$@` or `$0`.
+# `shell -- code "$@"` silently runs `code` with no arguments at all — verified.
+# `%s` expands to the absolute path of the hovered item (or the selection).
+
+[[mgr.prepend_keymap]]
+on   = "<C-o>"
+run  = 'shell -- code %s'
+desc = "Open in VS Code"
+
+# Page through the preview (PDF pages, long text, archives) without leaving
+# the file. Plain arrows still move between files. Same as the built-in J / K:
+# for PDFs yazi clamps every seek to ±1 page, so these step exactly one page.
+[[mgr.prepend_keymap]]
+on   = "<S-Down>"
+run  = "seek 1"
+desc = "Preview: next page"
+
+[[mgr.prepend_keymap]]
+on   = "<S-Up>"
+run  = "seek -1"
+desc = "Preview: previous page"
+
+[[mgr.prepend_keymap]]
+on   = "<A-o>"
+run  = 'shell -- nautilus %s'
+desc = "Open in Files (Nautilus)"
+
+# Grid view: icons + thumbnails like Nautilus, in this same terminal
+# (grid-view.py, kitty graphics). Starts on the hovered item; on the way back
+# yazi lands on whatever was selected there. Alt+G again (or q / Esc) returns.
+[[mgr.prepend_keymap]]
+on   = "<A-g>"
+run  = 'shell --block -- /usr/bin/python3 ~/.config/yazi/grid-view.py %s'
+desc = "Grid view (icons / thumbnails)"
+
+# `g` is yazi's built-in "go to" prefix (gh = home, gc = config …), so gw fits
+# the idiom. The path is the udisks mount point and is machine-specific —
+# /run/media/<user>/<volume label>.
+#
+# Two commands, run in order: the volume is BitLocker, so a bare `cd` lands on
+# a path that does not exist until something unlocks it. `--block` hands the
+# script yazi's terminal, which is what lets udisksctl prompt for the
+# passphrase if nothing is stored in the keyring. It is a no-op once mounted.
+[[mgr.prepend_keymap]]
+on   = ["g", "w"]
+run  = [
+  'shell --block -- ~/.config/hypr/mount-windows.sh',
+  "cd /run/media/samrudh/Windows",
+]
+desc = "Go to the Windows drive (mounts it if needed)"
+
+# Open a terminal at the hovered directory (or at the current one if the cursor
+# is on a file — the wrapper resolves that). `shell` runs with yazi's cwd, which
+# is what makes the no-argument fallback correct.
+[[mgr.prepend_keymap]]
+on   = "<C-t>"
+run  = 'shell -- ~/.config/hypr/yazi-terminal.sh %s'
+desc = "Open a terminal here"
+
+# Archiving — yazi has no built-in compression, only extraction. This is the
+# compress.yazi plugin (`ya pkg add KKV9/compress`, pinned in package.toml).
+# It prompts for a filename; the extension you type picks the tool, and a blank
+# name falls back to the selected file / parent directory name + `.zip`.
+#
+# Installed backends on this machine: zip, tar, gzip, xz, bzip2, zstd — so
+# .zip, .tar, .tar.gz, .tar.xz, .tar.bz2 and .tar.zst all work. .7z and .rar
+# do NOT (no 7z/rar binary), and the plugin will just fail on those names.
+#
+# `c` is yazi's copy-path prefix (cc, cd, cf, cn …) but `ca` is unused, so
+# these add to it rather than shadowing anything.
+[[mgr.prepend_keymap]]
+on   = ["c", "a", "a"]
+run  = "plugin compress"
+desc = "Archive selection"
+
+# zip's own encryption (`-P`). Weak by modern standards — fine for casual use,
+# not for anything sensitive.
+[[mgr.prepend_keymap]]
+on   = ["c", "a", "p"]
+run  = "plugin compress -p"
+desc = "Archive selection (password)"
+
+[[mgr.prepend_keymap]]
+on   = ["c", "a", "l"]
+run  = "plugin compress -l"
+desc = "Archive selection (compression level)"

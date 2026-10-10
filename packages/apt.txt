@@ -1,0 +1,33 @@
+# apt packages for this desktop (Ubuntu 26.04). install.sh reads this file;
+# lines starting with # are comments. Grouped so you can trim what you don't use.
+
+# --- compositor + session -------------------------------------------------
+hyprland hyprland-qtutils hyprlock hypridle hyprpicker
+xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
+mako-notifier fuzzel swaybg waybar nwg-bar
+mate-polkit gnome-keyring libsecret-tools udisks2
+
+# --- wayland tools used by the scripts --------------------------------------
+grim slurp wl-clipboard cliphist wf-recorder
+brightnessctl playerctl pavucontrol libnotify-bin jq
+blueman network-manager-gnome kdeconnect
+
+# --- apps -------------------------------------------------------------------
+ghostty nautilus btop obs-studio aria2 ffmpeg poppler-utils glow fastfetch
+papirus-icon-theme
+
+# --- python used by the scripts ----------------------------------------------
+python3-gi gir1.2-gtk-3.0 gir1.2-gtk-4.0 python3-pil python3-websockets
+
+# --- shell --------------------------------------------------------------------
+zsh zsh-autosuggestions zsh-syntax-highlighting zoxide starship
+eza bat fd-find ripgrep fzf tmux git git-lfs curl unzip
+
+# --- build dependencies (build/*.sh) -----------------------------------------
+build-essential pkg-config cmake meson ninja-build golang-go
+qt6-base-dev qt6-base-private-dev qt6-declarative-dev qt6-declarative-private-dev
+qt6-shadertools-dev qt6-svg-dev qt6-wayland qml6-module-qtquick-effects spirv-tools
+libcli11-dev libjemalloc-dev libpam0g-dev libpolkit-agent-1-dev
+libpipewire-0.3-dev libdrm-dev libgbm-dev libwayland-dev wayland-protocols
+libmpv-dev libegl-dev libinih-dev
+libgtk-3-dev libgtk-layer-shell-dev libgirepository1.0-dev

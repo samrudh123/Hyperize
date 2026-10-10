@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Wallpaper
+GenericName=Desktop wallpaper
+Comment=Pick a desktop wallpaper from a grid of thumbnails
+# Class is "Wallpaper-grid.py" — set_prgname() does NOT take effect there
+# because wallpaper-grid.py imports GdkPixbuf eagerly, so GTK falls back to
+# argv[0] and keeps the .py. Match what it actually is, not what it should be.
+StartupWMClass=Wallpaper-grid.py
+# sh -c so ~ expands: no username baked into the file
+Exec=sh -c "exec /usr/bin/python3 ~/.config/hypr/wallpaper-grid.py"
+Icon=preferences-desktop-wallpaper
+Terminal=false
+Categories=Settings;DesktopSettings;
+Keywords=wallpaper;background;desktop;
