@@ -7,8 +7,8 @@ scripts that tie it together.
 
 ## Screenshots
 
-![Desktop: floating-island bars and the sidebar dock](screenshots/desktop.jpg)
-<sub>Floating-island top and bottom bars, the sidebar dock (`SUPER+A`), Tokyo Night with a peach accent.</sub>
+[![Desktop: floating-island bars over a live wallpaper](screenshots/latest_rice_look.webp)](screenshots/latest_rice_look.mp4)
+<sub>Floating-island top and bottom bars over a live wallpaper (click for the full-quality video).</sub>
 
 | | |
 |:---:|:---:|
