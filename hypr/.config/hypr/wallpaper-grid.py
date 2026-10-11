@@ -82,7 +82,7 @@ flowboxchild {
 }
 flowboxchild:selected, flowboxchild:focus {
   background-color: #24283b;
-  border-color: #ff9e64;
+  border-color: #7aa2f7;
 }
 label { color: #c0caf5; font-family: "JetBrainsMono Nerd Font", monospace;
         font-size: 12px; padding-top: 6px; }
