@@ -44,6 +44,11 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | ⤷ in the panel | Enter adds · tick to finish · double-click or ✎ to edit · ↑↓ reorder · 🗑 delete · `Ctrl+Z` undo · `Ctrl+N` new task · `Ctrl+L` log an update · `Esc` close |
 | ⤷ right-click it | quick-add a task without opening the panel |
 | `SUPER + SHIFT + T` | Open / close the tasks panel |
+| Timer (bottom bar, centre) | **Focus timer** — click starts 25 min of focus (notifications muted), then a 5 min break (15 after every 4th). Click again pauses / resumes, middle-click stops |
+| ⤷ right-click it | pick the task you're on (picking one while idle starts on it), +5 min, finish early, and the length: 25/5, 50/10 or 90/15. Finished sessions go into today's log in `~/notes/daily` |
+| Weather (bottom bar, centre) | temperature + sky; hover for feels-like, humidity, wind, UV, rain in the next hours, sunrise/sunset and 4 days. Click refreshes, right-click changes the place |
+| Tailscale icon (bottom bar, right) | how many of your machines are online; hover for each one's IP and link. Click: per machine **SSH in**, **Send files…** (Taildrop), **Copy IP**; connect / disconnect; exit node if you have one. Middle-click connects / disconnects |
+| Spectrum next to the player | a small visualizer of what the speakers play, shown while a player on this laptop is playing |
 | ⤷ the files | `~/notes/tasks.md` (open tasks) and `~/notes/daily/YYYY-MM-DD.md` (one per day). Check-ins pop up at 09:00 / 14:00 / 21:00; click one to open the panel |
 | Wi-Fi icon (top bar) | Network panel — **Available** to scan/join/disconnect, **Saved** to connect, forget or edit stored ones |
 | ⤷ right-click it | the old connection editor on its own |

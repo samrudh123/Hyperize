@@ -17,7 +17,7 @@ ghostty nautilus btop obs-studio aria2 ffmpeg poppler-utils glow fastfetch
 papirus-icon-theme
 
 # --- python used by the scripts ----------------------------------------------
-python3-gi gir1.2-gtk-3.0 gir1.2-gtk-4.0 python3-pil python3-websockets
+python3-gi gir1.2-gtk-3.0 gir1.2-gtk-4.0 python3-pil python3-websockets python3-numpy
 
 # --- shell --------------------------------------------------------------------
 zsh zsh-autosuggestions zsh-syntax-highlighting zoxide starship

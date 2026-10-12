@@ -18,3 +18,6 @@ hypr/.config/hypr/media-tests/
 
 # runtime state: the current wallpaper's absolute path (set-wallpaper.sh)
 hypr/.config/hypr/wallpaper
+
+# per-machine: the weather pill's place (weather.py locate)
+hypr/.config/hypr/weather-location
