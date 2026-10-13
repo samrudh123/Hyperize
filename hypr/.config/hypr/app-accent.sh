@@ -136,7 +136,9 @@ fi
 gtk_theme=$(/usr/bin/python3 "$RICE" gtk "$name" "$THEME_ID")
 if [ -d "$HOME/.local/share/themes/$gtk_theme" ]; then
     gsettings set org.gnome.desktop.interface gtk-theme "$gtk_theme"
-    sed -i "s/^gtk-theme-name=.*/gtk-theme-name=$gtk_theme/" \
+    # --follow-symlinks: both files are stow links into ~/Hyperize; plain -i
+    # would swap each link for a copy
+    sed -i --follow-symlinks "s/^gtk-theme-name=.*/gtk-theme-name=$gtk_theme/" \
         "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
 fi
 

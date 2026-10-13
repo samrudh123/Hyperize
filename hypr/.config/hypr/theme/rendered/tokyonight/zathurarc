@@ -1,0 +1,75 @@
+# zathura — PDF viewer, themed with the rest of the desktop.
+#
+# ⚠ This file is RENDERED by ~/.config/hypr/set-accent.sh from
+# hypr/theme/templates/zathurarc on every theme (SUPER+T) or accent
+# (SUPER+ALT+C) change. After editing it run
+#     ~/.config/hypr/set-accent.sh --resync
+# or the edit is lost on the next change. Colours are written as Catppuccin
+# Mocha roles (rice-theme.py maps them to the current theme), plus the
+# accent token. The VS Code "PDF in Zathura" extension reads this file too.
+
+set font                    "JetBrainsMono Nerd Font 11"
+set selection-clipboard     clipboard
+set statusbar-home-tilde    true
+set window-title-home-tilde true
+set window-title-basename   true
+set statusbar-h-padding     10
+set statusbar-v-padding     4
+set page-v-padding          10
+set page-h-padding          10
+set scroll-page-aware       true
+set incremental-search      true
+
+# --- colours ------------------------------------------------------------------
+# the window is crust, so the (recoloured, base) pages stand out as sheets
+set default-bg              "#13131a"
+set default-fg              "#c0caf5"
+
+set statusbar-bg            "#16161e"
+set statusbar-fg            "#c0caf5"
+set inputbar-bg             "#13131a"
+set inputbar-fg             "#c0caf5"
+
+set notification-bg         "#24283b"
+set notification-fg         "#c0caf5"
+set notification-error-bg   "#24283b"
+set notification-error-fg   "#f7768e"
+set notification-warning-bg "#24283b"
+set notification-warning-fg "#e0af68"
+
+set completion-bg           "#24283b"
+set completion-fg           "#c0caf5"
+set completion-group-bg     "#16161e"
+set completion-group-fg     "#@@ACCENT@@"
+set completion-highlight-bg "#@@ACCENT@@"
+set completion-highlight-fg "#1a1b26"
+
+set index-bg                "#1a1b26"
+set index-fg                "#c0caf5"
+set index-active-bg         "#@@ACCENT@@"
+set index-active-fg         "#1a1b26"
+
+# search matches (and link-hint labels): every hit yellow, the current one
+# peach — translucent, so rgba() of Mocha roles rather than the accent token
+set highlight-color         "rgba(224, 175, 104, 0.5)"
+set highlight-active-color  "rgba(255, 158, 100, 0.7)"
+set highlight-fg            "#1a1b26"
+
+set render-loading-bg       "#1a1b26"
+set render-loading-fg       "#c0caf5"
+
+# Pages in the theme's colours: paper -> base, ink -> text; keephue keeps
+# coloured text, links and logos coloured. Ctrl+R flips to the original white
+# pages and back. reverse-video (images left untouched) stays OFF: it leaves
+# every logo, banner and white-backed figure as a glaring white box. For a
+# photo-heavy document, `:set recolor-reverse-video true` in that window.
+set recolor                 true
+set recolor-keephue         true
+set recolor-reverse-video   false
+set recolor-lightcolor      "#1a1b26"
+set recolor-darkcolor       "#c0caf5"
+
+# w: toggle between the themed pages and the PDF's original colours (Ctrl+R
+# does the same). The VS Code viewer picks this up too.
+map w recolor
+map [fullscreen] w recolor

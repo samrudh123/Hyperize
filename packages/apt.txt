@@ -13,7 +13,7 @@ brightnessctl playerctl pavucontrol libnotify-bin jq
 blueman network-manager-gnome kdeconnect
 
 # --- apps -------------------------------------------------------------------
-ghostty nautilus btop obs-studio aria2 ffmpeg poppler-utils glow fastfetch
+ghostty nautilus btop obs-studio aria2 ffmpeg poppler-utils glow fastfetch zathura zathura-pdf-poppler
 papirus-icon-theme
 
 # --- python used by the scripts ----------------------------------------------
