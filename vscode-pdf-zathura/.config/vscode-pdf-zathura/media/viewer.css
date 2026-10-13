@@ -1,0 +1,191 @@
+/* Every colour here is a variable that viewer.js fills from zathurarc; the
+   fallbacks are zathura's own defaults. */
+:root {
+    --default-bg: #000000;
+    --default-fg: #dddddd;
+    --statusbar-bg: #000000;
+    --statusbar-fg: #ffffff;
+    --inputbar-bg: #131313;
+    --inputbar-fg: #9fbc00;
+    --notification-bg: #ffffff;
+    --notification-fg: #000000;
+    --notification-error-bg: #ffffff;
+    --notification-error-fg: #ff1212;
+    --notification-warning-bg: #ffffff;
+    --notification-warning-fg: #ffe700;
+    --index-bg: #232323;
+    --index-fg: #dddddd;
+    --index-active-bg: #9fbc00;
+    --index-active-fg: #232323;
+    --highlight-color: rgb(155 0 255 / 0.5);
+    --highlight-active-color: rgb(0 188 0 / 0.5);
+    --highlight-solid: #9b00ff;
+    --highlight-fg: #ffffff;
+    --render-loading-bg: #ffffff;
+    --render-loading-fg: #000000;
+    --page-bg: #ffffff;
+    --page-padding: 1px;
+    --font: monospace;
+    --font-size: 13px;
+    --sb-hpad: 8px;
+    --sb-vpad: 2px;
+    --statusbar-height: 0px;
+}
+
+html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--default-bg);
+    color: var(--default-fg);
+    font: var(--font-size) var(--font);
+}
+
+svg.defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+}
+
+#viewerContainer {
+    position: absolute;
+    inset: 0 0 var(--statusbar-height) 0;
+    overflow: auto;
+    outline: none;
+}
+/* guioptions without h and v: no scrollbars. scrollbar-width beats the
+   ::-webkit-scrollbar rules VS Code injects into every webview. */
+body.no-vscroll.no-hscroll #viewerContainer { scrollbar-width: none; }
+body.no-vscroll #viewerContainer::-webkit-scrollbar:vertical { width: 0; }
+body.no-hscroll #viewerContainer::-webkit-scrollbar:horizontal { height: 0; }
+#viewerContainer::-webkit-scrollbar { width: 10px; height: 10px; background: var(--default-bg); }
+#viewerContainer::-webkit-scrollbar-thumb { background: var(--statusbar-bg); }
+
+/* Pages: zathura's look, not pdf.js's — no shadows or borders, page-padding
+   between pages. */
+.pdfViewer.removePageBorders .page {
+    margin: 0 auto var(--page-padding);
+    --page-bg-color: var(--page-bg);
+}
+.pdfViewer.removePageBorders .spread .page {
+    margin-inline: calc(var(--page-padding) / 2);
+}
+.pdfViewer .spread {
+    margin-bottom: var(--page-padding);
+}
+.pdfViewer.removePageBorders .spread .page {
+    margin-bottom: 0;
+}
+.pdfViewer .page.loadingIcon::after {
+    background: var(--render-loading-bg);
+    color: var(--render-loading-fg);
+    content: "Loading...";
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font: var(--font-size) var(--font);
+}
+.pdfViewer .page.loading::after { display: flex; }
+body.no-render-loading .pdfViewer .page.loading::after { display: none; }
+
+/* Ctrl+R: the filter does the actual recolouring (see viewer.js). */
+body.recolor .pdfViewer .page .canvasWrapper { filter: url(#recolor); }
+
+.textLayer .highlight {
+    --highlight-bg-color: var(--highlight-color);
+    --highlight-selected-bg-color: var(--highlight-active-color);
+    border-radius: 0;
+}
+.textLayer .highlight.begin,
+.textLayer .highlight.end { border-radius: 0; }
+.textLayer ::selection { background: var(--highlight-color); }
+
+/* f / F / c link hints */
+#hints {
+    position: absolute;
+    inset: 0 0 var(--statusbar-height) 0;
+    pointer-events: none;
+    overflow: hidden;
+    display: none;
+}
+#hints.active { display: block; }
+#hints .box {
+    position: absolute;
+    background: var(--highlight-color);
+}
+#hints .label {
+    position: absolute;
+    background: var(--highlight-solid);
+    color: var(--highlight-fg);
+    font: var(--font-size) var(--font);
+    padding: 0 3px;
+    line-height: 1.2;
+}
+
+/* Tab: index */
+#index {
+    position: absolute;
+    inset: 0 0 var(--statusbar-height) 0;
+    background: var(--index-bg);
+    color: var(--index-fg);
+    overflow-y: auto;
+    display: none;
+    padding: 4px 0;
+}
+#index.active { display: block; }
+#index::-webkit-scrollbar { width: 0; }
+#index .entry {
+    display: flex;
+    gap: 2ch;
+    padding: 1px var(--sb-hpad);
+    white-space: pre;
+    cursor: pointer;
+}
+#index .entry .title { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+#index .entry.active { background: var(--index-active-bg); color: var(--index-active-fg); }
+
+/* inputbar sits on top of the statusbar, like zathura's */
+#inputbar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: var(--statusbar-height);
+    display: none;
+    background: var(--inputbar-bg);
+    color: var(--inputbar-fg);
+    padding: var(--sb-vpad) var(--sb-hpad);
+}
+#inputbar.active,
+#inputbar.notify { display: flex; }
+#inputbar.notify { background: var(--notification-bg); color: var(--notification-fg); }
+#inputbar.notify.error { background: var(--notification-error-bg); color: var(--notification-error-fg); }
+#inputbar.notify.warning { background: var(--notification-warning-bg); color: var(--notification-warning-fg); }
+#inputbar.notify #input { display: none; }
+#prompt { white-space: pre; }
+#input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    caret-color: currentColor;
+}
+
+#statusbar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 2ch;
+    background: var(--statusbar-bg);
+    color: var(--statusbar-fg);
+    padding: var(--sb-vpad) var(--sb-hpad);
+    white-space: pre;
+}
+body.no-statusbar #statusbar { display: none; }
+#sb-left { overflow: hidden; text-overflow: ellipsis; }
+#sb-keys { margin-right: 2ch; }

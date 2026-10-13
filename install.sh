@@ -21,7 +21,8 @@ BACKUP="$HOME/.dotfiles-backup/$(date +%Y-%m-%d_%H-%M-%S)"
 
 # the config packages: each mirrors $HOME (hypr/.config/hypr/… -> ~/.config/hypr/…)
 PACKAGES=(hypr quickshell yazi ghostty mako fuzzel nwg waybar portals bat btop glow fastfetch tmux
-          zsh bash git dl-popup aria2 systemd environment applications bin gtk vscode zathura)
+          zsh bash git dl-popup aria2 systemd environment applications bin gtk vscode zathura
+          vscode-pdf-zathura)
 
 say() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
@@ -115,6 +116,13 @@ do_copy() {
         echo '    git config --file ~/.gitconfig.local user.email "you@example.com"'
     fi
     mkdir -p "$HOME/Videos/Recordings" "$HOME/Pictures/wallpapers"
+
+    # VS Code's zathura-style PDF viewer: packed and installed from its source
+    # (settings.json already points *.pdf at it)
+    if command -v code >/dev/null && ! code --list-extensions 2>/dev/null | grep -qx local.pdf-zathura; then
+        say "VS Code extension: PDF in Zathura"
+        sh "$HOME/.config/vscode-pdf-zathura/build.sh" || warn "pdf-zathura extension did not install"
+    fi
 }
 
 # ── systemd + shell ─────────────────────────────────────────────────────────

@@ -21,3 +21,7 @@ hypr/.config/hypr/wallpaper
 
 # per-machine: the weather pill's place (weather.py locate)
 hypr/.config/hypr/weather-location
+
+# vscode-pdf-zathura: the .vsix is build.sh's output; the pre-patch download
+vscode-pdf-zathura/.config/vscode-pdf-zathura/*.vsix
+vscode-pdf-zathura/.config/vscode-pdf-zathura/*.orig-download
