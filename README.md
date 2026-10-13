@@ -71,6 +71,7 @@ Files of yours that a copy would overwrite are moved to
 | `quickshell` | top bar, bottom bar, dock, wallpaper / workspace / theme pickers, clipboard and recorder |
 | `yazi` | file manager config, plugins, grid view (`Alt+G`) |
 | `ghostty` `mako` `fuzzel` `tmux` `bat` `btop` `glow` `fastfetch` `zathura` | app configs |
+| `vscode-pdf-zathura` | VS Code extension: PDFs open in a zathura-style viewer themed from `zathurarc` (`copy` builds and installs it) |
 | `nwg` `waybar` | the app grid, and the old waybar setup (kept as a fallback) |
 | `portals` | routes file dialogs to yazi, screen sharing to the Hyprland portal |
 | `zsh` `bash` `git` | shell, prompt (starship), git (identity in `~/.gitconfig.local`) |

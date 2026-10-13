@@ -24,8 +24,13 @@ prepend_rules = [
   { url = "*.{md,markdown,mdx}", use = [ "markdown", "edit", "reveal" ] },
 ]
 
-# Preview pane renders markdown through glow (plugins/md.yazi).
+# Preview pane renders markdown through glow (plugins/md.yazi), and PDFs the
+# way zathura shows them — theme colours + statusbar (plugins/zathura-pdf.yazi).
 [plugin]
 prepend_previewers = [
   { url = "*.{md,markdown,mdx}", run = "md" },
+  { mime = "application/pdf", run = "zathura-pdf" },
+]
+prepend_preloaders = [
+  { mime = "application/pdf", run = "zathura-pdf" },
 ]

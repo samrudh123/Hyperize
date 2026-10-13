@@ -21,7 +21,7 @@ python3-gi gir1.2-gtk-3.0 gir1.2-gtk-4.0 python3-pil python3-websockets python3-
 
 # --- shell --------------------------------------------------------------------
 zsh zsh-autosuggestions zsh-syntax-highlighting zoxide starship
-eza bat fd-find ripgrep fzf tmux git git-lfs curl unzip
+eza bat fd-find ripgrep fzf tmux git git-lfs curl unzip zip
 
 # --- build dependencies (build/*.sh) -----------------------------------------
 build-essential pkg-config cmake meson ninja-build golang-go

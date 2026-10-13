@@ -1,0 +1,52 @@
+{
+    "name": "pdf-zathura",
+    "displayName": "PDF in Zathura",
+    "description": "A zathura-style PDF viewer inside VS Code: zathura's keys, statusbar, index and recolour, themed from zathurarc",
+    "publisher": "local",
+    "version": "0.2.2",
+    "license": "SEE LICENSE IN media/pdfjs/LICENSE",
+    "engines": { "vscode": "^1.90.0" },
+    "main": "./extension.js",
+    "extensionKind": ["ui"],
+    "activationEvents": [],
+    "contributes": {
+        "customEditors": [
+            {
+                "viewType": "pdfZathura.view",
+                "displayName": "Zathura",
+                "selector": [{ "filenamePattern": "*.pdf" }],
+                "priority": "default"
+            }
+        ],
+        "commands": [
+            {
+                "command": "pdfZathura.openInZathura",
+                "title": "Open in zathura",
+                "category": "PDF",
+                "icon": "$(link-external)"
+            }
+        ],
+        "menus": {
+            "editor/title": [
+                {
+                    "command": "pdfZathura.openInZathura",
+                    "when": "activeCustomEditorId == pdfZathura.view",
+                    "group": "navigation"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "pdfZathura.openInZathura",
+                    "when": "resourceExtname == .pdf",
+                    "group": "navigation"
+                }
+            ],
+            "commandPalette": [
+                {
+                    "command": "pdfZathura.openInZathura",
+                    "when": "activeCustomEditorId == pdfZathura.view"
+                }
+            ]
+        }
+    }
+}
