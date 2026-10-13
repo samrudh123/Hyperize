@@ -81,6 +81,12 @@
     "git.autofetch": true,
     "claudeCode.hideOnboarding": true,
 
+    // PDFs open in the zathura-style viewer (~/.config/vscode-pdf-zathura),
+    // not tomoki1207.pdf, which also claims *.pdf.
+    "workbench.editorAssociations": {
+        "*.pdf": "pdfZathura.view"
+    },
+
     // ── Stop the home directory being indexed ───────────────────────────────
     // $HOME is open as the workspace folder, so VS Code's file indexer walked
     // ALL of it — measured: miniconda3 106k inodes, miniforge3 108k, snap 144k,

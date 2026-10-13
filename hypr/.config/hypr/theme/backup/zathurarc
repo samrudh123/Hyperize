@@ -1,0 +1,62 @@
+# zathura — PDF viewer, themed with the rest of the desktop.
+#
+# ⚠ This file is RENDERED by ~/.config/hypr/set-accent.sh from
+# hypr/theme/templates/zathurarc on every theme (SUPER+T) or accent
+# (SUPER+ALT+C) change. After editing it run
+#     ~/.config/hypr/set-accent.sh --resync
+# or the edit is lost on the next change. Colours are written as Catppuccin
+# Mocha roles (rice-theme.py maps them to the current theme); cba6f7 is the
+# accent. The VS Code "PDF in Zathura" extension reads this file too.
+
+set font                    "JetBrainsMono Nerd Font 11"
+set selection-clipboard     clipboard
+set statusbar-home-tilde    true
+set window-title-home-tilde true
+set window-title-basename   true
+set statusbar-h-padding     10
+set statusbar-v-padding     4
+set page-padding            4
+set scroll-page-aware       true
+set incremental-search      true
+
+# --- colours ------------------------------------------------------------------
+set default-bg              "#1e1e2e"
+set default-fg              "#cdd6f4"
+
+set statusbar-bg            "#181825"
+set statusbar-fg            "#cdd6f4"
+set inputbar-bg             "#11111b"
+set inputbar-fg             "#cdd6f4"
+
+set notification-bg         "#313244"
+set notification-fg         "#cdd6f4"
+set notification-error-bg   "#313244"
+set notification-error-fg   "#f38ba8"
+set notification-warning-bg "#313244"
+set notification-warning-fg "#f9e2af"
+
+set completion-bg           "#313244"
+set completion-fg           "#cdd6f4"
+set completion-group-bg     "#181825"
+set completion-group-fg     "#cba6f7"
+set completion-highlight-bg "#cba6f7"
+set completion-highlight-fg "#1e1e2e"
+
+set index-bg                "#1e1e2e"
+set index-fg                "#cdd6f4"
+set index-active-bg         "#cba6f7"
+set index-active-fg         "#1e1e2e"
+
+# search matches: every hit in overlay, the current one in the accent
+set highlight-color         "#9399b2"
+set highlight-active-color  "#cba6f7"
+set highlight-fg            "#1e1e2e"
+set highlight-transparency  0.4
+
+set render-loading-bg       "#1e1e2e"
+set render-loading-fg       "#cdd6f4"
+
+# Ctrl+R: dark pages in the theme's colours (hue kept, so figures stay legible)
+set recolor-lightcolor      "#1e1e2e"
+set recolor-darkcolor       "#cdd6f4"
+set recolor-keephue         true

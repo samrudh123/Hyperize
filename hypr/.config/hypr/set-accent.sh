@@ -125,6 +125,7 @@ vscode-settings.json	.config/Code/User/settings.json
 firefox-userChrome.css	.mozilla/firefox/er3XIFsH.Profile 1/chrome/userChrome.css
 firefox-userContent.css	.mozilla/firefox/er3XIFsH.Profile 1/chrome/userContent.css
 ghostty-config	.config/ghostty/config
+zathurarc	.config/zathura/zathurarc
 EOF
 }
 
@@ -174,6 +175,10 @@ render() {
         [ "$#" -gt 0 ] && [[ "$only" != *" $name "* ]] && continue
         [ -f "$TEMPLATES/$name" ] || continue
         dst="$HOME/$rel"
+        # A stow file-package links the file itself (starship.toml, VS Code's
+        # settings.json, gtk-4.0/gtk.css): write THROUGH the link, or the mv
+        # below replaces it with a plain copy and ~/Hyperize silently goes stale.
+        [ -L "$dst" ] && dst=$(readlink -f "$dst")
         # Render to a temp file in the same directory and move it into place,
         # so a half-written config can never be read by anything.
         local tmp="$dst.accent-tmp.$$"
@@ -223,6 +228,13 @@ reload_live() {
     # user had toggled away.
 
     makoctl reload 2>/dev/null
+
+    # zathura: every window owns a bus name and re-reads zathurarc on request.
+    busctl --user list --no-legend 2>/dev/null |
+        awk '$1 ~ /^org\.pwmt\.zathura\.PID-/ {print $1}' |
+        while read -r name; do
+            busctl --user call "$name" /org/pwmt/zathura org.pwmt.zathura SourceConfig >/dev/null 2>&1
+        done
 
     # tmux re-reads on demand, so it can recolour without restarting. The
     # other TUI apps (yazi, btop) read their theme once at startup and have no
