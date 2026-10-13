@@ -1,6 +1,7 @@
 // Focus timer (pomodoro, hypr/focus.py), tied to the tasks in ~/notes.
 //
 //   idle      click: start a session (do not disturb on) · right-click: menu
+//             (task: one from ~/notes/tasks.md, or "Something else…" to type any)
 //   running   time left, the task, a line that drains; click pauses / resumes,
 //             middle-click stops, right-click: +5 min, skip, task, lengths
 //   break     green, counts down the break; notifications are back
@@ -26,6 +27,7 @@ Pill {
     readonly property int workMin: st.work || 25
     readonly property int brkMin: st.brk || 5
     readonly property string task: st.task || ""
+    readonly property var recent: (st.recent || []).filter(t => fp.tasks.slice(0, 8).indexOf(t) < 0)
 
     property real now: Date.now() / 1000
     readonly property real remain: idle ? 0 : paused ? st.left : Math.max(0, st.ends - now)
@@ -180,6 +182,35 @@ Pill {
                     fp.run(fp.idle ? ["start", String(fp.workMin), modelData] : ["task", modelData]);
                 }
             }
+        }
+        // tasks typed via "Something else…" (focus.py keeps the last 4), unless
+        // they are in the list above anyway
+        Repeater {
+            model: fp.recent
+            MenuRow {
+                required property var modelData
+                text: modelData
+                check: fp.task === modelData ? 1 : 0
+                onActivated: {
+                    menu.close();
+                    fp.run(fp.idle ? ["start", String(fp.workMin), modelData] : ["task", modelData]);
+                }
+            }
+        }
+        MenuRow {
+            // set some other way (focus.py task TEXT): still show what it is
+            visible: fp.task !== "" && fp.tasks.slice(0, 8).indexOf(fp.task) < 0
+                     && fp.recent.indexOf(fp.task) < 0
+            text: fp.task
+            check: 1
+            onActivated: menu.close()
+        }
+        MenuRow {
+            // any other task or chore, typed into a fuzzel prompt (focus.py
+            // pick); while idle it starts the session on it
+            text: "Something else…"
+            glyph: "\u{f03eb}"                          // md-pencil
+            onActivated: { menu.close(); fp.run(["pick"]); }
         }
 
         MenuRow { separator: true }
