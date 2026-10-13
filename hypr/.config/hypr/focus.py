@@ -7,6 +7,8 @@
     focus.py skip                  finish the current phase now
     focus.py add MIN               add minutes to the current phase
     focus.py task [TEXT]           what this session is for (empty = none)
+    focus.py pick                  ask for it (fuzzel): any task or chore, kept
+                                   in `recent` for the menu; idle -> starts
     focus.py lengths WORK BREAK    session / short break length in minutes
     focus.py next                  phase over? move on (the bar calls this
                                    when its countdown reaches zero)
@@ -35,7 +37,9 @@ DND_FILE = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.
 LONG_EVERY = 4
 
 DEFAULT = {"phase": "idle", "ends": 0, "left": 0, "total": 0, "paused": False, "task": "",
-           "work": 25, "brk": 5, "long": 15, "round": 0, "day": "", "dnd_before": False}
+           "work": 25, "brk": 5, "long": 15, "round": 0, "day": "", "dnd_before": False,
+           "recent": []}           # tasks typed via `pick`, newest first (menu rows)
+RECENT_MAX = 4
 
 
 def load():
@@ -112,6 +116,15 @@ def advance(st):
         notify("Break's over", "Click the timer to start the next session")
 
 
+def ask():
+    """fuzzel prompt: what is this session for? (Recent ones are rows in the
+    bar's menu, so the prompt is only ever free text.)"""
+    out = subprocess.run(["fuzzel", "--dmenu", "--width", "40", "--prompt-only", "Focus on: ",
+                          "--placeholder", "any task or chore…"],
+                         stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    return " ".join(out.stdout.split()) if out.returncode == 0 else ""
+
+
 def main():
     cmd, args = (sys.argv[1] if len(sys.argv) > 1 else "status"), sys.argv[2:]
     st = load()
@@ -150,6 +163,16 @@ def main():
                 st["ends"] += secs
     elif cmd == "task":
         st["task"] = " ".join(args)
+    elif cmd == "pick":
+        text = ask()
+        if not text:
+            return
+        st = load()                     # the prompt may have sat open a while
+        st["recent"] = [text] + [r for r in st["recent"] if r != text][:RECENT_MAX - 1]
+        if st["phase"] == "idle":
+            start(st, None, text)
+        else:
+            st["task"] = text
     elif cmd == "lengths":
         st["work"], st["brk"] = int(args[0]), int(args[1])
         st["long"] = st["brk"] * 3
