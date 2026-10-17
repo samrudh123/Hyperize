@@ -5,12 +5,15 @@
     tasks.py toggle          open the panel, or close it if it is open
     tasks.py panel           open the panel
     tasks.py quickadd        one-line fuzzel prompt -> new task (right-click)
-    tasks.py add TEXT        add a task from a terminal
+    tasks.py add TEXT        add a task from a terminal (TEXT may end in @when)
     tasks.py log TEXT        add a timestamped line to today's log
     tasks.py list            print remaining + done today
     tasks.py checkin [morning|midday|evening]
                              the scheduled nudge (tasks-checkin.timer); with no
                              argument the kind is picked from the clock
+    tasks.py remind          deadline reminders due now (tasks-deadlines.timer,
+                             every minute)
+    tasks.py deadlines       open tasks with a deadline, as JSON
 
 THE FILES ARE THE DATABASE
 
@@ -27,6 +30,38 @@ In a day file, "Done" and "Still open" are regenerated from tasks.md whenever
 today changes, so hand edits there do not survive; "Log" is yours and is only
 ever appended to (or edited from the panel).
 
+DEADLINES
+A task can have a deadline: a day (meaning the end of it, 23:59:59) or a day
+and a time, kept in the comment as "due 2026-10-20" / "due 2026-10-20 17:00".
+Set it from the calendar button in the panel, or end the task's text with
+@when anywhere a task is typed (panel, quick add, `tasks.py add`):
+
+    @today @tomorrow @fri @20/10 @20oct @2026-10-20 @+3d @2w   a day (end of it)
+    @fri 17:00  @tomorrow 5pm  @20/10 9:30am                 a day and a time
+    @17:00  @5pm                                            today (tomorrow if past)
+    @2h  @30m                                               from now
+
+REPEATING TASKS  "every week" in the comment. Ticking one off leaves it in
+today's Done and puts the next one on the list, due the next time round (any
+times missed while it sat overdue are skipped):
+
+    @daily  @weekdays  @weekly  @monthly        starting today
+    @every mon  @every mon,wed,fri  @every 3d  @every 2w
+    ...each optionally with a time:  @every mon 17:00  @weekly 9am
+
+PRIORITY  "prio 1".."prio 3" in the comment; type ! / !! / !!! as a word
+anywhere in the text, or click the ! in front of a task in the panel.
+
+Reminder notifications have buttons (left-click it: mako's menu): Mark done,
+Remind in 15 min / 1 hour, Tomorrow 9:00. A snooze is one extra reminder; the
+marks before the deadline still come.
+
+`remind` (every minute) notifies 1 day, 6 hours, 3 hours, 1 hour and 5 minutes
+before, and when it is due; the last three are critical, so they stay up and
+show through do-not-disturb. A missed one (laptop asleep) is sent once, late;
+setting or changing a deadline sends nothing for the marks already past.
+What was sent (and snoozes) is in ~/.local/state/tasks/reminded.json.
+
 ROLLOVER
 The first time anything runs on a new day, i.e. the bar's poll a few seconds
 after midnight, tasks finished on an earlier day are merged into that day's
@@ -37,6 +72,7 @@ Normal toplevel window, like network-panel.py and for the same reasons; the
 windowrules in hyprland.conf match the app_id set by GLib.set_prgname().
 """
 
+import base64
 import datetime as dt
 import html
 import json
@@ -58,8 +94,14 @@ TASKS_HEADER = """\
      line per task, [x] to tick. Lines that are not tasks are not kept. -->
 """
 
+REMIND_STATE = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")),
+                            "tasks", "reminded.json")
+# (seconds before the deadline, critical)
+REMIND_AT = [(86400, False), (6 * 3600, False), (3 * 3600, False), (3600, True), (300, True), (0, True)]
+
 TASK_RE = re.compile(r"^\s*[-*] \[([ xX])\]\s+(.*?)\s*(?:<!--(.*?)-->)?\s*$")
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+DUE_RE = re.compile(r"\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?")
 GLYPH_OPEN, GLYPH_CLEAR = "\U000f0131", "\U000f0132"  # md-checkbox_blank_outline / _marked
 
 
@@ -87,12 +129,15 @@ def today():
 
 
 class Task:
-    __slots__ = ("text", "done_at", "added")
+    __slots__ = ("text", "done_at", "added", "due", "every", "prio")
 
-    def __init__(self, text, done_at="", added=""):
+    def __init__(self, text, done_at="", added="", due="", every="", prio=0):
         self.text = text
         self.done_at = done_at  # "YYYY-MM-DD HH:MM" when done, else ""
         self.added = added      # "YYYY-MM-DD", or "" for hand-written lines
+        self.due = due          # "YYYY-MM-DD" (end of day), "YYYY-MM-DD HH:MM", or ""
+        self.every = every      # repeat rule ("week", "mon,wed", "3d"...; see RULES), or ""
+        self.prio = prio        # 0 none, 1-3 = ! !! !!!
 
     @property
     def done(self):
@@ -103,12 +148,18 @@ class Task:
         return self.done_at[:10]
 
     def copy(self):
-        return Task(self.text, self.done_at, self.added)
+        return Task(self.text, self.done_at, self.added, self.due, self.every, self.prio)
 
     def line(self):
         meta = []
         if self.added:
             meta.append(f"added {self.added}")
+        if self.due:
+            meta.append(f"due {self.due}")
+        if self.every:
+            meta.append(f"every {self.every}")
+        if self.prio:
+            meta.append(f"prio {self.prio}")
         if self.done_at:
             meta.append(f"done {self.done_at}")
         tail = f" <!-- {'; '.join(meta)} -->" if meta else ""
@@ -121,6 +172,320 @@ class Task:
             return (now().date() - dt.date.fromisoformat(self.added)).days
         except ValueError:
             return 0
+
+
+# ── deadlines ───────────────────────────────────────────────────────────────
+
+DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+
+
+def due_at(due):
+    """The deadline as a datetime: a bare day means its last second."""
+    try:
+        if len(due) == 10:
+            return dt.datetime.combine(dt.date.fromisoformat(due), dt.time(23, 59, 59))
+        return dt.datetime.strptime(due, "%Y-%m-%d %H:%M")
+    except (TypeError, ValueError):
+        return None
+
+
+def _month(word):
+    word = word[:3]
+    return MONTHS.index(word) + 1 if word in MONTHS else None
+
+
+def _dated(year, month, day, base):
+    """A day of the month; with no year, the next one that is not past."""
+    try:
+        if year is not None:
+            return dt.date(year + 2000 if year < 100 else year, month, day)
+        d = dt.date(base.year, month, day)
+        return d if d >= base else dt.date(base.year + 1, month, day)
+    except ValueError:
+        return None
+
+
+def parse_day(word):
+    t = now().date()
+    w = word.lower().rstrip(",")
+    if w in ("today", "tod", "tonight", "eod"):
+        return t
+    if w in ("tomorrow", "tmr", "tmrw", "tom"):
+        return t + dt.timedelta(1)
+    if len(w) >= 3:
+        for i, name in enumerate(DAYS):
+            if name.startswith(w):  # the next one; today if it is that day
+                return t + dt.timedelta((i - t.weekday()) % 7)
+    m = re.fullmatch(r"\+?(\d+)([dw])", w)
+    if m:
+        return t + dt.timedelta(int(m[1]) * (7 if m[2] == "w" else 1))
+    try:
+        return dt.date.fromisoformat(w)
+    except ValueError:
+        pass
+    m = re.fullmatch(r"(\d{1,2})[/.](\d{1,2})(?:[/.](\d{2}|\d{4}))?", w)  # day first
+    if m:
+        return _dated(int(m[3]) if m[3] else None, int(m[2]), int(m[1]), t)
+    m = re.fullmatch(r"(\d{1,2})-?([a-z]{3,})", w) or re.fullmatch(r"([a-z]{3,})-?(\d{1,2})", w)
+    if m:
+        day, mon = (m[1], m[2]) if m[1].isdigit() else (m[2], m[1])
+        if _month(mon):
+            return _dated(None, _month(mon), int(day), t)
+    return None
+
+
+def parse_time(word, bare=False):
+    """'17:00' '9:30am' '5pm' (and '17' if bare) -> (h, m); 'eod' -> 'eod'; else None."""
+    w = word.lower().replace(".", ":")
+    if w == "eod":
+        return "eod"
+    m = re.fullmatch(r"(\d{1,2})(?::(\d{2}))?(am|pm)?", w)
+    if not m or not (m[2] or m[3] or bare):  # alone, a bare number is not a time
+        return None
+    h, mi = int(m[1]), int(m[2] or 0)
+    if m[3]:
+        if not 1 <= h <= 12:
+            return None
+        h = h % 12 + (12 if m[3] == "pm" else 0)
+    return (h, mi) if h < 24 and mi < 60 else None
+
+
+def parse_due(spec):
+    """'fri', 'fri 17:00', '17:00', '2h', '20/10 5pm' ... -> a due string, or None."""
+    words = spec.split()
+    if not words or len(words) > 2:
+        return None
+    if len(words) == 1:
+        w = words[0].lower()
+        m = re.fullmatch(r"\+?(\d+)(m|min|mins|h|hr|hrs)", w)
+        if m:
+            secs = int(m[1]) * (3600 if m[2].startswith("h") else 60)
+            return (now() + dt.timedelta(seconds=secs)).strftime("%Y-%m-%d %H:%M")
+        tm = parse_time(w)
+        if tm and tm != "eod":
+            when = dt.datetime.combine(now().date(), dt.time(*tm))
+            if when <= now():
+                when += dt.timedelta(1)
+            return when.strftime("%Y-%m-%d %H:%M")
+    d = parse_day(words[0])
+    if d is None:
+        return None
+    tm = parse_time(words[1], bare=True) if len(words) == 2 else "eod"  # "fri 17"
+    if tm is None:
+        return None
+    return d.isoformat() if tm == "eod" else f"{d.isoformat()} {tm[0]:02d}:{tm[1]:02d}"
+
+
+def parse_rule(word):
+    """'week' 'weekly' 'mon,wed' 'friday' '3d' '2w' ... -> the stored rule, or None."""
+    w = word.lower().strip(",")
+    alias = {"day": "day", "days": "day", "daily": "day", "weekday": "weekday", "weekdays": "weekday",
+             "week": "week", "weeks": "week", "weekly": "week", "month": "month", "months": "month",
+             "monthly": "month"}
+    if w in alias:
+        return alias[w]
+    m = re.fullmatch(r"(\d+)([dw])", w)
+    if m and int(m[1]) >= 1:
+        n = int(m[1])
+        return ("day" if m[2] == "d" else "week") if n == 1 else f"{n}{m[2]}"
+    picked = set()
+    for part in w.split(","):
+        hit = [i for i, name in enumerate(DAYS) if len(part) >= 3 and name.startswith(part)]
+        if not hit:
+            return None
+        picked.add(hit[0])
+    return ",".join(DAYS[i][:3] for i in sorted(picked)) if picked else None
+
+
+def rule_days(rule):
+    """Weekday numbers of a 'mon,wed' rule, else None."""
+    if rule and rule[0].isalpha() and rule not in ("day", "weekday", "week", "month"):
+        return {[d[:3] for d in DAYS].index(x) for x in rule.split(",")}
+    return None
+
+
+def rule_label(rule):
+    if not rule:
+        return ""
+    fixed = {"day": "daily", "weekday": "weekdays", "week": "weekly", "month": "monthly"}
+    if rule in fixed:
+        return fixed[rule]
+    m = re.fullmatch(r"(\d+)([dw])", rule)
+    if m:
+        return f"every {m[1]} {'days' if m[2] == 'd' else 'weeks'}"
+    return "every " + ", ".join(x.capitalize() for x in rule.split(","))
+
+
+def step_day(rule, d):
+    """The next day of the series after d."""
+    days = rule_days(rule)
+    if days is not None or rule == "weekday":
+        ok = days if days is not None else {0, 1, 2, 3, 4}
+        d += dt.timedelta(1)
+        while d.weekday() not in ok:
+            d += dt.timedelta(1)
+        return d
+    if rule == "day":
+        return d + dt.timedelta(1)
+    if rule == "week":
+        return d + dt.timedelta(7)
+    if rule == "month":
+        def last_day(y, mo):
+            return (dt.date(y + (mo == 12), mo % 12 + 1, 1) - dt.timedelta(1)).day
+        y, mo = (d.year + 1, 1) if d.month == 12 else (d.year, d.month + 1)
+        # the last of a month stays the last (31 Jan -> 28 Feb -> 31 Mar)
+        day = last_day(y, mo) if d.day == last_day(d.year, d.month) else min(d.day, last_day(y, mo))
+        return dt.date(y, mo, day)
+    m = re.fullmatch(r"(\d+)([dw])", rule)
+    return d + dt.timedelta(int(m[1]) * (7 if m[2] == "w" else 1))
+
+
+def with_day(due, d):
+    """due moved to day d, keeping its time (or end of day)."""
+    return d.isoformat() + due[10:]
+
+
+def next_due(due, rule):
+    """The series' next deadline after due that is still ahead (skips any
+    missed while it sat overdue)."""
+    d, nxt = due_at(due).date(), due
+    for _ in range(4000):
+        d = step_day(rule, d)
+        nxt = with_day(due, d)
+        if due_at(nxt) > now():
+            break
+    return nxt
+
+
+def first_due(rule, tm):
+    """Where a new series starts: today (or its first weekday from today),
+    pushed one step on if the time has already gone."""
+    d = now().date()
+    ok = rule_days(rule) if rule_days(rule) is not None else ({0, 1, 2, 3, 4} if rule == "weekday" else None)
+    while ok is not None and d.weekday() not in ok:
+        d += dt.timedelta(1)
+    due = d.isoformat() if tm == "eod" else f"{d.isoformat()} {tm[0]:02d}:{tm[1]:02d}"
+    return due if due_at(due) > now() else with_day(due, step_day(rule, d))
+
+
+def parse_spec(spec):
+    """What follows an @: a deadline, or a repeat ('every mon 17:00',
+    'weekly', 'daily 9am') -> (due, rule), else None."""
+    words = spec.lower().split()
+    if not words or len(words) > 3:
+        return None
+    rule, rest = None, words
+    if words[0] in ("daily", "weekly", "monthly", "weekdays"):
+        rule, rest = parse_rule(words[0]), words[1:]
+    elif words[0] == "every" and len(words) >= 2:
+        rule, rest = parse_rule(words[1]), words[2:]
+        if not rule:
+            return None
+    if rule:
+        if len(rest) > 1:
+            return None
+        tm = parse_time(rest[0], bare=True) if rest else "eod"
+        return (first_due(rule, tm), rule) if tm else None
+    due = parse_due(spec)
+    return (due, "") if due else None
+
+
+def split_spec(text):
+    """A typed task's markers: ! / !! / !!! anywhere as a word (priority) and
+    an @deadline or @repeat at the end.
+        'Report !! @fri 5pm' -> ('Report', '2026-10-23 17:00', '', 2, '')
+    prio is None when no ! word was typed. An @word at the end that is meant
+    as a date but is not one comes back as the last item (else '')."""
+    prio, kept = None, []
+    for w in text.split():
+        if re.fullmatch(r"!{1,3}", w):
+            prio = len(w)
+        else:
+            kept.append(w)
+    text = " ".join(kept)
+    m = None
+    for m in re.finditer(r"(?:^|\s)@(?=\S)", text):
+        pass
+    if not m:
+        return text, "", "", prio, ""
+    spec = text[m.end():]
+    got = parse_spec(spec)
+    if got:
+        return text[:m.start()].strip(), got[0], got[1], prio, ""
+    words = spec.split()
+    meant = (len(words) == 1 or words[0].lower() in ("every", "daily", "weekly", "monthly", "weekdays")
+             or (len(words) == 2 and parse_time(words[1], bare=True)))
+    return text, "", "", prio, (f"@{words[0]}" if meant and len(words) <= 3 else "")
+
+
+def split_due(text):
+    """split_spec without the extras: (text, due, bad)."""
+    text, due, _every, _prio, bad = split_spec(text)
+    return text, due, bad
+
+
+def span(secs):
+    """Compact: 25m, 3h, 2d."""
+    secs = abs(secs)
+    if secs < 3600:
+        return f"{max(1, round(secs / 60))}m"
+    if secs < 86400:
+        return f"{round(secs / 3600)}h"
+    return f"{round(secs / 86400)}d"
+
+
+def span_words(secs):
+    secs = abs(secs)
+    for unit, size in (("minute", 60), ("hour", 3600), ("day", 86400)):
+        n = round(secs / size)
+        if unit == "day" or (unit == "minute" and n < 60) or (unit == "hour" and n < 24):
+            n = max(1, n)
+            return f"{n} {unit}{'s' if n != 1 else ''}"
+
+
+def due_label(due):
+    """Short and relative, for the panel and the bar: 'overdue 2h', 'in 25m',
+    'today 17:00', 'tomorrow', 'Fri', '20 Oct 17:00'."""
+    when, n = due_at(due), now()
+    if not when:
+        return ""
+    secs = (when - n).total_seconds()
+    clock = f" {when:%H:%M}" if len(due) > 10 else ""
+    if secs < 0:
+        return f"overdue {span(secs)}"
+    if secs < 3600:
+        return f"in {span(secs)}"
+    days = (when.date() - n.date()).days
+    if days == 0:
+        return "today" + clock
+    if days == 1:
+        return "tomorrow" + clock
+    if days < 7:
+        return f"{when:%a}{clock}"
+    return f"{when:%-d %b}{clock}" + (f" {when.year}" if when.year != n.year else "")
+
+
+def due_long(due):
+    when = due_at(due)
+    if not when:
+        return due
+    return f"{when:%a %-d %b}" + (f" {when.year}" if when.year != now().year else "") + \
+        (f", {when:%H:%M}" if len(due) > 10 else ", end of day")
+
+
+def due_level(due):
+    """'overdue', 'soon' (under a day) or ''."""
+    when = due_at(due)
+    if not when:
+        return ""
+    secs = (when - now()).total_seconds()
+    return "overdue" if secs < 0 else "soon" if secs < 86400 else ""
+
+
+def open_line(t):
+    """A "Still open" line in the day file."""
+    return f"- [ ] {t.text}" + (f" · due {due_long(t.due)}" if t.due else "")
 
 
 # ── storage ─────────────────────────────────────────────────────────────────
@@ -147,11 +512,18 @@ def parse_tasks(text):
         m = TASK_RE.match(raw)
         if not m or not m.group(2):
             continue
-        added = done_at = ""
+        added = done_at = due = every = ""
+        prio = 0
         for part in (m.group(3) or "").split(";"):
             part = part.strip()
             if part.startswith("added "):
                 added = part[6:].strip()
+            elif part.startswith("due ") and DUE_RE.fullmatch(part[4:].strip()):
+                due = part[4:].strip()
+            elif part.startswith("every ") and parse_rule(part[6:].strip()):
+                every = parse_rule(part[6:].strip())
+            elif re.fullmatch(r"prio [1-3]", part):
+                prio = int(part[5])
             elif part.startswith("done "):
                 done_at = part[5:].strip()
         if m.group(1) in "xX" and not done_at:
@@ -159,7 +531,9 @@ def parse_tasks(text):
             done_at, stamp = now().strftime("%Y-%m-%d %H:%M"), True
         if m.group(1) == " ":
             done_at = ""  # unticked by hand
-        tasks.append(Task(m.group(2), done_at, added))
+        if every and not due:
+            every = ""  # a repeat needs a deadline to repeat from
+        tasks.append(Task(m.group(2), done_at, added, due, every, prio))
     return tasks, stamp
 
 
@@ -219,7 +593,7 @@ def sync_day(tasks, day=None):
     if not (done or sec["log"] or os.path.exists(day_path(day))):
         return  # nothing happened today yet; no empty files
     sec["done"] = done
-    sec["open"] = [f"- [ ] {t.text}" for t in tasks if not t.done]
+    sec["open"] = [open_line(t) for t in tasks if not t.done]
     write_day(day, sec)
 
 
@@ -262,7 +636,7 @@ def add_log(text):
     sec["log"].append(f"- {now().strftime('%H:%M')} {text}")
     tasks, _ = parse_tasks(read_text(TASKS_FILE))
     sec["done"] = [done_line(t) for t in tasks if t.done and t.done_day == day]
-    sec["open"] = [f"- [ ] {t.text}" for t in tasks if not t.done]
+    sec["open"] = [open_line(t) for t in tasks if not t.done]
     write_day(day, sec)
 
 
@@ -270,6 +644,28 @@ def split_log(line):
     """'- 14:05 text' -> ('14:05', 'text')."""
     m = re.match(r"^- (\d{1,2}:\d{2})\s+(.*)$", line)
     return (m.group(1), m.group(2)) if m else ("", line[2:])
+
+
+def set_task_done(tasks, task, done):
+    """Tick or untick task in tasks (moved to the end, so the done list reads
+    in order). Ticking a repeating one puts its next one where it was."""
+    if task.done == done:
+        return None
+    i = tasks.index(task)
+    task.done_at = now().strftime("%Y-%m-%d %H:%M") if done else ""
+    tasks.remove(task)
+    tasks.append(task)
+    if not (done and task.every and task.due):
+        return None
+    nxt = Task(task.text, added=today(), due=next_due(task.due, task.every),
+               every=task.every, prio=task.prio)
+    task.every = ""  # the series goes on in nxt; this one is history
+    tasks.insert(i, nxt)
+    return nxt
+
+
+def find_task(tasks, text, due):
+    return next((t for t in tasks if not t.done and t.text == text and t.due == due), None)
 
 
 def split_buckets(tasks):
@@ -291,7 +687,9 @@ def cmd_status():
     lines = []
     if pending:
         lines.append(f"<b>Remaining ({len(pending)})</b>")
-        lines += [f"  ○  {esc(t.text)}" for t in pending[:12]]
+        lines += [f"  ○  {'!' * t.prio + ' ' if t.prio else ''}{esc(t.text)}"
+                  + (f"  · {due_label(t.due)}{' ↻' if t.every else ''}" if t.due else "")
+                  for t in pending[:12]]
         if len(pending) > 12:
             lines.append(f"  … {len(pending) - 12} more")
     if done:
@@ -303,7 +701,9 @@ def cmd_status():
         lines.append("No tasks yet")
     lines.append("\nClick: open tasks · Right-click: quick add")
     if pending:
-        text, cls = f"{GLYPH_OPEN}  {len(pending)}", "pending"
+        levels = {due_level(t.due) for t in pending if t.due}
+        text = f"{GLYPH_OPEN}  {len(pending)}"
+        cls = "overdue" if "overdue" in levels else "due-soon" if "soon" in levels else "pending"
     else:
         text, cls = GLYPH_CLEAR, ("clear" if done else "empty")
     print(json.dumps({"text": text, "tooltip": "\n".join(lines), "class": cls}, ensure_ascii=False))
@@ -324,20 +724,37 @@ def cmd_toggle():
 
 
 def cmd_quickadd():
-    out = subprocess.run(["fuzzel", "--dmenu", "--prompt-only", "New task: "],
-                         capture_output=True, text=True)
-    text = out.stdout.strip()
-    if out.returncode == 0 and text:
-        cmd_add(text)
+    prompt, text = "New task (@fri 5pm = deadline): ", ""
+    while True:
+        out = subprocess.run(["fuzzel", "--dmenu", "--prompt-only", prompt, "--search", text],
+                             capture_output=True, text=True)
+        text = out.stdout.strip()
+        if out.returncode != 0 or not text:
+            return
+        bad = split_spec(text)[4]
+        if not bad:
+            return cmd_add(text)
+        prompt = f"{bad} is not a date (@fri, @tomorrow 5pm, @20/10): "
 
 
 def cmd_add(text):
-    text = " ".join(text.split())
+    text, due, every, prio, bad = split_spec(" ".join(text.split()))
+    if bad:
+        sys.exit(f"tasks: {bad} is not a date I know (try @fri, @tomorrow 5pm, @20/10, @2h, @every mon)")
     if not text:
         return
     tasks = load()
-    tasks.append(Task(text, added=today()))
+    tasks.append(Task(text, added=today(), due=due, every=every, prio=prio or 0))
     commit(tasks)
+
+
+def cmd_deadlines():
+    """Open tasks with a deadline, as JSON (for scripts; the bar's calendar
+    reads tasks.md itself)."""
+    print(json.dumps([{"text": t.text, "due": t.due, "every": t.every, "prio": t.prio,
+                       "label": due_label(t.due), "level": due_level(t.due)}
+                      for t in sorted((t for t in load() if t.due and not t.done), key=lambda t: due_at(t.due))],
+                     ensure_ascii=False))
 
 
 def cmd_list():
@@ -345,7 +762,9 @@ def cmd_list():
     print(f"Remaining ({len(pending)})")
     for t in pending:
         age = t.age_days()
-        print(f"  [ ] {t.text}" + (f"   ({age}d)" if age else ""))
+        print(f"  [ ] {'!' * t.prio + ' ' if t.prio else ''}{t.text}" + (f"   ({age}d)" if age else "") +
+              (f"   due {due_long(t.due)} ({due_label(t.due)})" if t.due else "") +
+              (f"   {rule_label(t.every)}" if t.every else ""))
     print(f"Done today ({len(done)})")
     for t in done:
         print(f"  [x] {t.text}   {t.done_at[11:16]}")
@@ -359,7 +778,8 @@ def cmd_checkin(kind=None):
     kind = kind or ("morning" if hour < 12 else "midday" if hour < 18 else "evening")
 
     def bullets(items, mark, limit=6):
-        rows = [f"{mark} {t.text}" for t in items[:limit]]
+        rows = [f"{mark} {t.text}" + (f"  (due {due_label(t.due)})" if t.due and not t.done else "")
+                for t in items[:limit]]
         if len(items) > limit:
             rows.append(f"… and {len(items) - limit} more")
         return "\n".join(rows)
@@ -378,14 +798,138 @@ def cmd_checkin(kind=None):
         body = (bullets(done, "✓") if done else "Nothing ticked off today.") + \
             f"\n\nSaved to ~/notes/daily/{today()}.md"
 
-    if notify(title, body) == "default" and not panel_pids():
-        # Through Hyprland, not Popen: a child of this oneshot service would
-        # be killed with the service's cgroup the moment this returns.
-        subprocess.run(["hyprctl", "dispatch", "exec", f"{sys.executable} {SELF} panel"],
-                       capture_output=True)
+    if notify(title, body) == "default":
+        open_panel()
 
 
-def notify(title, body, timeout_ms=20000):
+def open_panel():
+    if panel_pids():
+        return
+    # Through Hyprland, not Popen: a child of a oneshot service would be
+    # killed with the service's cgroup the moment the service returns.
+    subprocess.run(["hyprctl", "dispatch", "exec", f"{sys.executable} {SELF} panel"],
+                   capture_output=True)
+
+
+class state_lock:
+    """flock around reminded.json's read-modify-write: the minute run and a
+    notification's Snooze button both write it."""
+
+    def __enter__(self):
+        import fcntl
+        os.makedirs(os.path.dirname(REMIND_STATE), exist_ok=True)
+        self.fh = open(REMIND_STATE + ".lock", "w")
+        fcntl.flock(self.fh, fcntl.LOCK_EX)
+        try:
+            raw = json.loads(read_text(REMIND_STATE) or "{}")
+        except ValueError:
+            raw = {}
+        # {key: {"marks": [...], "snooze": "YYYY-MM-DD HH:MM" | ""}}; a bare
+        # list is the first version's marks
+        self.state = {k: (v if isinstance(v, dict) else {"marks": v, "snooze": ""}) for k, v in raw.items()}
+        self.before = json.dumps(self.state, sort_keys=True)
+        return self.state
+
+    def __exit__(self, *exc):
+        if not exc[0] and json.dumps(self.state, sort_keys=True) != self.before:
+            atomic_write(REMIND_STATE, json.dumps(self.state, indent=1))
+        self.fh.close()
+
+
+def remind_key(t):
+    return f"{t.text}\n{t.due}"
+
+
+def cmd_remind():
+    """Send the deadline reminders that are due (tasks-deadlines.timer, every
+    minute). Each mark in REMIND_AT is sent once per task + deadline; a
+    deadline seen for the first time (just set or changed) only records the
+    marks already past, so setting one never notifies straight away. A
+    snooze (the notification's buttons) is sent once when its time comes."""
+    tasks = load()
+    fire, n = [], now()
+    with state_lock() as state:
+        keep = {}
+        for t in tasks:
+            when = due_at(t.due) if t.due and not t.done else None
+            if not when:
+                continue
+            key = remind_key(t)
+            rem = (when - n).total_seconds()
+            crossed = [mark for mark, _ in REMIND_AT if rem <= mark]
+            old = state.get(key)
+            entry = {"marks": sorted(set(old["marks"] if old else []) | set(crossed)),
+                     "snooze": old["snooze"] if old else ""}
+            new = [mark for mark in crossed if old and mark not in old["marks"]]
+            if new:
+                fire.append((t, min(new), rem))  # several missed (asleep): the latest only
+            snooze = due_at(entry["snooze"]) if entry["snooze"] else None
+            if entry["snooze"] and (snooze is None or snooze <= n):
+                if snooze and not new:  # a mark this minute says it already
+                    fire.append((t, None, rem))
+                entry["snooze"] = ""
+            keep[key] = entry
+        state.clear()
+        state.update(keep)
+    for t, mark, rem in fire:
+        critical = dict(REMIND_AT)[mark] if mark is not None else rem <= 3600
+        if mark is None:
+            head = "Reminder"
+        elif mark == 0:
+            head = "Due now" if rem > -120 else f"Overdue by {span_words(rem)}"
+        else:
+            head = f"Due in {span_words(rem)}"
+        if mark is None:
+            head += f" (due {'in ' + span_words(rem) if rem > 0 else span_words(rem) + ' ago'})"
+        note = {"title": f"{head}: {'!' * t.prio + ' ' if t.prio else ''}{t.text}",
+                "body": f"Deadline: {due_long(t.due)}" + (f" · {rule_label(t.every)}" if t.every else ""),
+                "critical": critical, "text": t.text, "due": t.due}
+        arg = base64.urlsafe_b64encode(json.dumps(note).encode()).decode()
+        # Its own process (through Hyprland, see open_panel) so it can wait
+        # for its buttons as long as it stays up without holding up the next
+        # minute's run.
+        cmd = f"{sys.executable} {SELF} notify-due {arg}"
+        if subprocess.run(["hyprctl", "dispatch", "exec", cmd], capture_output=True).returncode != 0:
+            cmd_notify_due(arg)
+
+
+def reminder_actions(due):
+    acts = [("default", "Open tasks"), ("done", "Mark done"),
+            ("snooze-15", "Remind in 15 min"), ("snooze-60", "Remind in 1 hour")]
+    morning = dt.datetime.combine(now().date() + dt.timedelta(1), dt.time(9))
+    when = due_at(due)
+    if when and when > morning:
+        acts.append(("snooze-tomorrow", "Tomorrow 9:00"))
+    return acts
+
+
+def cmd_notify_due(arg):
+    note = json.loads(base64.urlsafe_b64decode(arg.encode()))
+    acts = reminder_actions(note.get("due", ""))
+    if note["critical"]:  # stays up (mako: urgency=high); waits for a click or a dismiss
+        action = notify(note["title"], note["body"], timeout_ms=0, urgency=2, wait_s=12 * 3600, actions=acts)
+    else:
+        action = notify(note["title"], note["body"], timeout_ms=60000, actions=acts)
+    if action == "default":
+        open_panel()
+    elif action == "done":
+        tasks = load()
+        t = find_task(tasks, note.get("text"), note.get("due"))
+        if t:
+            set_task_done(tasks, t, True)
+            commit(tasks)
+    elif action and action.startswith("snooze-"):
+        if action == "snooze-tomorrow":
+            at = dt.datetime.combine(now().date() + dt.timedelta(1), dt.time(9))
+        else:
+            at = now() + dt.timedelta(minutes=int(action.split("-")[1]))
+        with state_lock() as state:
+            key = f"{note.get('text')}\n{note.get('due')}"
+            entry = state.setdefault(key, {"marks": [], "snooze": ""})
+            entry["snooze"] = at.strftime("%Y-%m-%d %H:%M")
+
+
+def notify(title, body, timeout_ms=20000, urgency=1, wait_s=None, actions=(("default", "Open tasks"),)):
     """Show a notification and wait for it; returns the invoked action, if any.
 
     Straight over D-Bus rather than `notify-send -A`: libnotify 0.8.8's
@@ -417,12 +961,12 @@ def notify(title, body, timeout_ms=20000):
             "org.freedesktop.Notifications", "Notify",
             GLib.Variant("(susssasa{sv}i)", (
                 "Tasks", 0, "gnome-todo", title, html.escape(body, quote=False),
-                ["default", "Open tasks"], {}, timeout_ms)),
+                [x for pair in actions for x in pair], {"urgency": GLib.Variant("y", urgency)}, timeout_ms)),
             GLib.VariantType("(u)"), Gio.DBusCallFlags.NONE, -1, None)
     except GLib.Error:
         return None  # no notification daemon running
     state["id"] = reply.unpack()[0]
-    GLib.timeout_add(timeout_ms + 5000, loop.quit)
+    GLib.timeout_add_seconds(wait_s or (timeout_ms // 1000 + 5), loop.quit)
     loop.run()
     return state.get("action")
 
@@ -452,7 +996,7 @@ def run_panel():
     accent = read_accent()
     BASE, MANTLE, SURFACE0, SURFACE1 = "#1e1e2e", "#181825", "#313244", "#45475a"
     TEXT, SUBTEXT, OVERLAY = "#cdd6f4", "#a6adc8", "#6c7086"
-    GREEN, RED, PEACH = "#a6e3a1", "#f38ba8", "#fab387"
+    GREEN, RED, PEACH, YELLOW = "#a6e3a1", "#f38ba8", "#fab387", "#f9e2af"
 
     css = f"""
     window, .panel {{ background: {BASE}; color: {TEXT}; }}
@@ -506,10 +1050,55 @@ def run_panel():
     }}
     combobox button {{ padding: 5px 10px; }}
     .history {{ padding: 14px 18px; }}
+    button.due {{
+        background: alpha({SURFACE0}, 0.6); color: {SUBTEXT}; padding: 1px 7px;
+        min-width: 0; min-height: 0; font-size: 8.5pt; border-radius: 5px;
+        font-family: "JetBrainsMono Nerd Font";
+    }}
+    button.due:hover {{ background: {SURFACE1}; color: {TEXT}; }}
+    button.due.due-soon {{ color: {PEACH}; }}
+    button.due.due-overdue {{ color: {RED}; background: alpha({RED}, 0.15); }}
+    .toolbar button.due {{ padding: 5px 10px; font-size: 11pt; }}
+    .toolbar button.due.due-set {{ color: {accent}; }}
+    popover {{ background: {MANTLE}; border: 1px solid {SURFACE1}; border-radius: 8px; }}
+    popover .due-head {{ color: {accent}; font-size: 8.5pt; font-weight: 700; }}
+    popover .hint {{ color: {OVERLAY}; font-size: 8.5pt; }}
+    calendar {{
+        background: {SURFACE0}; color: {TEXT}; border: none; border-radius: 6px;
+        padding: 4px;
+    }}
+    calendar.header {{ background: transparent; border: none; color: {TEXT}; }}
+    calendar.button {{ color: {SUBTEXT}; background: transparent; }}
+    calendar.button:hover {{ color: {accent}; }}
+    calendar:selected {{ background: {accent}; color: {BASE}; border-radius: 4px; }}
+    calendar:indeterminate {{ color: {SURFACE1}; }}
+    entry.bad {{ box-shadow: inset 0 0 0 2px {RED}; }}
+    button.prio {{
+        background: transparent; padding: 0 2px; min-width: 14px; min-height: 0;
+        font-weight: 800; font-size: 10pt; color: transparent;
+    }}
+    row:hover button.prio.prio-0 {{ color: {SURFACE1}; }}
+    button.prio.prio-0:hover {{ color: {OVERLAY}; background: transparent; }}
+    button.prio.prio-1 {{ color: {YELLOW}; }}
+    button.prio.prio-2 {{ color: {PEACH}; }}
+    button.prio.prio-3 {{ color: {RED}; }}
+    .section-soon {{ color: {PEACH}; }}
+    button.sort {{
+        background: transparent; color: {OVERLAY}; font-size: 8pt; padding: 8px 10px 2px;
+        min-height: 0;
+    }}
+    button.sort:hover {{ color: {accent}; background: transparent; }}
+    combobox button {{ padding: 4px 8px; }}
     """
 
     ICON_UP, ICON_DOWN = "\U000f005d", "\U000f0045"     # md-arrow_up / _down
     ICON_EDIT, ICON_DEL = "\U000f03eb", "\U000f01b4"    # md-pencil / md-delete
+    ICON_DUE, ICON_DUE_ADD = "\U000f00f0", "\U000f00f3"  # md-calendar_clock / _plus
+    PRIO_NAMES = ("no priority", "priority: low", "priority: medium", "priority: high")
+    SORTS = ("manual", "deadline", "priority")
+    PANEL_STATE = os.path.join(os.path.dirname(REMIND_STATE), "panel.json")
+    REPEATS = (("", "Does not repeat"), ("day", "Daily"), ("weekday", "Weekdays"),
+               ("week", "Weekly"), ("month", "Monthly"))
 
     def icon_button(glyph, tip, cb, danger=False):
         b = Gtk.Button(label=glyph)
@@ -522,6 +1111,109 @@ def run_panel():
             ctx.add_class("danger")
         b.connect("clicked", lambda _b: cb())
         return b
+
+    def due_popover(anchor, current, every, on_pick, on_closed):
+        """Quick days, a calendar, a time (empty = end of day) and a repeat
+        for one deadline. on_pick(due, every); ("", "") is No deadline."""
+        pop = Gtk.Popover.new(anchor)
+        pop.set_position(Gtk.PositionType.BOTTOM)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin=10)
+        pop.add(box)
+        head = Gtk.Label(label="DEADLINE", xalign=0)
+        head.get_style_context().add_class("due-head")
+        box.pack_start(head, False, False, 0)
+
+        when = due_at(current) if current else None
+        time_entry = Gtk.Entry(placeholder_text="23:59 · end of day")
+        time_entry.set_width_chars(16)
+        if when and len(current) > 10:
+            time_entry.set_text(f"{when:%H:%M}")
+
+        def clock():
+            """'' (end of day), ' HH:MM', or None if the entry is not a time."""
+            raw = time_entry.get_text().strip()
+            tm = parse_time(raw) if raw else "eod"
+            time_entry.get_style_context().remove_class("bad")
+            if tm is None:
+                time_entry.get_style_context().add_class("bad")
+                time_entry.grab_focus()
+                return None
+            return "" if tm == "eod" else f" {tm[0]:02d}:{tm[1]:02d}"
+
+        repeat = Gtk.ComboBoxText()
+        for rid, label in REPEATS:
+            repeat.append(rid, label)
+        if every and every not in dict(REPEATS):
+            label = rule_label(every)
+            repeat.append(every, label[:1].upper() + label[1:])
+        repeat.set_active_id(every or "")
+
+        def pick(day):
+            c = clock()
+            if c is not None:
+                pop.popdown()
+                on_pick(day.isoformat() + c, repeat.get_active_id() or "")
+
+        t = now().date()
+        quick = Gtk.Box(spacing=4, homogeneous=True)
+        for label, d in (("Today", t), ("Tomorrow", t + dt.timedelta(1)),
+                         (f"{t + dt.timedelta(7):%a} +1w", t + dt.timedelta(7))):
+            b = Gtk.Button(label=label)
+            b.connect("clicked", lambda _b, d=d: pick(d))
+            quick.pack_start(b, True, True, 0)
+        box.pack_start(quick, False, False, 0)
+
+        cal = Gtk.Calendar()
+        start = when.date() if when else t
+        cal.select_month(start.month - 1, start.year)
+        cal.select_day(start.day)
+
+        def cal_day():
+            y, m0, d = cal.get_date()
+            return dt.date(y, m0 + 1, d)
+        cal.connect("day-selected-double-click", lambda _c: pick(cal_day()))
+        box.pack_start(cal, False, False, 0)
+
+        trow = Gtk.Box(spacing=8)
+        tl = Gtk.Label(label="Time")
+        tl.get_style_context().add_class("hint")
+        trow.pack_start(tl, False, False, 0)
+        trow.pack_start(time_entry, True, True, 0)
+        time_entry.connect("activate", lambda _e: pick(cal_day()))
+        box.pack_start(trow, False, False, 0)
+
+        rrow = Gtk.Box(spacing=8)
+        rl = Gtk.Label(label="Repeat")
+        rl.get_style_context().add_class("hint")
+        rrow.pack_start(rl, False, False, 0)
+        rrow.pack_start(repeat, True, True, 0)
+        box.pack_start(rrow, False, False, 0)
+
+        brow = Gtk.Box(spacing=6)
+        clear = Gtk.Button(label="No deadline")
+        clear.connect("clicked", lambda _b: (pop.popdown(), on_pick("", "")))
+        brow.pack_start(clear, False, False, 0)
+        hint = Gtk.Label(label="double-click a day = set")
+        hint.get_style_context().add_class("hint")
+        brow.pack_start(hint, True, True, 0)
+        setb = Gtk.Button(label="Set")
+        setb.get_style_context().add_class("suggested-action")
+        setb.connect("clicked", lambda _b: pick(cal_day()))
+        brow.pack_end(setb, False, False, 0)
+        box.pack_start(brow, False, False, 0)
+
+        pop.connect("closed", lambda _p: on_closed())
+        box.show_all()
+        pop.popup()
+        cal.grab_focus()
+        return pop
+
+    def section_head(text, extra=None, button=None):
+        box = Gtk.Box()
+        box.pack_start(section_label(text, extra), True, True, 0)
+        if button:
+            box.pack_end(button, False, False, 0)
+        return box
 
     def section_label(text, extra=None):
         lbl = Gtk.Label(label=text, xalign=0)
@@ -606,6 +1298,15 @@ def run_panel():
             self.set_default_size(440, 620)
             self.get_style_context().add_class("panel")
             self.editing = None
+            self.popover = None   # the open deadline picker, if any
+            self.new_due = ""     # deadline picked for the task being typed
+            self.new_every = ""
+            try:
+                self.sort = json.loads(read_text(PANEL_STATE) or "{}").get("sort", "manual")
+            except ValueError:
+                self.sort = "manual"
+            self.sort = self.sort if self.sort in SORTS else "manual"
+            self.due_sig = None
             self.undo = []
             self.last_written = None
             self.day = today()
@@ -644,9 +1345,16 @@ def run_panel():
 
             bar = Gtk.Box(spacing=6)
             bar.get_style_context().add_class("toolbar")
-            self.add_entry = Gtk.Entry(placeholder_text="Add a task…  (Enter)")
+            self.add_entry = Gtk.Entry(placeholder_text="Add a task…  @fri 5pm = deadline")
             self.add_entry.connect("activate", lambda _e: self.on_add())
             bar.pack_start(self.add_entry, True, True, 0)
+            self.add_due = Gtk.Button()
+            self.add_due.set_can_focus(False)
+            self.add_due.get_style_context().add_class("due")
+            self.add_due.connect("clicked", lambda b: self.open_due(
+                b, self.new_due, self.new_every, self.set_new_due, refocus=self.add_entry))
+            self.show_new_due()
+            bar.pack_start(self.add_due, False, False, 0)
             add = Gtk.Button(label="Add")
             add.get_style_context().add_class("suggested-action")
             add.connect("clicked", lambda _b: self.on_add())
@@ -719,13 +1427,70 @@ def run_panel():
 
         # ── actions ──
         def on_add(self):
-            text = " ".join(self.add_entry.get_text().split())
+            text, due, every, prio, bad = split_spec(" ".join(self.add_entry.get_text().split()))
+            if bad:
+                self.say(f"{bad} is not a date I know: try @fri, @tomorrow 5pm, @20/10, @every mon")
+                return
             if not text:
                 return
+            if not due:
+                due, every = self.new_due, self.new_every
             self.snapshot()
-            self.tasks.append(Task(text, added=today()))
+            self.tasks.append(Task(text, added=today(), due=due, every=every, prio=prio or 0))
             self.add_entry.set_text("")
-            self.save(f"Added “{text}”")
+            self.set_new_due("", "")
+            self.save(f"Added “{text}”" + (f" · due {due_long(due)}" if due else "")
+                      + (f" · {rule_label(every)}" if every else ""))
+
+        # ── deadlines ──
+        def open_due(self, anchor, current, every, on_pick, refocus=None):
+            def closed():
+                self.popover = None
+                if refocus:
+                    refocus.grab_focus()
+            # Deferred like EditableRow's save: picking rebuilds the list,
+            # which holds the anchor of this very popover.
+            self.popover = due_popover(anchor, current, every,
+                                       lambda due, ev: GLib.idle_add(lambda: on_pick(due, ev) and False), closed)
+
+        def set_new_due(self, due, every):
+            self.new_due, self.new_every = due, (every if due else "")
+            self.show_new_due()
+
+        def show_new_due(self):
+            ctx = self.add_due.get_style_context()
+            if self.new_due:
+                self.add_due.set_label(f"{ICON_DUE} {due_label(self.new_due)}" + (" ↻" if self.new_every else ""))
+                self.add_due.set_tooltip_text(f"Deadline for the next task: {due_long(self.new_due)}"
+                                              + (f" · {rule_label(self.new_every)}" if self.new_every else ""))
+                ctx.add_class("due-set")
+            else:
+                self.add_due.set_label(ICON_DUE_ADD)
+                self.add_due.set_tooltip_text("Deadline for the next task (or end it with @fri 5pm)")
+                ctx.remove_class("due-set")
+
+        def set_due(self, task, due, every):
+            every = every if due else ""
+            if (task.due, task.every) == (due, every):
+                return
+            self.snapshot()
+            task.due, task.every = due, every
+            self.save(f"Due {due_long(due)}" + (f", {rule_label(every)}" if every else "") + f": “{task.text}”"
+                      if due else f"No deadline: “{task.text}”")
+
+        def cycle_prio(self, task):
+            self.snapshot()
+            task.prio = (task.prio + 1) % 4
+            self.save(f"{PRIO_NAMES[task.prio].capitalize()}: “{task.text}”")
+
+        def cycle_sort(self):
+            self.sort = SORTS[(SORTS.index(self.sort) + 1) % len(SORTS)]
+            try:
+                atomic_write(PANEL_STATE, json.dumps({"sort": self.sort}))
+            except OSError:
+                pass
+            self.render()
+            self.say(f"Remaining sorted by {self.sort}" + ("  (↑↓ to reorder)" if self.sort == "manual" else ""))
 
         def on_log(self):
             text = " ".join(self.log_entry.get_text().split())
@@ -740,16 +1505,25 @@ def run_panel():
             if task.done == done:
                 return
             self.snapshot()
-            task.done_at = now().strftime("%Y-%m-%d %H:%M") if done else ""
-            # A ticked task goes to the end so the done list reads in order.
-            self.tasks.remove(task)
-            self.tasks.append(task)
-            GLib.idle_add(lambda: self.save(f"Done: “{task.text}”" if done else
-                                            f"Back on the list: “{task.text}”") and False)
+            nxt = set_task_done(self.tasks, task, done)
+            msg = (f"Done: “{task.text}”" + (f" · next one due {due_long(nxt.due)}" if nxt else "")
+                   if done else f"Back on the list: “{task.text}”")
+            GLib.idle_add(lambda: self.save(msg) and False)
 
         def rename(self, task, text):
+            """Typing ! / !! / !!! or an @deadline into an edit sets those too."""
+            new, due, every, prio, bad = split_spec(text)
+            if bad:
+                self.say(f"{bad} is not a date I know: try @fri, @tomorrow 5pm, @20/10, @every mon")
+                return
+            if not new:
+                return
             self.snapshot()
-            task.text = text
+            task.text = new
+            if due:
+                task.due, task.every = due, every
+            if prio is not None:
+                task.prio = prio
             self.save("Edited")
 
         def delete(self, task):
@@ -758,7 +1532,7 @@ def run_panel():
             self.save(f"Deleted “{task.text}”  ·  Ctrl+Z to undo")
 
         def move(self, task, step):
-            pending = [t for t in self.tasks if not t.done]
+            pending = self.shown_rest  # as listed under REMAINING (manual order)
             i = pending.index(task)
             j = i + step
             if not 0 <= j < len(pending):
@@ -791,10 +1565,33 @@ def run_panel():
             for child in self.body.get_children():
                 child.destroy()
             pending, done = split_buckets(self.tasks)
+            self.due_sig = [(due_label(t.due), due_level(t.due)) for t in self.tasks if t.due and not t.done]
+            far = dt.datetime.max
 
-            self.body.pack_start(section_label(f"REMAINING · {len(pending)}"), False, False, 0)
-            self.body.pack_start(self._list(pending, self._pending_row,
-                                            "Nothing left. Add something above."), False, False, 0)
+            # Overdue and due in the next two days, soonest first, on top.
+            horizon = now() + dt.timedelta(days=2)
+            soon = sorted((t for t in pending if t.due and due_at(t.due) and due_at(t.due) <= horizon),
+                          key=lambda t: (due_at(t.due), -t.prio))
+            rest = [t for t in pending if t not in soon]
+            if self.sort == "deadline":
+                rest.sort(key=lambda t: (due_at(t.due) or far, -t.prio))
+            elif self.sort == "priority":
+                rest.sort(key=lambda t: (-t.prio, due_at(t.due) or far))
+            self.shown_rest = rest
+
+            if soon:
+                self.body.pack_start(section_label(f"DUE SOON · {len(soon)}", "section-soon"), False, False, 0)
+                self.body.pack_start(self._list(soon, lambda t: self._pending_row(t, False), ""), False, False, 0)
+            sort = Gtk.Button(label=f"sort: {self.sort}")
+            sort.set_can_focus(False)
+            sort.get_style_context().add_class("sort")
+            sort.set_tooltip_text("Order of the list below: manual (↑↓) › deadline › priority")
+            sort.connect("clicked", lambda _b: self.cycle_sort())
+            head = f"REMAINING · {len(rest)}" if soon else f"REMAINING · {len(pending)}"
+            self.body.pack_start(section_head(head, button=sort), False, False, 0)
+            self.body.pack_start(self._list(rest, lambda t: self._pending_row(t, self.sort == "manual"),
+                                            "Nothing else left." if soon else "Nothing left. Add something above."),
+                                 False, False, 0)
             self.body.pack_start(section_label(f"DONE TODAY · {len(done)}", "section-done"),
                                  False, False, 0)
             self.body.pack_start(self._list(done, self._done_row, "Nothing ticked off yet."),
@@ -825,10 +1622,23 @@ def run_panel():
             chk.connect("toggled", lambda c: self.set_done(task, c.get_active()))
             return chk
 
-        def _pending_row(self, task):
+        def _prio_button(self, task):
+            b = Gtk.Button(label="!" * max(1, task.prio))
+            b.set_can_focus(False)
+            b.set_valign(Gtk.Align.CENTER)
+            b.set_relief(Gtk.ReliefStyle.NONE)
+            for cls in ("prio", f"prio-{task.prio}"):
+                b.get_style_context().add_class(cls)
+            b.set_tooltip_text(f"{PRIO_NAMES[task.prio].capitalize()} · click to change (or type ! / !! / !!!)")
+            b.connect("clicked", lambda _b: self.cycle_prio(task))
+            return b
+
+        def _pending_row(self, task, movable=True):
             row = EditableRow(self, task.text, lambda new: self.rename(task, new))
             row.box.pack_start(self._check(task), False, False, 0)
+            row.box.pack_start(self._prio_button(task), False, False, 0)
             row.pack_text()
+            row.box.pack_start(self._due_button(task), False, False, 0)
             age = task.age_days()
             if age:
                 meta = Gtk.Label(label=f"{age}d")
@@ -837,11 +1647,31 @@ def run_panel():
                 if age >= 3:
                     meta.get_style_context().add_class("meta-old")
                 row.box.pack_start(meta, False, False, 0)
-            row.box.pack_start(icon_button(ICON_UP, "Move up", lambda: self.move(task, -1)), False, False, 0)
-            row.box.pack_start(icon_button(ICON_DOWN, "Move down", lambda: self.move(task, 1)), False, False, 0)
+            if movable:
+                row.box.pack_start(icon_button(ICON_UP, "Move up", lambda: self.move(task, -1)), False, False, 0)
+                row.box.pack_start(icon_button(ICON_DOWN, "Move down", lambda: self.move(task, 1)), False, False, 0)
             row.box.pack_start(icon_button(ICON_EDIT, "Edit (or double-click)", row.start_edit), False, False, 0)
             row.box.pack_start(icon_button(ICON_DEL, "Delete", lambda: self.delete(task), True), False, False, 0)
             return row
+
+        def _due_button(self, task):
+            if not task.due:
+                b = icon_button(ICON_DUE_ADD, "Set a deadline",
+                                lambda: self.open_due(b, "", "", lambda d, e: self.set_due(task, d, e)))
+                return b
+            b = Gtk.Button(label=f"{ICON_DUE} {due_label(task.due)}" + (" ↻" if task.every else ""))
+            b.set_can_focus(False)
+            b.set_valign(Gtk.Align.CENTER)
+            ctx = b.get_style_context()
+            ctx.add_class("due")
+            level = due_level(task.due)
+            if level:
+                ctx.add_class("due-overdue" if level == "overdue" else "due-soon")
+            b.set_tooltip_text(f"Due {due_long(task.due)}" + (f" · {rule_label(task.every)}" if task.every else "")
+                               + " · click to change")
+            b.connect("clicked", lambda w: self.open_due(w, task.due, task.every,
+                                                          lambda d, e: self.set_due(task, d, e)))
+            return b
 
         def _done_row(self, task):
             row = EditableRow(self, task.text, lambda new: self.rename(task, new),
@@ -923,7 +1753,7 @@ def run_panel():
             if event not in (Gio.FileMonitorEvent.CHANGES_DONE_HINT, Gio.FileMonitorEvent.CREATED,
                              Gio.FileMonitorEvent.CHANGED):
                 return
-            if self.editing:
+            if self.editing or self.popover:
                 return  # do not yank the row out from under the cursor
             tasks_now = read_text(TASKS_FILE)
             log_now = read_day(today())["log"]
@@ -932,11 +1762,19 @@ def run_panel():
                 self.say("Reloaded: changed outside the panel")
 
         def _tick(self):
-            if today() != self.day and not self.editing:
+            if self.editing or self.popover:
+                return True
+            if today() != self.day:
                 self.day = today()
                 self.undo.clear()
                 self.reload()
                 self.say("New day: yesterday's done tasks archived")
+            else:
+                # "in 25m", "overdue 2h": redraw when a deadline's label moves on
+                sig = [(due_label(t.due), due_level(t.due)) for t in self.tasks if t.due and not t.done]
+                if sig != self.due_sig:
+                    self.render()
+            self.show_new_due()
             return True
 
         def say(self, text):
@@ -944,13 +1782,16 @@ def run_panel():
 
         def say_counts(self):
             pending, done = split_buckets(self.tasks)
-            self.say(f"{len(pending)} remaining · {len(done)} done today  ·  "
+            levels = [due_level(t.due) for t in pending if t.due]
+            due = "".join(f" · {levels.count(k)} {name}" for k, name in
+                          (("overdue", "overdue"), ("soon", "due within a day")) if levels.count(k))
+            self.say(f"{len(pending)} remaining{due} · {len(done)} done today  ·  "
                      "double-click to edit · Ctrl+Z undo · Esc close")
 
         def on_key(self, _w, event):
             ctrl = event.state & Gdk.ModifierType.CONTROL_MASK
-            if self.editing:
-                return False  # the inline entry handles Enter / Escape
+            if self.editing or self.popover:
+                return False  # the inline entry / the deadline picker handle Enter / Escape
             if event.keyval == Gdk.KEY_Escape:
                 Gtk.main_quit()
                 return True
@@ -998,6 +1839,12 @@ def main():
         cmd_list()
     elif cmd == "checkin":
         cmd_checkin(args[1] if len(args) > 1 else None)
+    elif cmd == "remind":
+        cmd_remind()
+    elif cmd == "deadlines":
+        cmd_deadlines()
+    elif cmd == "notify-due" and len(args) == 2:
+        cmd_notify_due(args[1])
     else:
         print(__doc__.split("\n\n")[1], file=sys.stderr)
         sys.exit(1)

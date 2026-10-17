@@ -212,7 +212,7 @@ PanelWindow {
             ScriptPill {
                 command: [Theme.hypr + "/tasks.py", "status"]
                 interval: 2000
-                colors: ({ pending: Theme.peach, clear: Theme.green, empty: Theme.overlay0, error: Theme.red })
+                colors: ({ pending: Theme.peach, "due-soon": Theme.yellow, overdue: Theme.red, clear: Theme.green, empty: Theme.overlay0, error: Theme.red })
                 defaultBg: Theme.alpha(Theme.surface0, 0.7)
                 hoverFg: Theme.crust
                 hoverBg: Theme.accent
