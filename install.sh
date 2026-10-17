@@ -146,6 +146,7 @@ do_system() {
     systemctl --user daemon-reload
     systemctl --user enable --now aria2.service || warn "aria2.service did not start"
     systemctl --user enable --now tasks-checkin.timer || true
+    systemctl --user enable --now tasks-deadlines.timer || true
     if [ "$(getent passwd "$USER" | cut -d: -f7)" != "$(command -v zsh)" ]; then
         say "making zsh the login shell"
         chsh -s "$(command -v zsh)" || warn "chsh failed; run: chsh -s $(command -v zsh)"

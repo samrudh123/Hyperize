@@ -43,6 +43,11 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | Tasks icon (bottom bar, centre) | Tasks panel: **Remaining**, **Done today**, **Log**, and a **History** tab of past days. Shows how many tasks are left |
 | ⤷ in the panel | Enter adds · tick to finish · double-click or ✎ to edit · ↑↓ reorder · 🗑 delete · `Ctrl+Z` undo · `Ctrl+N` new task · `Ctrl+L` log an update · `Esc` close |
 | ⤷ right-click it | quick-add a task without opening the panel |
+| ⤷ deadlines | end a task with `@fri 5pm`, `@tomorrow`, `@20/10 9:30am`, `@2h`… (a bare day = end of it, 23:59:59), or the 󰃳 calendar button on a row / next to Add. Overdue + next 2 days sit in **Due soon** on top; `sort:` on the Remaining header cycles manual › deadline › priority. The pill turns yellow (due within a day) / red (overdue) |
+| ⤷ repeating | `@daily` `@weekdays` `@weekly` `@monthly` `@every mon,wed 17:00` `@every 3d` (or Repeat in the calendar picker): ticking one off brings back the next |
+| ⤷ priority | `!` `!!` `!!!` as a word in the text, or click the `!` in front of a task (cycles) |
+| ⤷ reminders | 1 day, 6 h, 3 h, 1 h, 5 min before and when due (last three stay up, even in do-not-disturb). Left-click one: Open tasks · Mark done · Remind in 15 min / 1 hour · Tomorrow 9:00 |
+| ⤷ clock calendar | deadline dots on their days (colour = priority, red = overdue) and the month's deadlines listed under it |
 | `SUPER + SHIFT + T` | Open / close the tasks panel |
 | Timer (bottom bar, centre) | **Focus timer** — click starts 25 min of focus (notifications muted), then a 5 min break (15 after every 4th). Click again pauses / resumes, middle-click stops |
 | ⤷ right-click it | pick the task you're on (picking one while idle starts on it), +5 min, finish early, and the length: 25/5, 50/10 or 90/15. Finished sessions go into today's log in `~/notes/daily` |

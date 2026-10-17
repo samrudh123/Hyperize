@@ -1,0 +1,10 @@
+[Unit]
+Description=Tasks deadline reminders (1 day, 6 h, 3 h, 1 h, 5 min before, and when due)
+Documentation=file://%h/.config/hypr/tasks.py
+
+[Service]
+Type=oneshot
+# Sends what is due and returns: each notification waits for its click in
+# its own process (started through Hyprland), so this never runs long.
+ExecStart=/usr/bin/python3 %h/.config/hypr/tasks.py remind
+TimeoutStartSec=30

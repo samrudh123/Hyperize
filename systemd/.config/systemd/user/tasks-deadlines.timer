@@ -1,0 +1,11 @@
+[Unit]
+Description=Tasks deadline reminders, checked every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=5s
+# No Persistent=: a missed minute is caught by the next one (remind sends
+# whatever mark was crossed meanwhile).
+
+[Install]
+WantedBy=timers.target
