@@ -1,7 +1,7 @@
 # zathura — PDF viewer, themed with the rest of the desktop.
 #
 # ⚠ This file is RENDERED by ~/.config/hypr/set-accent.sh from
-# hypr/theme/templates/zathurarc on every theme (SUPER+T) or accent
+# hypr/theme/templates/zathurarc on every theme (SUPER+SHIFT+T) or accent
 # (SUPER+ALT+C) change. After editing it run
 #     ~/.config/hypr/set-accent.sh --resync
 # or the edit is lost on the next change. Colours are written as Catppuccin

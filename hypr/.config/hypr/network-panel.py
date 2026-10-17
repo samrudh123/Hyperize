@@ -101,7 +101,7 @@ MAKO_MODE = "netpanel-open"
 
 
 def _rice_subst(css):
-    """Desktop THEMES (SUPER+T): this CSS is written in Catppuccin Mocha;
+    """Desktop THEMES (SUPER+SHIFT+T): this CSS is written in Catppuccin Mocha;
     recolour it into the current theme (rice-theme.py palette substitution)."""
     try:
         import importlib.util

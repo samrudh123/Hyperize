@@ -66,7 +66,7 @@ PALETTE = [
     ("Blue", "89b4fa"),      ("Lavender", "b4befe"),
 ]
 
-# Desktop THEMES (SUPER+T): offer the CURRENT theme's accents (same 14 roles)
+# Desktop THEMES (SUPER+SHIFT+T): offer the CURRENT theme's accents (same 14 roles)
 # and draw the picker in its colours — rice-theme.py's palette substitution.
 def _rice():
     import importlib.util

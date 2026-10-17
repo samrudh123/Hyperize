@@ -642,7 +642,7 @@ One process, `~/.local/bin/qs` (exec-once), config in `~/.config/quickshell/`:
   `~/.config/hypr/wallpaper-transition`, chosen in the picker with `t`.
   set-accent.sh no longer runs `reload.sh bar` (the shell follows the accent
   live; a restart also killed a running transition).
-- THEMES (2026-10-11) — SUPER+T `ThemePicker.qml` (+ `ThemePreview.qml`, a
+- THEMES (2026-10-11) — SUPER+SHIFT+T (SUPER+T until 2026-10-17) `ThemePicker.qml` (+ `ThemePreview.qml`, a
   palette-drawn mini desktop per card) → `hypr/set-theme.sh <id>`. Palettes in
   `hypr/rice-theme.py`: 8 themes, each a map of Catppuccin Mocha's 26 roles.
   Templates stay MOCHA; `subst` recolours Mocha hex (any case, also the first

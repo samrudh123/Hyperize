@@ -1,4 +1,4 @@
-// Theme picker — SUPER+T (`qs ipc call themepicker toggle`). The wallpaper
+// Theme picker — SUPER+SHIFT+T (`qs ipc call themepicker toggle`). The wallpaper
 // picker's carousel with desktop themes as the cards: each card is a little
 // desktop drawn in that theme's palette (bar, a terminal with highlighted
 // code, a window, the 14 accents). Enter applies it everywhere through

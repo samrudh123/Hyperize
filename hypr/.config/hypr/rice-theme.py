@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Desktop colour themes — the palette library behind SUPER+T.
+"""Desktop colour themes — the palette library behind SUPER+SHIFT+T.
 
 Every themed file on this desktop was written for Catppuccin Mocha. Rather
 than re-tokenising all of them, a theme is a MAP from Mocha's 26 colour roles

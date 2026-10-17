@@ -7,7 +7,7 @@
 //                                     osd: opacity — from opacity.sh;
 //                                     wspicker: toggle — SUPER+Tab;
 //                                     wallpicker: toggle desktop|lock — SUPER+W;
-//                                     themepicker: toggle — SUPER+T;
+//                                     themepicker: toggle — SUPER+SHIFT+T;
 //                                     clipboard: toggle — the clipboard pill)
 //   logs:     qs log
 //

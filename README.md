@@ -17,7 +17,7 @@ scripts that tie it together.
 | ![Live wallpaper](screenshots/live-wallpaper.webp) | ![Wallpaper picker](screenshots/wallpaper-picker.jpg) |
 | A live (video) wallpaper playing | The wallpaper picker (`SUPER+W`) — colour filters, live previews |
 | ![Theme picker](screenshots/theme-picker.jpg) | ![Workspace picker](screenshots/workspace-picker.jpg) |
-| The theme picker (`SUPER+T`) — 8 themes across the whole desktop | The workspace picker (`SUPER+Tab`) — live previews of every workspace, over a Garou vs Saitama live wallpaper |
+| The theme picker (`SUPER+SHIFT+T`) — 8 themes across the whole desktop | The workspace picker (`SUPER+Tab`) — live previews of every workspace, over a Garou vs Saitama live wallpaper |
 
 ## Install
 
