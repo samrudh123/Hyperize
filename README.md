@@ -71,11 +71,11 @@ Files of yours that a copy would overwrite are moved to
 | `quickshell` | top bar, bottom bar, dock, wallpaper / workspace / theme pickers, clipboard and recorder |
 | `yazi` | file manager config, plugins, grid view (`Alt+G`) |
 | `ghostty` `mako` `fuzzel` `tmux` `bat` `btop` `glow` `fastfetch` `zathura` | app configs |
-| `vscode-pdf-zathura` | VS Code extension: PDFs open in a zathura-style viewer themed from `zathurarc` (`copy` builds and installs it) |
+| `vscode-pdf-zathura` | VS Code extension: PDFs open in a zathura-style viewer themed from `zathurarc` (`copy` builds and installs it); `firefox/` is the same viewer as a Firefox extension (sign the xpi on AMO, see its README) |
 | `nwg` `waybar` | the app grid, and the old waybar setup (kept as a fallback) |
 | `portals` | routes file dialogs to yazi, screen sharing to the Hyprland portal |
 | `zsh` `bash` `git` | shell, prompt (starship), git (identity in `~/.gitconfig.local`) |
-| `dl-popup` `aria2` | the download popup and its aria2 daemon hooks |
+| `dl-popup` `aria2` | the download popup, its Firefox extension + native host (`.local/share/dl-popup`, sign the xpi on AMO, see its README) and its aria2 daemon hooks |
 | `systemd` `environment` `applications` `bin` `gtk` `vscode` | user units, env, `.desktop` overrides, small scripts, GTK, VS Code settings |
 | `notes` | `Hyprland_CLAUDE.md` — the long-form notes: how it all works, landmines (not copied; read it here) |
 | `extras/` | seeded **once** on install, never overwritten later: OBS profile/scenes/theme, spicetify, aria2.conf, dl-popup config — apps rewrite these files themselves, or they hold a per-machine secret |

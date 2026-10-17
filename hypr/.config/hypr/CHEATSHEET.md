@@ -88,7 +88,7 @@ so it does nothing to them:
 | Brightness pill (top bar) | scroll = brightness · click = 50 % · **right-click = night light** on/off · middle-click = warmer/cooler (4500 → 3500 → 2700 K) |
 | `SUPER + Tab` | Workspace picker — the wallpaper carousel, one card per workspace with windows plus the next empty one, each a miniature of the workspace (press again to close) |
 | ⤷ in the picker | `←/→` or wheel move (mouse wheel up / two-finger down = next) · `Enter` go there · `1`–`9` pick that workspace · `m` carry the focused window along (`Shift+Enter` = once) · `/` search window titles / apps · `Esc` close |
-| `SUPER + H/J/K/L` | Move focus left/down/up/right (arrows work too) |
+| `SUPER + H/J/K/L` | Move focus left/down/up/right (arrows work too) — also into / out of floating popups (screenshot save, tasks, notifications, …) |
 | `SUPER + SHIFT + arrows` | Move the window |
 | `SUPER + CTRL + arrows` | Resize the window |
 | `SUPER + F` | Fullscreen |

@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "dl-popup",
+  "version": "1.1.0",
+  "description": "Hands Firefox downloads to the dl-popup fuzzel menu (aria2 / JDownloader).",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "dl-popup@samrudh.local",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  },
+  "permissions": ["downloads", "nativeMessaging", "cookies", "menus", "storage", "<all_urls>"],
+  "background": { "scripts": ["background.js"] },
+  "browser_action": {
+    "default_title": "dl-popup: catching downloads (click to pause)",
+    "default_icon": "icon.svg"
+  },
+  "icons": { "48": "icon.svg", "96": "icon.svg" }
+}

@@ -12,7 +12,9 @@
     dl-popup bar / bar-toggle                             waybar module output / pause-resume all
 
 `add` prints one JSON line on stdout, which the Firefox extension acts on:
-    {"action": "aria2" | "jd" | "firefox" | "cancel" | "error", ...}
+    {"action": "aria2" | "jd" | "firefox" | "preview" | "cancel" | "error", ...}
+A job with "preview": true (a PDF) gets "Preview in zathura" as the first row;
+picking it means: open it in the PDF in Zathura extension, save nothing.
 
 Pieces:
     ~/.config/dl-popup/config.json     defaults (folder, chunks, parallel, JD hoster list, ...)
@@ -63,6 +65,7 @@ I_LINK = "\U000F0337"       # md-link
 I_REFRESH = "\U000F0450"    # md-refresh
 I_PENCIL = "\U000F03EB"     # md-pencil
 I_PACKAGE = "\U000F03D4"    # md-package_down
+I_PREVIEW = "\U000F0DC8"    # md-file_eye
 
 DEFAULTS = {
     "default_dir": "~/Downloads",   # used until a folder has been picked once
@@ -463,7 +466,8 @@ def popup(job):
     sel = 0
     while True:
         jd_mode = st["backend"] == "jd"
-        rows = [("go", f"{I_DOWNLOAD}  Download" + ("  (JDownloader)" if jd_mode else ""))]
+        rows = [("preview", f"{I_PREVIEW}  Preview in zathura (nothing saved)")] if job.get("preview") else []
+        rows.append(("go", f"{I_DOWNLOAD}  Download" + ("  (JDownloader)" if jd_mode else "")))
         rows.append(("dir", f"{I_FOLDER}  Save to     {tilde(st['dir'])}"))
         if not jd_mode:   # JD names files itself
             rows.append(("name", f"{I_FILE}  Filename    {st['filename'] or '(from server)'}"))
@@ -499,7 +503,9 @@ def popup(job):
                                            st["parallel"], 1, 20)
         elif key == "backend":
             st["backend"] = "aria2" if jd_mode else "jd"
-            sel = 0
+            sel = keys.index("go")
+        elif key == "preview":
+            return {"action": "preview"}
         elif key == "firefox":
             return {"action": "firefox"}
         elif key == "go":

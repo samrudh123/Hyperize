@@ -71,6 +71,11 @@ PanelWindow {
         }
         Item { width: 6; height: 1; visible: local.visible && remote.visible }
         NowPlaying { id: remote; scope: "remote" }
+        Visualizer {
+            active: remote.visible && remote.playing
+            fake: true
+            tint: remote.tint
+        }
 
         // Nothing playing anywhere: a faint, empty progress line — the "no
         // player is open" sign. Not clickable.

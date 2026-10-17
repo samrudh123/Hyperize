@@ -9,6 +9,8 @@
     focus.py task [TEXT]           what this session is for (empty = none)
     focus.py pick                  ask for it (fuzzel): any task or chore, kept
                                    in `recent` for the menu; idle -> starts
+    focus.py forget TEXT…          drop a typed task from `recent` (and, idle,
+                                   from `task` too)
     focus.py lengths WORK BREAK    session / short break length in minutes
     focus.py next                  phase over? move on (the bar calls this
                                    when its countdown reaches zero)
@@ -173,6 +175,11 @@ def main():
             start(st, None, text)
         else:
             st["task"] = text
+    elif cmd == "forget":
+        text = " ".join(args)
+        st["recent"] = [r for r in st["recent"] if r != text]
+        if st["phase"] == "idle" and st["task"] == text:
+            st["task"] = ""             # a running session keeps its name
     elif cmd == "lengths":
         st["work"], st["brk"] = int(args[0]), int(args[1])
         st["long"] = st["brk"] * 3
