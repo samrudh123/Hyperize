@@ -123,6 +123,19 @@ do_copy() {
         say "VS Code extension: PDF in Zathura"
         sh "$HOME/.config/vscode-pdf-zathura/build.sh" || warn "pdf-zathura extension did not install"
     fi
+    # ...and its Firefox twin: the xpi still has to be signed on AMO (see its
+    # README); this builds it and registers the native host that themes it
+    if [ ! -e "$HOME/.mozilla/native-messaging-hosts/pdf_zathura.json" ]; then
+        say "Firefox extension: PDF in Zathura"
+        sh "$HOME/.config/vscode-pdf-zathura/firefox/build.sh" || warn "pdf-zathura Firefox build failed"
+    fi
+    # dl-popup's Firefox extension: same deal (sign the xpi on AMO, see
+    # ~/.local/share/dl-popup/README.md); this builds it and registers the
+    # native host that hands its downloads to the popup
+    if [ ! -e "$HOME/.mozilla/native-messaging-hosts/dl_popup.json" ]; then
+        say "Firefox extension: dl-popup"
+        sh "$HOME/.local/share/dl-popup/build.sh" || warn "dl-popup Firefox build failed"
+    fi
 }
 
 # ── systemd + shell ─────────────────────────────────────────────────────────

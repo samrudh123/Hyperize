@@ -1,7 +1,8 @@
 // Focus timer (pomodoro, hypr/focus.py), tied to the tasks in ~/notes.
 //
 //   idle      click: start a session (do not disturb on) · right-click: menu
-//             (task: one from ~/notes/tasks.md, or "Something else…" to type any)
+//             (task: one from ~/notes/tasks.md, or "Something else…" to type any;
+//             typed ones stay listed until their trash button is clicked)
 //   running   time left, the task, a line that drains; click pauses / resumes,
 //             middle-click stops, right-click: +5 min, skip, task, lengths
 //   break     green, counts down the break; notifications are back
@@ -184,13 +185,15 @@ Pill {
             }
         }
         // tasks typed via "Something else…" (focus.py keeps the last 4), unless
-        // they are in the list above anyway
+        // they are in the list above anyway; the trash button forgets one
         Repeater {
             model: fp.recent
             MenuRow {
                 required property var modelData
                 text: modelData
                 check: fp.task === modelData ? 1 : 0
+                removable: true
+                onRemoved: fp.run(["forget", modelData])
                 onActivated: {
                     menu.close();
                     fp.run(fp.idle ? ["start", String(fp.workMin), modelData] : ["task", modelData]);

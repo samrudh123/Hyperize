@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- The body is extension.js html()'s, keep the two in step (#save is
+     Firefox-only). shim.js fills in data-resources and stands in for the
+     VS Code webview API. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>PDF</title>
+<link rel="stylesheet" href="media/pdfjs/web/pdf_viewer.css">
+<link rel="stylesheet" href="media/viewer.css">
+<style>
+#save { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0 2ch 0 0; cursor: pointer; }
+#save:hover { color: var(--index-active-bg); text-decoration: underline; }
+</style>
+</head>
+<body>
+<svg class="defs" aria-hidden="true">
+  <filter id="recolor" color-interpolation-filters="sRGB">
+    <feColorMatrix id="recolor-matrix" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"/>
+  </filter>
+</svg>
+<div id="viewerContainer" tabindex="-1"><div id="viewer" class="pdfViewer"></div></div>
+<div id="hints"></div>
+<div id="index"></div>
+<div id="inputbar"><span id="prompt"></span><input id="input" spellcheck="false" autocomplete="off"></div>
+<div id="statusbar"><span id="sb-left"></span><span id="sb-right"><button id="save" tabindex="-1" title="Save with dl-popup (Ctrl+S)">save</button><span id="sb-keys"></span><span id="sb-page"></span></span></div>
+<script src="shim.js"></script>
+<script type="module" src="media/viewer.js"></script>
+</body>
+</html>

@@ -20,6 +20,14 @@ set page-h-padding          10
 set scroll-page-aware       true
 set incremental-search      true
 
+# zathura 2026.02 throws away every page's rendered image on each scroll step
+# and repaints from its thumbnail until the re-render lands. Thumbnails over
+# this many pixels are stored downscaled (blurry) and never refreshed, so they
+# also keep the colours from before a `w` toggle. 8 MP (default 4 MP) covers a
+# fit-width A4 page on this 1920x1200 screen, so the thumbnail IS the full-res
+# page: no blur, and it follows recolour. Costs up to 32 MB per page viewed.
+set page-thumbnail-size     8388608
+
 # --- colours ------------------------------------------------------------------
 # the window is crust, so the (recoloured, base) pages stand out as sheets
 set default-bg              "#13131a"

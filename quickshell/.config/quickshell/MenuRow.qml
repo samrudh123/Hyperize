@@ -16,8 +16,10 @@ Item {
     property int check: -1             // -1 none, 0 unchecked, 1 checked (checkbox / radio)
     property bool submenu: false
     property bool danger: false
+    property bool removable: false     // a trash button at the end, on hover
 
     signal activated()
+    signal removed()
 
     width: parent ? parent.width : 200
     implicitWidth: (separator ? 0 : label.implicitWidth) + 30 + 28 + (submenu ? 18 : 0)
@@ -67,7 +69,7 @@ Item {
             id: label
             x: 34
             anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - x - (row.submenu ? 28 : 10)
+            width: parent.width - x - (row.submenu ? 28 : row.removable ? 34 : 10)
             elide: Text.ElideRight
             text: row.text
             color: !row.enabled ? Theme.overlay0
@@ -97,5 +99,36 @@ Item {
         hoverEnabled: true
         cursorShape: row.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: if (row.enabled) row.activated()
+
+        // a child of the row's MouseArea: on top of it (a click here doesn't
+        // activate the row), and the row keeps its hover while over it
+        MouseArea {
+            id: del
+            visible: row.removable && !row.separator && !row.header
+            anchors.right: parent.right
+            anchors.rightMargin: 4
+            anchors.verticalCenter: parent.verticalCenter
+            width: 26
+            height: 24
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: row.removed()
+
+            Rectangle {
+                anchors.fill: parent
+                radius: 6
+                color: Theme.alpha(Theme.red, del.containsMouse ? 0.2 : 0)
+                Behavior on color { ColorAnimation { duration: 120; easing.type: Easing.OutQuint } }
+            }
+            Text {
+                anchors.centerIn: parent
+                text: "\u{f0a7a}"         // md-trash_can_outline
+                color: del.containsMouse ? Theme.red : Theme.overlay2
+                opacity: mouse.containsMouse || del.containsMouse ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 120 } }
+                font.family: Theme.font
+                font.pixelSize: 14
+            }
+        }
     }
 }
