@@ -3,7 +3,7 @@
 #
 # The dock is part of the Quickshell shell (~/.config/quickshell/Dock.qml)
 # since 2026-10-09; this used to signal nwg-dock-hyprland (see
-# dock-toggle.sh.pre-quickshell). Now it is an IPC call. If quickshell is not
+# dock-toggle.sh.pre-quickshell (archived in ~/.dotfiles-backup/pre-backups-2026-10-17.tar.gz)). Now it is an IPC call. If quickshell is not
 # running (crashed, or killed) it is started and the dock shown.
 #
 # Absolute path: keybind children do not get ~/.local/bin on PATH.

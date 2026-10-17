@@ -5,7 +5,7 @@
 #
 # The bottom bar is part of the Quickshell shell (~/.config/quickshell/
 # BottomBar.qml) since 2026-10-09 — it used to be a second waybar instance
-# (bottom-bar.sh.pre-quickshell). "stop" only hides it; the shell keeps
+# (bottom-bar.sh.pre-quickshell (archived in ~/.dotfiles-backup/pre-backups-2026-10-17.tar.gz)). "stop" only hides it; the shell keeps
 # running. The dock no longer needs restarting afterwards: it re-centres
 # itself when the bar's exclusive zone comes or goes. A trailing --no-dock
 # (old callers) is accepted and ignored.

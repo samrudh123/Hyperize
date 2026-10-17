@@ -344,7 +344,7 @@ case "${1:-}" in
         # No bar restart: the bars and dock are Quickshell since 2026-10-09
         # and follow theme/accent (written above) live. Restarting the shell
         # here also cut short the wallpaper transition the picker had just
-        # started. (The waybar-era restart is in set-accent.sh.pre-quickshell.)
+        # started. (The waybar-era restart is in set-accent.sh.pre-quickshell (archived in ~/.dotfiles-backup/pre-backups-2026-10-17.tar.gz).)
         # Spotify / YouTube Music / Discord — slow (spicetify refresh, app
         # restarts), so detached through Hyprland rather than waited on.
         hyprctl dispatch exec "$HYPR/app-accent.sh $hex" >/dev/null

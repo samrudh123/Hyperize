@@ -1,6 +1,6 @@
 #!/bin/bash
 # UNUSED since 2026-10-09: the dock is Quickshell now (~/.config/quickshell/Dock.qml).
-# Kept, with nwg-dock in ~/.local/bin, as the way back (hyprland.conf.pre-quickshell).
+# Kept, with nwg-dock in ~/.local/bin, as the way back (hyprland.conf.pre-quickshell (archived in ~/.dotfiles-backup/pre-backups-2026-10-17.tar.gz)).
 # Start the sidebar (nwg-dock-hyprland).
 #
 # THE SHAPE: a floating, content-sized pill
