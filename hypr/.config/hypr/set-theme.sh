@@ -1,5 +1,5 @@
 #!/bin/bash
-# Switch the whole desktop's colour theme — SUPER+T opens the picker
+# Switch the whole desktop's colour theme — SUPER+SHIFT+T opens the picker
 # (~/.config/quickshell/ThemePicker.qml), which calls this.
 #
 #   set-theme.sh <id>          mocha tokyonight gruvbox nord rosepine

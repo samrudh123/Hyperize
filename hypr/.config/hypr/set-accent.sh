@@ -75,7 +75,7 @@ STATE="$THEME/accent"
 ORIGINAL="cba6f7"          # the accent these configs shipped with
 TOKEN="@@ACCENT@@"
 
-# THEMES (SUPER+T, set-theme.sh). The templates stay Catppuccin Mocha; for
+# THEMES (SUPER+SHIFT+T, set-theme.sh). The templates stay Catppuccin Mocha; for
 # any other theme each template is first passed through rice-theme.py's
 # palette substitution (every Mocha colour -> the theme's colour for the same
 # role) and THEN gets the accent. The substituted templates are cached per

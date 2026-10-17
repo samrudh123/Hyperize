@@ -62,7 +62,7 @@ M = {
     "blue": "#89b4fa", "lavender": "#b4befe", "text": "#cdd6f4", "subtext1": "#bac2de",
     "subtext0": "#a6adc8", "overlay2": "#9399b2",
 }
-# Desktop THEMES (SUPER+T): the same roles in the current theme's colours
+# Desktop THEMES (SUPER+SHIFT+T): the same roles in the current theme's colours
 # (theme/palette.json, written by set-theme.sh).
 try:
     with open(os.environ.get("RICE_PALETTE") or

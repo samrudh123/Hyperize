@@ -70,7 +70,7 @@ I_MENU = "\U000F0CB8"                  # md-playlist_music
 # ── single instance: a second launch closes the first ─────────────────────
 
 def _rice_subst(css):
-    """Desktop THEMES (SUPER+T): this CSS is written in Catppuccin Mocha;
+    """Desktop THEMES (SUPER+SHIFT+T): this CSS is written in Catppuccin Mocha;
     recolour it into the current theme (rice-theme.py palette substitution)."""
     try:
         import importlib.util

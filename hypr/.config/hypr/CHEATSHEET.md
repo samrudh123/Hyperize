@@ -43,12 +43,12 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | Tasks icon (bottom bar, centre) | Tasks panel: **Remaining**, **Done today**, **Log**, and a **History** tab of past days. Shows how many tasks are left |
 | ⤷ in the panel | Enter adds · tick to finish · double-click or ✎ to edit · ↑↓ reorder · 🗑 delete · `Ctrl+Z` undo · `Ctrl+N` new task · `Ctrl+L` log an update · `Esc` close |
 | ⤷ right-click it | quick-add a task without opening the panel |
-| ⤷ deadlines | end a task with `@fri 5pm`, `@tomorrow`, `@20/10 9:30am`, `@2h`… (a bare day = end of it, 23:59:59), or the 󰃳 calendar button on a row / next to Add. Overdue + next 2 days sit in **Due soon** on top; `sort:` on the Remaining header cycles manual › deadline › priority. The pill turns yellow (due within a day) / red (overdue) |
+| ⤷ deadlines | end a task with `@fri 5pm`, `@tomorrow`, `@20/10 9:30am`, `@2h`… (a bare day = end of it, 23:59:59), or the 󰃳 calendar button on a row / next to Add (time: wheel up / touchpad fingers up = +, down = − — 2 hours / 10 minutes per notch, Shift+scroll = 1; +/−, ↑↓ or typing = 1; End of day is the default). Overdue + next 2 days sit in **Due soon** on top; `sort:` on the Remaining header cycles manual › deadline › priority. The pill turns yellow (due within a day) / red (overdue) |
 | ⤷ repeating | `@daily` `@weekdays` `@weekly` `@monthly` `@every mon,wed 17:00` `@every 3d` (or Repeat in the calendar picker): ticking one off brings back the next |
 | ⤷ priority | `!` `!!` `!!!` as a word in the text, or click the `!` in front of a task (cycles) |
-| ⤷ reminders | 1 day, 6 h, 3 h, 1 h, 5 min before and when due (last three stay up, even in do-not-disturb). Left-click one: Open tasks · Mark done · Remind in 15 min / 1 hour · Tomorrow 9:00 |
+| ⤷ reminders | 1 day, 6 h, 3 h, 1 h, 5 min before and when due (last three stay up, even in do-not-disturb). Left-click one: Open tasks · Mark done · Remind in 15 min / 1 hour · Tomorrow 9:00 · `Esc` (anywhere) dismisses them |
 | ⤷ clock calendar | deadline dots on their days (colour = priority, red = overdue) and the month's deadlines listed under it |
-| `SUPER + SHIFT + T` | Open / close the tasks panel |
+| `SUPER + T` | Open / close the tasks panel |
 | Timer (bottom bar, centre) | **Focus timer** — click starts 25 min of focus (notifications muted), then a 5 min break (15 after every 4th). Click again pauses / resumes, middle-click stops |
 | ⤷ right-click it | pick the task you're on (picking one while idle starts on it), +5 min, finish early, and the length: 25/5, 50/10 or 90/15. Finished sessions go into today's log in `~/notes/daily` |
 | Weather (bottom bar, centre) | temperature + sky; hover for feels-like, humidity, wind, UV, rain in the next hours, sunrise/sunset and 4 days. Click refreshes, right-click changes the place |
@@ -88,7 +88,7 @@ so it does nothing to them:
 | Keys | Does |
 |---|---|
 | `SUPER + Q` | Close window (not Alt+F4) |
-| `SUPER + T` | Theme picker — Catppuccin Mocha, Tokyo Night, Gruvbox Dark, Nord, Rosé Pine, Everforest, Dracula, Kanagawa; recolours the whole desktop (press again to close) |
+| `SUPER + SHIFT + T` | Theme picker — Catppuccin Mocha, Tokyo Night, Gruvbox Dark, Nord, Rosé Pine, Everforest, Dracula, Kanagawa; recolours the whole desktop (press again to close) |
 | ⤷ in the picker | `←/→` or wheel move · `Enter` apply · `1`–`8` jump · `b` bar style: classic ⇄ floating islands · `Esc` close |
 | Brightness pill (top bar) | scroll = brightness · click = 50 % · **right-click = night light** on/off · middle-click = warmer/cooler (4500 → 3500 → 2700 K) |
 | `SUPER + Tab` | Workspace picker — the wallpaper carousel, one card per workspace with windows plus the next empty one, each a miniature of the workspace (press again to close) |

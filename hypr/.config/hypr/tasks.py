@@ -107,7 +107,7 @@ GLYPH_OPEN, GLYPH_CLEAR = "\U000f0131", "\U000f0132"  # md-checkbox_blank_outlin
 
 
 def _rice_subst(css):
-    """Desktop THEMES (SUPER+T): this CSS is written in Catppuccin Mocha;
+    """Desktop THEMES (SUPER+SHIFT+T): this CSS is written in Catppuccin Mocha;
     recolour it into the current theme (rice-theme.py palette substitution)."""
     try:
         import importlib.util
@@ -842,12 +842,19 @@ def remind_key(t):
 
 def cmd_remind():
     """Send the deadline reminders that are due (tasks-deadlines.timer, every
-    minute). Each mark in REMIND_AT is sent once per task + deadline; a
+    minute). Each mark in REMIND_AT is sent once per task + deadline. A
     deadline seen for the first time (just set or changed) only records the
-    marks already past, so setting one never notifies straight away. A
-    snooze (the notification's buttons) is sent once when its time comes."""
+    marks that were already past when it was set, so setting one never
+    notifies straight away; "when it was set" is tasks.md's mtime, because
+    this runs up to a minute later and a mark can pass in between (set at
+    21:15:03 for 21:16, first seen 21:16:00: its "due now" must still come).
+    A snooze (the notification's buttons) is sent once when its time comes."""
     tasks = load()
     fire, n = [], now()
+    try:
+        set_at = min(n, dt.datetime.fromtimestamp(os.path.getmtime(TASKS_FILE)))
+    except OSError:
+        set_at = n
     with state_lock() as state:
         keep = {}
         for t in tasks:
@@ -858,9 +865,11 @@ def cmd_remind():
             rem = (when - n).total_seconds()
             crossed = [mark for mark, _ in REMIND_AT if rem <= mark]
             old = state.get(key)
-            entry = {"marks": sorted(set(old["marks"] if old else []) | set(crossed)),
-                     "snooze": old["snooze"] if old else ""}
-            new = [mark for mark in crossed if old and mark not in old["marks"]]
+            if old is None:  # first sight: what was already past when it was set
+                old = {"marks": [mark for mark, _ in REMIND_AT if (when - set_at).total_seconds() <= mark],
+                       "snooze": ""}
+            entry = {"marks": sorted(set(old["marks"]) | set(crossed)), "snooze": old["snooze"]}
+            new = [mark for mark in crossed if mark not in old["marks"]]
             if new:
                 fire.append((t, min(new), rem))  # several missed (asleep): the latest only
             snooze = due_at(entry["snooze"]) if entry["snooze"] else None
@@ -968,6 +977,15 @@ def notify(title, body, timeout_ms=20000, urgency=1, wait_s=None, actions=(("def
     state["id"] = reply.unpack()[0]
     GLib.timeout_add_seconds(wait_s or (timeout_ms // 1000 + 5), loop.quit)
     loop.run()
+    if state.get("action"):
+        # mako runs the action but leaves the notification up, and a critical
+        # one never expires: close it, the button has been answered.
+        try:
+            bus.call_sync("org.freedesktop.Notifications", "/org/freedesktop/Notifications",
+                          "org.freedesktop.Notifications", "CloseNotification",
+                          GLib.Variant("(u)", (state["id"],)), None, Gio.DBusCallFlags.NONE, -1, None)
+        except GLib.Error:
+            pass
     return state.get("action")
 
 
@@ -995,6 +1013,7 @@ def run_panel():
 
     accent = read_accent()
     BASE, MANTLE, SURFACE0, SURFACE1 = "#1e1e2e", "#181825", "#313244", "#45475a"
+    CRUST = "#11111b"
     TEXT, SUBTEXT, OVERLAY = "#cdd6f4", "#a6adc8", "#6c7086"
     GREEN, RED, PEACH, YELLOW = "#a6e3a1", "#f38ba8", "#fab387", "#f9e2af"
 
@@ -1060,9 +1079,13 @@ def run_panel():
     button.due.due-overdue {{ color: {RED}; background: alpha({RED}, 0.15); }}
     .toolbar button.due {{ padding: 5px 10px; font-size: 11pt; }}
     .toolbar button.due.due-set {{ color: {accent}; }}
-    popover {{ background: {MANTLE}; border: 1px solid {SURFACE1}; border-radius: 8px; }}
-    popover .due-head {{ color: {accent}; font-size: 8.5pt; font-weight: 700; }}
-    popover .hint {{ color: {OVERLAY}; font-size: 8.5pt; }}
+    .scrim {{ background: alpha({CRUST}, 0.45); }}
+    .picker {{
+        background: {MANTLE}; border: 1px solid {SURFACE1}; border-radius: 8px;
+        box-shadow: 0 6px 18px alpha({CRUST}, 0.6);
+    }}
+    .picker .due-head {{ color: {accent}; font-size: 8.5pt; font-weight: 700; }}
+    .picker .hint {{ color: {OVERLAY}; font-size: 8.5pt; }}
     calendar {{
         background: {SURFACE0}; color: {TEXT}; border: none; border-radius: 6px;
         padding: 4px;
@@ -1073,6 +1096,19 @@ def run_panel():
     calendar:selected {{ background: {accent}; color: {BASE}; border-radius: 4px; }}
     calendar:indeterminate {{ color: {SURFACE1}; }}
     entry.bad {{ box-shadow: inset 0 0 0 2px {RED}; }}
+    spinbutton.clock {{
+        background: {SURFACE0}; border: none; border-radius: 6px; box-shadow: none; padding: 0 4px;
+    }}
+    spinbutton.clock entry {{
+        background: transparent; box-shadow: none; padding: 0; min-height: 0;
+        font-size: 15pt; font-weight: 700; color: {TEXT};
+    }}
+    spinbutton.clock button {{
+        background: transparent; color: {OVERLAY}; border: none; box-shadow: none;
+        padding: 0; min-height: 14px;
+    }}
+    spinbutton.clock button:hover {{ color: {accent}; }}
+    .colon {{ font-size: 15pt; font-weight: 700; color: {OVERLAY}; }}
     button.prio {{
         background: transparent; padding: 0 2px; min-width: 14px; min-height: 0;
         font-weight: 800; font-size: 10pt; color: transparent;
@@ -1112,11 +1148,58 @@ def run_panel():
         b.connect("clicked", lambda _b: cb())
         return b
 
-    def due_popover(anchor, current, every, on_pick, on_closed):
+    class Picker:
+        """The deadline picker as a card on a dimmed backdrop inside the
+        panel's own window (a Gtk.Overlay child), placed under its anchor.
+        Not a Gtk.Popover: on Wayland GTK3 makes popovers a separate
+        subsurface, and Hyprland put their input off from where they were
+        drawn (clicks landed beside what the pointer was on) and gave them
+        their own opacity (the list showed through). Click the backdrop or
+        Escape to close."""
+
+        def __init__(self, overlay, anchor, on_closed):
+            self.overlay, self.on_closed, self.open = overlay, on_closed, True
+            self.scrim = Gtk.EventBox()
+            self.scrim.get_style_context().add_class("scrim")
+            self.scrim.connect("button-press-event", lambda *_: self.popdown() or True)
+            self.card = Gtk.EventBox()  # swallows clicks on the card's gaps
+            self.card.get_style_context().add_class("picker")
+            self.card.connect("button-press-event", lambda *_: True)
+            self.card.set_halign(Gtk.Align.CENTER)
+            self.card.set_valign(Gtk.Align.START)
+            self.anchor = anchor
+
+        def add(self, child):
+            self.card.add(child)
+
+        def popup(self):
+            win = self.overlay.get_toplevel()
+            self.overlay.add_overlay(self.scrim)
+            self.overlay.add_overlay(self.card)
+            self.scrim.show_all()
+            self.card.show_all()
+            # under the anchor, or above it when there is no room below
+            h = self.card.get_preferred_height()[1]
+            total = self.overlay.get_allocated_height() or win.get_allocated_height()
+            xy = self.anchor.translate_coordinates(self.overlay, 0, 0)
+            top = 8
+            if xy:
+                below = xy[1] + self.anchor.get_allocated_height() + 4
+                top = below if below + h <= total - 8 else xy[1] - h - 4
+            self.card.set_margin_top(max(8, min(top, total - h - 8)))
+
+        def popdown(self):
+            if not self.open:
+                return
+            self.open = False
+            self.scrim.destroy()
+            self.card.destroy()
+            self.on_closed()
+
+    def due_popover(overlay, anchor, current, every, on_pick, on_closed):
         """Quick days, a calendar, a time (empty = end of day) and a repeat
         for one deadline. on_pick(due, every); ("", "") is No deadline."""
-        pop = Gtk.Popover.new(anchor)
-        pop.set_position(Gtk.PositionType.BOTTOM)
+        pop = Picker(overlay, anchor, on_closed)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin=10)
         pop.add(box)
         head = Gtk.Label(label="DEADLINE", xalign=0)
@@ -1124,21 +1207,115 @@ def run_panel():
         box.pack_start(head, False, False, 0)
 
         when = due_at(current) if current else None
-        time_entry = Gtk.Entry(placeholder_text="23:59 · end of day")
-        time_entry.set_width_chars(16)
-        if when and len(current) > 10:
-            time_entry.set_text(f"{when:%H:%M}")
+        timed = bool(when and len(current) > 10)
+
+        # The time: hour and minute wheels. The +/- buttons and ↑↓ move one
+        # (hour / minute); scrolling, for getting far fast, moves two steps
+        # per notch: 2 hours, or 10 minutes (snapped to fives, carrying into
+        # the hour). Scroll up = +, down = -; Shift+scroll = one step. Or type.
+        # "End of day" (23:59:59) is the default; touching a wheel unticks it.
+        def wheel(value, top, tip):
+            sp = Gtk.SpinButton(adjustment=Gtk.Adjustment(value=value, lower=0, upper=top,
+                                                          step_increment=1, page_increment=10),
+                                digits=0, numeric=True)
+            sp.set_orientation(Gtk.Orientation.VERTICAL)
+            sp.set_wrap(True)
+            sp.set_width_chars(2)
+            sp.set_alignment(0.5)
+            sp.set_tooltip_text(tip)
+            sp.get_style_context().add_class("clock")
+            sp.connect("output", lambda w: (w.set_text(f"{int(w.get_value()):02d}"), True)[1])
+            # A touchpad only sends smooth scrolls, and GTK3 drops those for
+            # windows that did not ask for them (a mouse wheel also sends
+            # plain up/down, which is why only the wheel worked). Before
+            # realize, so the spin button's own windows get the mask.
+            sp.add_events(Gdk.EventMask.SCROLL_MASK | Gdk.EventMask.SMOOTH_SCROLL_MASK)
+            return sp
+
+        hours = wheel(when.hour if timed else 23, 23, "Hour · scroll: ±2 (Shift: ±1) · +/−, ↑↓ or type")
+        mins = wheel(when.minute if timed else 59, 59, "Minutes · scroll: ±10 (Shift: ±1) · +/−, ↑↓ or type")
+        eod = Gtk.CheckButton(label="End of day")
+        eod.set_active(not timed)
+        quiet = [False]  # setting the wheels from "End of day" is not a touch
+
+        def touched(_w):
+            if not quiet[0]:
+                eod.set_active(False)
+
+        def on_eod(_c):
+            if eod.get_active():
+                quiet[0] = True
+                hours.set_value(23)
+                mins.set_value(59)
+                quiet[0] = False
+
+        SCROLL_STEPS = 2       # per notch
+        TOUCHPAD_NOTCH = 1.0   # touchpad scroll distance (GTK units) that counts as one notch
+
+        def bump(unit, n, fine):
+            """n notches (+ up, - down)."""
+            h, m = int(hours.get_value()), int(mins.get_value())
+            k = n if fine else n * SCROLL_STEPS
+            if unit == "h":
+                total = ((h + k) % 24) * 60 + m
+            elif fine:
+                total = h * 60 + m + k
+            else:  # k five-minute steps, landing on a multiple of 5
+                total = h * 60 + (m // 5 + k) * 5 if k > 0 else h * 60 + ((m + 4) // 5 + k) * 5
+            h, m = divmod(total % 1440, 60)
+            hours.set_value(h)
+            mins.set_value(m)
+
+        acc = {}
+        seen = {}  # GTK3 on Wayland sends a wheel notch twice (discrete + smooth), same timestamp
+
+        def on_scroll(w, ev, unit):
+            if seen.get(unit) == ev.time:  # the other half of a notch already counted
+                return True
+            seen[unit] = ev.time
+            if ev.direction == Gdk.ScrollDirection.UP:
+                n = 1
+            elif ev.direction == Gdk.ScrollDirection.DOWN:
+                n = -1
+            elif ev.direction == Gdk.ScrollDirection.SMOOTH:
+                dy = ev.get_scroll_deltas()[2]
+                src = ev.get_source_device()
+                if src and src.get_source() == Gdk.InputSource.MOUSE:
+                    # a wheel: one event per notch (GTK3 on Wayland drops the
+                    # plain up/down copy once smooth scrolls are asked for,
+                    # and the delta is ~1.5 a notch, so count events, not size)
+                    if not dy:
+                        return True
+                    n = -1 if dy > 0 else 1
+                else:
+                    # a touchpad: fractions as the fingers move, about one
+                    # notch per centimetre. Fingers up = +, down = − (the
+                    # user's choice; the opposite of the wheel's sign under
+                    # natural scrolling, where fingers up scroll "down")
+                    acc[unit] = acc.get(unit, 0.0) + dy / TOUCHPAD_NOTCH
+                    n = int(acc[unit])
+                    acc[unit] -= n
+                    if ev.is_scroll_stop_event():
+                        acc[unit] = 0.0
+                    if not n:
+                        return True
+            else:
+                return False
+            bump(unit, n, bool(ev.state & Gdk.ModifierType.SHIFT_MASK))
+            return True
+
+        for w, unit in ((hours, "h"), (mins, "m")):
+            w.connect("value-changed", touched)
+            w.connect("scroll-event", on_scroll, unit)
+        eod.connect("toggled", on_eod)
 
         def clock():
-            """'' (end of day), ' HH:MM', or None if the entry is not a time."""
-            raw = time_entry.get_text().strip()
-            tm = parse_time(raw) if raw else "eod"
-            time_entry.get_style_context().remove_class("bad")
-            if tm is None:
-                time_entry.get_style_context().add_class("bad")
-                time_entry.grab_focus()
-                return None
-            return "" if tm == "eod" else f" {tm[0]:02d}:{tm[1]:02d}"
+            """'' (end of day) or ' HH:MM'."""
+            if eod.get_active():
+                return ""
+            hours.update()  # take a value typed but not yet entered
+            mins.update()
+            return f" {int(hours.get_value()):02d}:{int(mins.get_value()):02d}"
 
         repeat = Gtk.ComboBoxText()
         for rid, label in REPEATS:
@@ -1174,12 +1351,18 @@ def run_panel():
         cal.connect("day-selected-double-click", lambda _c: pick(cal_day()))
         box.pack_start(cal, False, False, 0)
 
-        trow = Gtk.Box(spacing=8)
+        trow = Gtk.Box(spacing=6)
         tl = Gtk.Label(label="Time")
         tl.get_style_context().add_class("hint")
         trow.pack_start(tl, False, False, 0)
-        trow.pack_start(time_entry, True, True, 0)
-        time_entry.connect("activate", lambda _e: pick(cal_day()))
+        trow.pack_start(hours, False, False, 0)
+        colon = Gtk.Label(label=":")
+        colon.get_style_context().add_class("colon")
+        trow.pack_start(colon, False, False, 0)
+        trow.pack_start(mins, False, False, 0)
+        trow.pack_end(eod, False, False, 0)
+        for w in (hours, mins):
+            w.connect("activate", lambda _w: pick(cal_day()))
         box.pack_start(trow, False, False, 0)
 
         rrow = Gtk.Box(spacing=8)
@@ -1202,7 +1385,6 @@ def run_panel():
         brow.pack_end(setb, False, False, 0)
         box.pack_start(brow, False, False, 0)
 
-        pop.connect("closed", lambda _p: on_closed())
         box.show_all()
         pop.popup()
         cal.grab_focus()
@@ -1312,7 +1494,9 @@ def run_panel():
             self.day = today()
 
             outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            self.add(outer)
+            self.overlay = Gtk.Overlay()  # the deadline picker opens on top of this
+            self.overlay.add(outer)
+            self.add(self.overlay)
             self.notebook = Gtk.Notebook()
             outer.pack_start(self.notebook, True, True, 0)
             self.notebook.append_page(self._build_today(), Gtk.Label(label="Today"))
@@ -1450,7 +1634,7 @@ def run_panel():
                     refocus.grab_focus()
             # Deferred like EditableRow's save: picking rebuilds the list,
             # which holds the anchor of this very popover.
-            self.popover = due_popover(anchor, current, every,
+            self.popover = due_popover(self.overlay, anchor, current, every,
                                        lambda due, ev: GLib.idle_add(lambda: on_pick(due, ev) and False), closed)
 
         def set_new_due(self, due, every):
@@ -1790,8 +1974,11 @@ def run_panel():
 
         def on_key(self, _w, event):
             ctrl = event.state & Gdk.ModifierType.CONTROL_MASK
+            if self.popover and event.keyval == Gdk.KEY_Escape:
+                self.popover.popdown()
+                return True
             if self.editing or self.popover:
-                return False  # the inline entry / the deadline picker handle Enter / Escape
+                return False  # the inline entry / the picker's widgets handle the rest
             if event.keyval == Gdk.KEY_Escape:
                 Gtk.main_quit()
                 return True

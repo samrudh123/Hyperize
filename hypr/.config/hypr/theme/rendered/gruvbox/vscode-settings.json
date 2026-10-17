@@ -12,7 +12,7 @@
     // does NOT override still agree with the ones it does. See the block at
     // the bottom for why it is only some of them.
     "catppuccin.accentColor": "blue",
-    // Desktop THEMES (SUPER+T): Mocha's palette spelled out so set-accent.sh's
+    // Desktop THEMES (SUPER+SHIFT+T): Mocha's palette spelled out so set-accent.sh's
     // palette substitution (rice-theme.py) turns it into the chosen theme's —
     // the Catppuccin extension then recolours the whole editor, syntax
     // included, with those colours. At Mocha it is a no-op.

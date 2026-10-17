@@ -17,7 +17,7 @@ Singleton {
     readonly property string home: Quickshell.env("HOME")
     readonly property string hypr: home + "/.config/hypr"
 
-    // The palette: theme/palette.json (set-theme.sh, SUPER+T), watched, so a
+    // The palette: theme/palette.json (set-theme.sh, SUPER+SHIFT+T), watched, so a
     // theme switch recolours the shell live. Defaults are Catppuccin Mocha.
     readonly property var pal: {
         try { return JSON.parse(paletteFile.text() || "{}"); } catch (e) { return {}; }
