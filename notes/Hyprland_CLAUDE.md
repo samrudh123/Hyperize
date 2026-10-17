@@ -704,7 +704,7 @@ One process, `~/.local/bin/qs` (exec-once), config in `~/.config/quickshell/`:
 - Window borders (2026-10-10): 3px bevel gradient (accent ff→cc→33, 135deg)
   + accent shadow (range 12, offset 3 2, `rgba(<accent>77)`) = lifted 3D
   look. Both are templated (@@ACCENT@@) and set live in set-accent.sh
-  reload_live(). Backups *.pre-wspicker, set-accent.sh.pre-shadow.
+  reload_live(). Backups *.pre-wspicker, set-accent.sh.pre-shadow (archived in ~/.dotfiles-backup/pre-backups-2026-10-17.tar.gz).
 - IPC: `qs ipc call dock toggle|open|close` (SUPER+A via dock-toggle.sh),
   `qs ipc call bottombar …` (bottom-bar.sh). `qs log` for errors.
 - Rebuild after any Ubuntu Qt update (private Qt API):

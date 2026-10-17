@@ -10,7 +10,7 @@
 #
 # Since 2026-10-09 the bars and the dock are ONE Quickshell process
 # (~/.config/quickshell), so the old waybar-then-dock ordering dance
-# (landmine 11, reload.sh.pre-quickshell) is gone. Quickshell also hot-reloads
+# (landmine 11, reload.sh.pre-quickshell (archived in ~/.dotfiles-backup/pre-backups-2026-10-17.tar.gz)) is gone. Quickshell also hot-reloads
 # by itself whenever a file under ~/.config/quickshell is saved; `bar` is only
 # for a real restart (after rebuilding quickshell, or if it wedged).
 #
