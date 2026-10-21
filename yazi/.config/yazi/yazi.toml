@@ -13,8 +13,12 @@ max_height = 1800
 
 # Markdown opens rendered (glow, in yazi's terminal) instead of in $EDITOR.
 # `block = true` hands glow the terminal; quit the pager with `q` to return.
-# `O` on a .md file still offers the editor via the preset "edit" opener.
+# `O` on a .md file still offers the editor via the "edit" opener (nvim).
 [opener]
+# Text files open in Neovim (replaces the preset `${EDITOR:-vi}`, which was vim).
+edit = [
+  { run = "nvim %s", block = true, desc = "nvim", for = "unix" },
+]
 markdown = [
   { run = "glow -p %s1", block = true, desc = "Preview (glow)", for = "unix" },
 ]
