@@ -71,6 +71,7 @@ Files of yours that a copy would overwrite are moved to
 | `quickshell` | top bar, bottom bar, dock, wallpaper / workspace / theme pickers, clipboard and recorder |
 | `yazi` | file manager config, plugins, grid view (`Alt+G`) |
 | `ghostty` `mako` `fuzzel` `tmux` `bat` `btop` `glow` `fastfetch` `zathura` `nvim` | app configs |
+| `firefox-accent` | Firefox extension + native host: the toolbar/tabs/menus follow the theme and accent live (`copy` builds it and registers the host; sign the xpi on AMO, see its README) |
 | `vscode-pdf-zathura` | VS Code extension: PDFs open in a zathura-style viewer themed from `zathurarc` (`copy` builds and installs it); `firefox/` is the same viewer as a Firefox extension (sign the xpi on AMO, see its README) |
 | `nwg` `waybar` | the app grid, and the old waybar setup (kept as a fallback) |
 | `portals` | routes file dialogs to yazi, screen sharing to the Hyprland portal |

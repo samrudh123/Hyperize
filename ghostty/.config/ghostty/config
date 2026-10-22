@@ -9,10 +9,19 @@ font-thicken = true
 # Catppuccin Mocha
 background = 1a1b26
 foreground = c0caf5
-cursor-color = f7c3c6
-cursor-text = 1a1b26
-selection-background = 272c40
-selection-foreground = c0caf5
+# Accent — filled in by set-accent.sh; SIGUSR2 reloads open windows
+cursor-color = babdc1
+cursor-text = 13131a
+# selected text turns accent on a muted band, rather than an accent slab
+selection-background = 343a52
+selection-foreground = babdc1
+split-divider-color = babdc1
+unfocused-split-fill = 13131a
+# Ctrl+Shift+F search: matches muted, the current match in the accent
+search-background = 414868
+search-foreground = c0caf5
+search-selected-background = babdc1
+search-selected-foreground = 13131a
 
 palette = 0=#343a52
 palette = 1=#f7768e
@@ -30,6 +39,14 @@ palette = 12=#7aa2f7
 palette = 13=#fca7ea
 palette = 14=#73daca
 palette = 15=#9aa5ce
+# accent slots in the 256-colour cube, for the shell (starship prompt,
+# fastfetch, eza, completion, fzf all draw with 38;5;53-56). Text keeps the
+# palette INDEX, so a reload (set-accent.sh sends SIGUSR2) recolours
+# everything already on screen, scrollback included.
+palette = 53=#babdc1
+palette = 54=#82888f
+palette = 55=#606471
+palette = 56=#424656
 
 # ─── Look & feel ──────────────────────────────────────────────────────────
 background-opacity = 0.92

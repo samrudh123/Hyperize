@@ -27,5 +27,8 @@ vscode-pdf-zathura/.config/vscode-pdf-zathura/*.vsix
 vscode-pdf-zathura/.config/vscode-pdf-zathura/*.orig-download
 vscode-pdf-zathura/.config/vscode-pdf-zathura/firefox/*.xpi
 
+# firefox-accent: the .xpi is build.sh's output
+firefox-accent/.config/firefox-accent/*.xpi
+
 # dl-popup: the .xpi is build.sh's output (signed copies come from AMO)
 dl-popup/.local/share/dl-popup/*.xpi

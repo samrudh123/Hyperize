@@ -19,6 +19,8 @@ Pill {
     id: fp
 
     readonly property string script: Theme.hypr + "/focus.py"
+    // with a bar per screen, only one pill may advance the phase at zero
+    property bool primary: true
     readonly property var st: {
         try { return JSON.parse(stateFile.text() || "{}"); } catch (e) { return {}; }
     }
@@ -98,7 +100,7 @@ Pill {
         triggeredOnStart: true
         onTriggered: {
             fp.now = Date.now() / 1000;
-            if (fp.remain <= 0 && fp.handled !== fp.st.ends) {
+            if (fp.primary && fp.remain <= 0 && fp.handled !== fp.st.ends) {
                 fp.handled = fp.st.ends;
                 fp.run(["next"]);
             }

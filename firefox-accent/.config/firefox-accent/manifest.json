@@ -1,0 +1,16 @@
+{
+  "manifest_version": 2,
+  "name": "Rice Accent",
+  "version": "1.0.0",
+  "description": "Firefox's toolbar, tabs and menus follow the desktop theme and accent live (SUPER+ALT+C / SUPER+SHIFT+T), through a native host that watches ~/.config/hypr/theme.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "rice-accent@samrudh.local",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  },
+  "permissions": ["theme", "nativeMessaging"],
+  "background": { "scripts": ["background.js"] },
+  "icons": { "48": "icon.svg", "96": "icon.svg" }
+}

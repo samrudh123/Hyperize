@@ -13,6 +13,9 @@ import Quickshell.Services.UPower
 PanelWindow {
     id: bar
 
+    // one per screen (shell.qml); the focused screen's owns the IPC targets
+    readonly property bool active: screen && screen.name === BarState.active
+
     anchors { top: true; left: true; right: true }
     // islands: the groups float 4 px below the screen edge (Island.qml)
     implicitHeight: Theme.islands ? 42 : 40
@@ -307,6 +310,9 @@ PanelWindow {
             }
         }
 
+        // duplicate / extend: only while an external monitor is connected
+        DisplayPill { active: bar.active }
+
         Pill {
             readonly property string kind: Stats.netKind === "wifi" && !Stats.ipaddr ? "linked" : Stats.netKind
             label: kind === "wifi" ? "\u{f0928} " + Stats.signal + "%"
@@ -377,6 +383,7 @@ PanelWindow {
 
     IpcHandler {
         target: "clipboard"
+        enabled: bar.active
         function toggle(): void { clipboard.toggle(); }
     }
 }

@@ -23,8 +23,9 @@
 // The list comes from hypr/wallpaper-index.py (colour buckets, cached card
 // pictures; ~40 ms). The last list is shown at once and refreshed as the
 // picker opens. Setting goes through set-wallpaper.sh / set-lockscreen.sh,
-// then set-accent.sh with the bucket's Mocha colour when accent sync is on
-// (files hypr/wallpaper-accent-sync[-lock]). Transitions: hypr/
+// then set-accent.sh with the bucket's colour when accent sync is on — for a
+// Mono wallpaper its own grey, from the index (files hypr/wallpaper-accent-
+// sync[-lock]). Transitions: hypr/
 // wallpaper-transition, previewed with `set-wallpaper.sh --preview`.
 //
 // LOCK MODE: images only, plus a first card "Live screen" (hyprlock's
@@ -52,6 +53,12 @@ PanelWindow {
     function swatch(name) {
         const c = colours.find(c => c.name === name);
         return c ? c.hex : null;
+    }
+    // the accent a wallpaper sets: its bucket's colour, or for a black-and-
+    // white one the grey wallpaper-index.py measured in it
+    function accentOf(e) {
+        if (!e || e.bucket === "Live") return null;
+        return e.bucket === "Mono" ? (e.accent || null) : swatch(e.bucket);
     }
     // kinds are WallpaperTransition.qml's (+ random / none); keep in step
     readonly property var transitions: [
@@ -306,7 +313,7 @@ PanelWindow {
     function apply() {
         const e = sel;
         if (!e) return;
-        let hex = sync && e.bucket !== "Mono" ? swatch(e.bucket) : null;
+        let hex = sync ? accentOf(e) : null;
         if (hex && hex.toLowerCase() === String(Theme.accent).toLowerCase()) hex = null;
         // the wallpaper first (instant), then the accent; detached, through
         // Hyprland, like a keybind
@@ -771,7 +778,7 @@ PanelWindow {
             const bits = e.live ? ["blurs whatever is on screen when it locks"]
                                 : [e.bucket].concat(e.video ? ["animated"] : []);
             if (e.path === picker.current) bits.push(picker.iCheck + " current");
-            if (picker.sync && picker.swatch(e.bucket) && e.bucket !== "Mono") bits.push("sets accent");
+            if (picker.sync && picker.accentOf(e)) bits.push("sets accent");
             if (!picker.lock) {
                 const t = picker.transitionOf(picker.transition);
                 bits.push(t.glyph + " " + t.label);
@@ -803,7 +810,7 @@ PanelWindow {
             x: picker.width / 2 - width / 2
             y: caption.cyc + 12 - height / 2
             text: caption.sub
-            color: (picker.sel && picker.swatch(picker.sel.bucket)) || Theme.subtext0
+            color: picker.accentOf(picker.sel) || (picker.sel && picker.swatch(picker.sel.bucket)) || Theme.subtext0
             font.family: Theme.font
             font.pointSize: 9
         }

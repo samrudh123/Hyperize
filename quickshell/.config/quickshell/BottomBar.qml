@@ -18,22 +18,23 @@ import Quickshell.Wayland
 PanelWindow {
     id: bar
 
-    property alias shown: state.shown
-    PersistentProperties {
-        id: state
-        reloadableId: "bottomBarState"
-        property bool shown: true
-    }
+    // one per screen (shell.qml), all shown/hidden together; the focused
+    // screen's owns the IPC target, the primary's runs the focus timer's
+    // phase changes
+    readonly property bool shown: BarState.bottomShown
+    readonly property bool active: screen && screen.name === BarState.active
+    readonly property bool primary: screen && screen.name === BarState.primary
 
     IpcHandler {
         target: "bottombar"
-        function toggle(): void { bar.shown = !bar.shown; }
-        function open(): void { bar.shown = true; }
-        function close(): void { bar.shown = false; }
+        enabled: bar.active
+        function toggle(): void { BarState.bottomShown = !BarState.bottomShown; }
+        function open(): void { BarState.bottomShown = true; }
+        function close(): void { BarState.bottomShown = false; }
         // a pill's menu, for keybinds: phone | tailscale | focus
         function menu(name: string): void {
             const p = { phone: phonePill, tailscale: tsPill, focus: focusPill }[name];
-            if (p) { bar.shown = true; p.toggleMenu(); }
+            if (p) { BarState.bottomShown = true; p.toggleMenu(); }
         }
         // the focus timer, for keybinds: toggle | stop | skip
         function focus(cmd: string): void { focusPill.run([cmd || "toggle"]); }
@@ -132,7 +133,7 @@ PanelWindow {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 0
 
-        FocusPill { id: focusPill }
+        FocusPill { id: focusPill; primary: bar.primary }
 
         // Open-Meteo; the script caches 15 min, so the 60 s poll is free
         ScriptPill {
@@ -228,13 +229,8 @@ PanelWindow {
             // honours (the same protocol waybar's idle_inhibitor used).
             Pill {
                 id: awake
-                // kept across config reloads, like the bar's own shown state
-                property alias on: awakeState.on
-                PersistentProperties {
-                    id: awakeState
-                    reloadableId: "keepAwake"
-                    property bool on: false
-                }
+                // shared by every screen's bar, kept across config reloads
+                readonly property bool on: BarState.keepAwake
                 label: on ? "\u{f0176}" : "\u{f0faa}"
                 fg: on ? Theme.crust : Theme.overlay0
                 bg: on ? Theme.yellow : "transparent"
@@ -246,7 +242,7 @@ PanelWindow {
                 marginH: 2
                 tip: on ? "Screen stays awake — click to allow sleep" : "Screen may sleep/lock — click to keep awake"
                 tipEdge: Edges.Top
-                onClicked: button => { if (button === Qt.LeftButton) on = !on; }
+                onClicked: button => { if (button === Qt.LeftButton) BarState.keepAwake = !on; }
 
                 IdleInhibitor {
                     window: bar
