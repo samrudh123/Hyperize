@@ -110,28 +110,28 @@
     {
       "type": "cpu",
       "key": "  󰻠 cpu    ",
-      "keyColor": "green",
+      "keyColor": "38;5;57",
       "showPeCoreCount": true
     },
     {
       "type": "gpu",
       "key": "  󰢮 gpu    ",
-      "keyColor": "green"
+      "keyColor": "38;5;57"
     },
     {
       "type": "memory",
       "key": "   memory ",
-      "keyColor": "green"
+      "keyColor": "38;5;57"
     },
     {
       "type": "disk",
       "key": "  󰋊 disk   ",
-      "keyColor": "green"
+      "keyColor": "38;5;57"
     },
     {
       "type": "battery",
       "key": "  󰂄 battery",
-      "keyColor": "green"
+      "keyColor": "38;5;57"
     },
     {
       "type": "custom",

@@ -1,3 +1,12 @@
+# Rice btop theme: the theme's palette for the neutrals, the accent family
+# (rice-theme.py derive) for everything that carries colour. Rendered by
+# set-accent.sh — edit THIS template, not ~/.config/btop/themes/.
+#   ACCENT        box outlines, the CPU / process / used-memory / download hue
+#   ACCENT_HI     titles, selected row, top of the accent gradients
+#   ACCENT_COMP   hotkeys, cached memory, upload
+#   ACCENT_THIRD  mini graphs, available memory, top of the CPU gradient
+# Temperature keeps its green -> yellow -> red: that one is a warning.
+
 # Main background, empty for terminal default, need to be empty if you want transparent background
 theme[main_bg]="#1a1b26"
 
@@ -5,79 +14,79 @@ theme[main_bg]="#1a1b26"
 theme[main_fg]="#c0caf5"
 
 # Title color for boxes
-theme[title]="#c0caf5"
+theme[title]="#bdb0f6"
 
 # Highlight color for keyboard shortcuts
-theme[hi_fg]="#7aa2f7"
+theme[hi_fg]="#d6f79a"
 
 # Background color of selected item in processes box
-theme[selected_bg]="#343a52"
+theme[selected_bg]="#423f61"
 
 # Foreground color of selected item in processes box
-theme[selected_fg]="#7aa2f7"
+theme[selected_fg]="#bdb0f6"
 
 # Color of inactive/disabled text
 theme[inactive_fg]="#5f6890"
 
 # Color of text appearing on top of graphs, i.e uptime and current network graph scaling
-theme[graph_text]="#f7c3c6"
+theme[graph_text]="#a9b1d6"
 
 # Background color of the percentage meters
 theme[meter_bg]="#343a52"
 
 # Misc colors for processes box including mini cpu graphs, details memory graph and details status text
-theme[proc_misc]="#f7c3c6"
+theme[proc_misc]="#f79aa8"
 
 # CPU, Memory, Network, Proc box outline colors
-theme[cpu_box]="#babdc1" #Mauve
-theme[mem_box]="#9ece6a" #Green
-theme[net_box]="#db4b4b" #Maroon
-theme[proc_box]="#7aa2f7" #Blue
+theme[cpu_box]="#bb9af7"
+theme[mem_box]="#bb9af7"
+theme[net_box]="#bb9af7"
+theme[proc_box]="#bb9af7"
 
 # Box divider line and small boxes line color
-theme[div_line]="#545c7e"
+theme[div_line]="#605686"
 
 # Temperature graph color (Green -> Yellow -> Red)
 theme[temp_start]="#9ece6a"
 theme[temp_mid]="#e0af68"
 theme[temp_end]="#f7768e"
 
-# CPU graph colors (Teal -> Lavender)
-theme[cpu_start]="#73daca"
-theme[cpu_mid]="#2ac3de"
-theme[cpu_end]="#b4bcf7"
+# CPU graph colors (dim accent -> accent -> third)
+theme[cpu_start]="#605686"
+theme[cpu_mid]="#bb9af7"
+theme[cpu_end]="#f79aa8"
 
-# Mem/Disk free meter (Mauve -> Lavender -> Blue)
-theme[free_start]="#babdc1"
-theme[free_mid]="#b4bcf7"
-theme[free_end]="#7aa2f7"
+# Mem/Disk free meter (neutral: free memory is nothing to look at)
+theme[free_start]="#737aa2"
+theme[free_mid]="#a9b1d6"
+theme[free_end]="#c0caf5"
 
-# Mem/Disk cached meter (Sapphire -> Lavender)
-theme[cached_start]="#2ac3de"
-theme[cached_mid]="#7aa2f7"
-theme[cached_end]="#b4bcf7"
+# Mem/Disk cached meter (complement)
+theme[cached_start]="#6b7b61"
+theme[cached_mid]="#d6f79a"
+theme[cached_end]="#d6f79a"
 
-# Mem/Disk available meter (Peach -> Red)
-theme[available_start]="#ff9e64"
-theme[available_mid]="#db4b4b"
-theme[available_end]="#f7768e"
+# Mem/Disk available meter (third)
+theme[available_start]="#785667"
+theme[available_mid]="#f79aa8"
+theme[available_end]="#f79aa8"
 
-# Mem/Disk used meter (Green -> Sky)
-theme[used_start]="#9ece6a"
-theme[used_mid]="#73daca"
-theme[used_end]="#7dcfff"
+# Mem/Disk used meter (accent)
+theme[used_start]="#605686"
+theme[used_mid]="#bb9af7"
+theme[used_end]="#bdb0f6"
 
-# Download graph colors (Peach -> Red)
-theme[download_start]="#ff9e64"
-theme[download_mid]="#db4b4b"
-theme[download_end]="#f7768e"
+# Download graph colors (accent)
+theme[download_start]="#605686"
+theme[download_mid]="#bb9af7"
+theme[download_end]="#bdb0f6"
 
-# Upload graph colors (Green -> Sky)
-theme[upload_start]="#9ece6a"
-theme[upload_mid]="#73daca"
-theme[upload_end]="#7dcfff"
+# Upload graph colors (complement)
+theme[upload_start]="#6b7b61"
+theme[upload_mid]="#d6f79a"
+theme[upload_end]="#d6f79a"
 
-# Process box color gradient for threads, mem and cpu usage (Sapphire -> Mauve)
-theme[process_start]="#2ac3de"
-theme[process_mid]="#b4bcf7"
-theme[process_end]="#babdc1"
+# Process box color gradient for threads, mem and cpu usage (dim accent -> accent -> third)
+theme[process_start]="#605686"
+theme[process_mid]="#bb9af7"
+theme[process_end]="#f79aa8"

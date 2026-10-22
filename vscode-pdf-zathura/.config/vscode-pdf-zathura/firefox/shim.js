@@ -75,6 +75,12 @@
     // get the site's partitioned (usually empty) cookie jar; background.js
     // fetches with the real one.
     async function get(reload) {
+        // The page load's own bytes, kept by background.js; fetching again
+        // is the fallback (and what a reload does).
+        if (!reload && params.has('cap')) {
+            const data = await browser.runtime.sendMessage({ type: 'captured', id: params.get('id') });
+            if (data) return { status: 200, type: 'application/pdf', data };
+        }
         const init = { credentials: 'include', cache: reload ? 'no-cache' : 'default' };
         if (window.top !== window) return browser.runtime.sendMessage({ type: 'fetch', url: file, init });
         const res = await fetch(file, init);

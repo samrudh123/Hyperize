@@ -253,29 +253,45 @@ def gtk(role, tid):
 
 
 # Colours derived from the accent, for templates that want more than one
-# accent-family colour (ghostty's palette slots 53-56, which the shell draws
+# accent-family colour (ghostty's palette slots 53-57, which the shell draws
 # with). set-accent.sh puts them in for @@<NAME>@@ the same way it puts the
 # accent in for @@ACCENT@@.
 #   ACCENT_COMP   the complementary hue (HLS hue + 180°, same L and S; for a
 #                 grey accent, the same grey darker), so it
 #                 sits next to the accent at the same weight
+#   ACCENT_THIRD  the hue a quarter turn on (+90°, same L and S): with the
+#                 complement it makes a square scheme, the accent and its
+#                 complement plus one more that belongs to both (grey: the
+#                 grey between the two)
 #   ACCENT_MID    accent sunk 60% into the theme's surface0: a dark tint that
 #                 still reads as the accent, for text-coloured labels on top
 #   ACCENT_LOW    accent sunk 80% into surface0: barely-tinted, for accent-
 #                 coloured labels on top
+#   ACCENT_HI     accent lifted 45% toward the theme's text: a pastel for
+#                 accent-coloured text that has to stay readable (btop titles,
+#                 selected row, the top of its gradients)
+#   ACCENT_COMP_MID, ACCENT_THIRD_MID   the other two hues sunk like ACCENT_MID,
+#                 so each can start a gradient the way the accent does (btop)
 def derive(hexc, tid):
     import colorsys
     a = hexc.lstrip("#").lower()
-    s0 = palette(tid)["surface0"]
+    pal = palette(tid)
+    s0 = pal["surface0"]
     h, l, s = colorsys.rgb_to_hls(*(v / 255 for v in rgb(a)))
     if s < 0.15:
         # a grey (a black-and-white wallpaper's accent) has no opposite hue:
         # its partner is the same grey a shade darker, so the pair still
         # reads as two colours — and stays black and white
         comp = hexof(v * 255 for v in colorsys.hls_to_rgb(h, l * 0.72, s))
+        third = hexof(v * 255 for v in colorsys.hls_to_rgb(h, l * 0.86, s))
     else:
         comp = hexof(v * 255 for v in colorsys.hls_to_rgb((h + 0.5) % 1.0, l, s))
-    return {"ACCENT_COMP": comp, "ACCENT_MID": mix(a, s0, 0.40), "ACCENT_LOW": mix(a, s0, 0.20)}
+        third = hexof(v * 255 for v in colorsys.hls_to_rgb((h + 0.25) % 1.0, l, s))
+    return {"ACCENT_COMP": comp, "ACCENT_THIRD": third,
+            "ACCENT_MID": mix(a, s0, 0.40), "ACCENT_LOW": mix(a, s0, 0.20),
+            "ACCENT_HI": mix(a, pal["text"], 0.55),
+            "ACCENT_COMP_MID": mix(comp, s0, 0.40),
+            "ACCENT_THIRD_MID": mix(third, s0, 0.40)}
 
 
 def as_json(tid):

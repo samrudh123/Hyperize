@@ -169,7 +169,7 @@ init() {
 # The sed program that fills a template in at accent $1: @@ACCENT@@ itself,
 # plus the colours rice-theme.py derives from it (@@ACCENT_COMP@@, the
 # complementary hue, and darker tints — see derive() there). ghostty-config
-# maps them onto 256-colour slots 53-56, which the shell draws with
+# maps them onto 256-colour slots 53-57, which the shell draws with
 # (starship, fastfetch, eza, fzf): reloading ghostty recolours all of it live.
 fill_expr() {
     local hex="$1" expr="s/$TOKEN/$1/g" k v
@@ -264,7 +264,7 @@ reload_live() {
 # in PREVIEW_SET, so a preview keystroke would only make them reload the old
 # colours. Everything here is a no-op when the app isn't running.
 # zsh in terminals other than Ghostty draws its accent with palette slots
-# 53-56 as well, but those terminals never read Ghostty's config: each such
+# 53-57 as well, but those terminals never read Ghostty's config: each such
 # interactive zsh registers its tty in $XDG_RUNTIME_DIR/accent-ttys/<pid>
 # (.zshrc), and this re-sends the slots there as OSC 4. The terminal repaints
 # text already on screen, the same as a Ghostty reload does.
@@ -273,7 +273,7 @@ retint_ttys() {
     [ -d "$reg" ] || return 0
     while IFS= read -r slot; do                     # 53=#rrggbb
         seq+=$'\e]4;'"${slot%%=*};${slot#*=}"$'\e\\'
-    done < <(sed -n 's/^palette = \(5[3-6]=#[0-9a-fA-F]\{6\}\).*/\1/p' "$HOME/.config/ghostty/config")
+    done < <(sed -n 's/^palette = \(5[3-7]=#[0-9a-fA-F]\{6\}\).*/\1/p' "$HOME/.config/ghostty/config")
     [ -n "$seq" ] || return 0
     for f in "$reg"/*; do
         [ -f "$f" ] || continue

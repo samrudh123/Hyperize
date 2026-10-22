@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "PDF in Zathura",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "description": "Opens PDFs in a zathura-style viewer instead of Firefox's built-in one: zathura's keys, statusbar, index and recolour, themed from zathurarc.",
   "browser_specific_settings": {
     "gecko": {
