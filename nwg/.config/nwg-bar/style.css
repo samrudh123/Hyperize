@@ -50,5 +50,5 @@ button:hover {
    button obvious, since the mauve ring is the only cue that Enter is armed. */
 button:focus {
   background-color: rgba(52, 58, 82, 0.95);  /* surface1 */
-  border: 1px solid #babdc1;                 /* mauve */
+  border: 1px solid #bb9af7;                 /* mauve */
 }

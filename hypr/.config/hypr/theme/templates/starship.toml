@@ -38,7 +38,7 @@ base      = "#1e1e2e"
 # the powerline follows the desktop accent: directory = accent, git = its
 # complement, then two tints of the accent sinking into surface0 for the
 # language / env segments. These are 256-colour palette SLOTS, not hexes —
-# ghostty's config maps 53-56 to the accent family (set-accent.sh renders it
+# ghostty's config maps 53-57 to the accent family (set-accent.sh renders it
 # and reloads ghostty), so prompts already on screen recolour live too.
 accent      = "53"
 accent_comp = "54"

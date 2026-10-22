@@ -40,13 +40,14 @@ palette = 13=#fca7ea
 palette = 14=#73daca
 palette = 15=#9aa5ce
 # accent slots in the 256-colour cube, for the shell (starship prompt,
-# fastfetch, eza, completion, fzf all draw with 38;5;53-56). Text keeps the
+# fastfetch, eza, completion, fzf all draw with 38;5;53-57). Text keeps the
 # palette INDEX, so a reload (set-accent.sh sends SIGUSR2) recolours
 # everything already on screen, scrollback included.
 palette = 53=#@@ACCENT@@
 palette = 54=#@@ACCENT_COMP@@
 palette = 55=#@@ACCENT_MID@@
 palette = 56=#@@ACCENT_LOW@@
+palette = 57=#@@ACCENT_THIRD@@
 
 # ─── Look & feel ──────────────────────────────────────────────────────────
 background-opacity = 0.92

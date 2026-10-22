@@ -46,6 +46,11 @@ private windows load the viewer in place.
 
 ## What it leaves to Firefox
 - POST results, `file://` PDFs, PDFs in `<embed>`/`<object>`.
+- The PDF is downloaded once: the page load's own response is read as it
+  arrives (`filterResponseData`) and handed to the viewer, so bot walls
+  (Cloudflare on dl.acm.org refused any second download) and one-time links
+  work. Fetching again is only the fallback (a reload, dl-popup's Preview),
+  sent with headers that match a click.
 - Inline PDFs it can't fetch again (expired one-time links, login
   redirects): it falls back to Firefox's viewer for that load. An
   attachment that fails (or a `*.pdf` that isn't one) shows an error in the

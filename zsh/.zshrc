@@ -8,8 +8,8 @@ export LANG=en_US.UTF-8
 
 # ─── Accent ────────────────────────────────────────────────────────────────
 # Everything accent-coloured in the shell (prompt, fastfetch, eza, completion,
-# fzf) draws with 256-colour slots 53-56 instead of a hex: 53 accent, 54 its
-# complement, 55/56 dark tints. Ghostty's config maps those slots to the
+# fzf) draws with 256-colour slots 53-57 instead of a hex: 53 accent, 54 its
+# complement, 55/56 dark tints, 57 a third hue (fastfetch's hardware block). Ghostty's config maps those slots to the
 # desktop accent (set-accent.sh renders it and reloads ghostty), and text keeps
 # the slot, so an accent change recolours open terminals live — scrollback
 # included. Other terminals (VS Code, GNOME Terminal, …) don't know the
@@ -29,7 +29,7 @@ if [[ -z $GHOSTTY_RESOURCES_DIR && -t 1 && -r ~/.config/ghostty/config ]]; then
     zstat -A m +mtime ~/.config/ghostty/config 2>/dev/null || return 0
     if [[ $m[1] != $_accent_mtime ]]; then
       _accent_mtime=$m[1] _accent_seq=
-      for slot in ${(f)"$(grep -o '^palette = 5[3-6]=#[0-9a-fA-F]\{6\}' ~/.config/ghostty/config)"}; do
+      for slot in ${(f)"$(grep -o '^palette = 5[3-7]=#[0-9a-fA-F]\{6\}' ~/.config/ghostty/config)"}; do
         slot=${slot#palette = }                     # 53=#rrggbb
         _accent_seq+=$'\e]4;'"${slot%%=*};${slot#*=}"$'\e\\'
       done

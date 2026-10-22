@@ -3,6 +3,14 @@
 // zathura-style viewer as the VS Code extension. The native host (host.py)
 // sends the parsed zathurarc, and again whenever set-accent.sh rewrites it.
 //
+// The PDF is not downloaded twice: the page load's own response is read as
+// it arrives (filterResponseData), kept here, and replaced by a stub page
+// that moves on to the viewer, which asks for the kept bytes. A second
+// download (a fetch from the viewer) is what bot walls refuse — Cloudflare
+// on dl.acm.org gave it 403 + a challenge while the click had the PDF — and
+// what one-time links can't serve. It is only the fallback now (reload, and
+// dl-popup's Preview, which has no page load to read).
+//
 // Attachments ("download this") are previewed too, not just inline PDFs:
 // nothing lands on disk until Ctrl+S in the viewer hands it to dl-popup.
 // dl-popup's own "Preview in zathura" (for PDFs that only ever show up as
@@ -63,23 +71,79 @@ function urlName(url) {
 }
 
 // A viewer may fetch only what this file sent it to (see shim.js ready()).
-function viewerUrl(file, name, attachment) {
+// PDFs a viewer is about to fetch again -> {referrer, until}. Its fetch is
+// rewritten to look like the page load it replaces (see onBeforeSendHeaders).
+const refetch = new Map();
+const refetchIds = new Set();  // their request ids, so redirects keep the headers
+
+function viewerUrl(file, name, attachment, referrer = "", captured = false) {
   const id = crypto.randomUUID();
   opened.add(id);
+  const now = Date.now();
+  for (const [u, r] of refetch) if (r.until < now) refetch.delete(u);
+  refetch.set(file, { referrer, until: now + 10 * 60000 });
   const q = new URLSearchParams({ file, id });
   if (name) q.set("name", name);
   if (attachment) q.set("attachment", "1");
-  return `${VIEWER}?${q}`;
+  if (captured) q.set("cap", "1");
+  return { url: `${VIEWER}?${q}`, id };
+}
+
+// ── the page load's own bytes ───────────────────────────────────────────
+const captured = new Map();     // viewer id -> {blob, until}
+const KEEP_MS = 3 * 3600000;    // F5 in the viewer within this reuses them
+
+function keep(id, blob) {
+  const now = Date.now();
+  for (const [k, v] of captured) if (v.until < now) captured.delete(k);
+  while (captured.size >= 30) captured.delete(captured.keys().next().value);
+  captured.set(id, { blob, until: now + KEEP_MS });
+}
+
+// What the tab (or frame) gets instead of the PDF: replaces itself with the
+// viewer, so Back goes to the page before, not here.
+function stub(viewer, name) {
+  const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  return `<!DOCTYPE html><meta charset="utf-8"><title>${esc(name || "PDF")}</title>`
+    + `<script>location.replace(${JSON.stringify(viewer).replace(/</g, "\\u003c")})</script>`
+    + `<noscript><meta http-equiv="refresh" content="0; url=${esc(viewer)}"></noscript>`;
+}
+
+const DROP = new Set(["content-type", "content-disposition", "content-length", "content-security-policy",
+                      "content-security-policy-report-only", "x-content-type-options", "cache-control",
+                      "expires", "etag", "last-modified"]);
+
+function capture(d, name, attachment) {
+  const { url, id } = viewerUrl(d.url, name, attachment, d.originUrl ?? "", true);
+  const filter = browser.webRequest.filterResponseData(d.requestId);
+  const chunks = [];
+  filter.ondata = (e) => chunks.push(e.data);
+  filter.onstop = () => {
+    keep(id, new Blob(chunks, { type: "application/pdf" }));
+    filter.write(new TextEncoder().encode(stub(url, name)));
+    filter.close();
+  };
+  filter.onerror = () => console.error("pdf-zathura: could not read", d.url, filter.error);
+  // An HTML page now (no CSP, so the stub's one line of script runs), and
+  // not cached: the cache must keep the PDF, not this.
+  const h = d.responseHeaders.filter((x) => !DROP.has(x.name.toLowerCase()));
+  h.push({ name: "Content-Type", value: "text/html; charset=utf-8" }, { name: "Cache-Control", value: "no-store" });
+  return { responseHeaders: h };
 }
 
 // A PDF link clicked on a web page opens the viewer in a new tab next to it,
-// and the page stays. Typed URLs, fresh tabs (target=_blank, middle click),
-// frames and private windows load the viewer in place.
-async function besideOrInPlace(d, url) {
+// and the page stays: this load is cancelled and the new tab loads the PDF
+// itself (an ordinary navigation, so cookies and all), which comes back
+// through here and is read in place. Typed URLs, fresh tabs (target=_blank,
+// middle click), frames and private windows load the viewer in place.
+const inPlaceOnce = new Map();  // url -> expiry: the new tab's load of it
+
+async function besideOrInPlace(d, name, attachment) {
   const tab = await browser.tabs.get(d.tabId).catch(() => null);
-  if (!tab || tab.incognito || !/^https?:/i.test(tab.url ?? "")) return { redirectUrl: url };
+  if (!tab || tab.incognito || !/^https?:/i.test(tab.url ?? "")) return capture(d, name, attachment);
+  inPlaceOnce.set(d.url, Date.now() + 30000);
   browser.tabs.create({
-    url, windowId: tab.windowId, index: tab.index + 1, openerTabId: tab.id, cookieStoreId: tab.cookieStoreId,
+    url: d.url, windowId: tab.windowId, index: tab.index + 1, openerTabId: tab.id, cookieStoreId: tab.cookieStoreId,
   });
   return { cancel: true };
 }
@@ -101,15 +165,55 @@ browser.webRequest.onHeadersReceived.addListener(
     const name = dispositionName(cd);
     if (!PDF.test(type) && !(BINARY.test(type) && /\.pdf$/i.test(name || urlName(d.url)))) return;
     // Attachments would have been downloads: previewed all the same, but if
-    // they can't be fetched again the viewer says so instead of handing the
-    // URL back to Firefox (which would just download it).
-    const url = viewerUrl(d.url, name, /^\s*attachment/i.test(cd));
-    if (d.type === "main_frame" && /^https?:/i.test(d.originUrl ?? "")) return besideOrInPlace(d, url);
-    return { redirectUrl: url };
+    // they can't be read the viewer says so instead of handing the URL back
+    // to Firefox (which would just download it).
+    const attachment = /^\s*attachment/i.test(cd);
+    const once = inPlaceOnce.get(d.url);
+    if (once !== undefined) inPlaceOnce.delete(d.url);
+    if (d.type === "main_frame" && !(once > Date.now()) && /^https?:/i.test(d.originUrl ?? "")) {
+      return besideOrInPlace(d, name, attachment);
+    }
+    return capture(d, name, attachment);
   },
   { urls: ["http://*/*", "https://*/*"], types: ["main_frame", "sub_frame"] },
   ["blocking", "responseHeaders"],
 );
+
+// When the viewer does fetch the PDF again (the fallback, see the top), a
+// fetch says so: "Sec-Fetch-Mode: cors", "Sec-Fetch-Dest: empty", an
+// Origin of moz-extension://. Bot walls take that for a script and refuse
+// it: Cloudflare in front of dl.acm.org answers 403 + a challenge page where
+// the click itself got the PDF, and the viewer fell back to Firefox's. So
+// for exactly those fetches, send what the page load sent: a top-level,
+// user-initiated navigation with the page it came from as Referer.
+const BASE = browser.runtime.getURL("");
+browser.webRequest.onBeforeSendHeaders.addListener(
+  (d) => {
+    if (!(d.originUrl ?? "").startsWith(BASE)) return;
+    const r = refetch.get(d.url) ?? (refetchIds.has(d.requestId) ? { referrer: "" } : null);
+    if (!r) return;
+    refetchIds.add(d.requestId);
+    const drop = new Set(["origin", "accept", "referer", "sec-fetch-dest", "sec-fetch-mode",
+                          "sec-fetch-site", "sec-fetch-user", "upgrade-insecure-requests"]);
+    const h = d.requestHeaders.filter((x) => !drop.has(x.name.toLowerCase()));
+    let site = "none";
+    if (r.referrer) {
+      try { site = new URL(r.referrer).origin === new URL(d.url).origin ? "same-origin" : "cross-site"; } catch {}
+      h.push({ name: "Referer", value: r.referrer });
+    }
+    h.push({ name: "Accept", value: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" },
+           { name: "Upgrade-Insecure-Requests", value: "1" },
+           { name: "Sec-Fetch-Dest", value: "document" },
+           { name: "Sec-Fetch-Mode", value: "navigate" },
+           { name: "Sec-Fetch-Site", value: site },
+           { name: "Sec-Fetch-User", value: "?1" });
+    return { requestHeaders: h };
+  },
+  { urls: ["http://*/*", "https://*/*"], types: ["xmlhttprequest"] },
+  ["blocking", "requestHeaders"],
+);
+browser.webRequest.onCompleted.addListener((d) => refetchIds.delete(d.requestId), { urls: ["<all_urls>"] });
+browser.webRequest.onErrorOccurred.addListener((d) => refetchIds.delete(d.requestId), { urls: ["<all_urls>"] });
 
 browser.runtime.onConnect.addListener((port) => {
   if (port.name !== "viewer") return;
@@ -133,6 +237,9 @@ browser.runtime.onConnect.addListener((port) => {
 browser.runtime.onMessage.addListener(async (msg) => {
   if (msg.type === "opened") {
     return opened.has(msg.id);
+  } else if (msg.type === "captured") {
+    const c = captured.get(msg.id);
+    return c ? c.blob.arrayBuffer() : null;
   } else if (msg.type === "firefox") {
     leaveToFirefox(msg.url);
   } else if (msg.type === "save") {
@@ -153,7 +260,7 @@ browser.runtime.onMessage.addListener(async (msg) => {
 browser.runtime.onMessageExternal.addListener(async (msg, sender) => {
   if (sender.id !== DL_POPUP || msg?.type !== "preview" || !/^https?:\/\//i.test(msg.url ?? "")) return;
   const [cur] = await browser.tabs.query({ active: true, currentWindow: true });
-  const opts = { url: viewerUrl(msg.url, msg.name, true) };
+  const opts = { url: viewerUrl(msg.url, msg.name, true).url };
   if (cur && !cur.incognito) Object.assign(opts, { index: cur.index + 1, openerTabId: cur.id });
   if (msg.cookieStoreId) opts.cookieStoreId = msg.cookieStoreId;
   await browser.tabs.create(opts);
