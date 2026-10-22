@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Media dropdown — SUPER+SHIFT+P, the chevron next to the player in the bottom
+"""Media dropdown — SUPER+M, the chevron next to the player in the bottom
 bar, and right-click on the player. Run again while open = close (toggle).
 
 Top section: every MPRIS player that exists right now (Spotify, Firefox /
@@ -63,6 +63,24 @@ TEXT, SUBTEXT, OVERLAY = "#cdd6f4", "#a6adc8", "#6c7086"
 # close to the YouTube Music pink to tell apart at a glance.
 COLOURS = {"spotify": "#a6e3a1", "youtube": "#bf616a", "firefox": "#fab387",
            "ytmusic": "#f5c2e7", "other": "#89b4fa", "muted": OVERLAY}
+# "other" (any player without a colour of its own, and "Last played") is the
+# accent, like the bar's player pill. The menu is a fresh process on every
+# open, so reading it once here follows SUPER+ALT+C. Its icons are drawn in
+# Mocha blue and recoloured when loaded (row_icon).
+ICON_BLUE = "#89b4fa"
+
+
+def _accent():
+    try:
+        with open(os.path.expanduser("~/.config/hypr/theme/accent")) as f:
+            hex_ = f.read().strip()
+        int(hex_, 16)
+        return "#" + hex_ if len(hex_) == 6 else None
+    except (OSError, ValueError):
+        return None
+
+
+COLOURS["other"] = _accent() or COLOURS["other"]
 
 I_MENU = "\U000F0CB8"                  # md-playlist_music
 
@@ -329,13 +347,25 @@ class MediaMenu(Gtk.Window):
         self.select_first()
 
     @staticmethod
+    def row_icon(colour, state):
+        path = f"{ICONS}/{colour}-{state}.svg"
+        if colour != "other" or COLOURS["other"] == ICON_BLUE:
+            return GdkPixbuf.Pixbuf.new_from_file_at_size(path, 20, 20)
+        with open(path) as f:
+            svg = f.read().replace(ICON_BLUE, COLOURS["other"])
+        loader = GdkPixbuf.PixbufLoader.new_with_type("svg")
+        loader.set_size(20, 20)
+        loader.write(svg.encode())
+        loader.close()
+        return loader.get_pixbuf()
+
+    @staticmethod
     def make_row(name, detail, colour, state, action):
         row = Gtk.ListBoxRow()
         row.action = action
         row.search = f"{name} {detail}".lower()
         h = Gtk.Box(spacing=12)
-        icon = Gtk.Image.new_from_pixbuf(GdkPixbuf.Pixbuf.new_from_file_at_size(
-            f"{ICONS}/{colour}-{state}.svg", 20, 20))
+        icon = Gtk.Image.new_from_pixbuf(MediaMenu.row_icon(colour, state))
         h.pack_start(icon, False, False, 0)
         c = COLOURS[colour]
         markup = f"<span foreground='{c}' weight='bold'>{GLib.markup_escape_text(name)}</span>"

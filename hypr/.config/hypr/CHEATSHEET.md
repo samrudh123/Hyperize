@@ -26,13 +26,12 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | `SUPER + SHIFT + D` | Discord via Vesktop (focus if open, else launch) |
 | `SUPER + O` | OBS Studio (focus if open, else launch) |
 | `SUPER + SHIFT + O` | Kdenlive (focus if open, else launch) |
-| `SUPER + SHIFT + P` | Players menu — now playing + Spotify / YouTube launchers |
+| `SUPER + M` | Media — players menu: now playing + Spotify / YouTube launchers |
 | `SUPER + ALT + D` | Downloads menu — aria2 queue: pause / resume / remove / open, open JDownloader |
 | `SUPER + E` | File manager (yazi) — press `q` to quit into that folder |
 | `SUPER + ALT + E` | Files (Nautilus) |
 | ⤷ in yazi | `Ctrl+T` terminal here · `Ctrl+O` VS Code · `Alt+O` Files · `Alt+G` grid view (thumbnails; `q` back) · `gw` Windows drive · `.` hidden files |
-| `SUPER + M` | Windows drive in yazi (unlocks + mounts it if needed) |
-| ⤷ the drive | mounts itself at login. `SUPER+M`, `SUPER+E` and `gw` each mount it if it is not already — no passphrase, as long as it is in your keyring |
+| ⤷ the drive | mounts itself at login. `SUPER+E` and `gw` each mount it if it is not already — no passphrase, as long as it is in your keyring |
 | `SUPER + A` | Toggle the app sidebar (left edge) |
 | ⤷ the sidebar | a centred strip that floats **over** your windows — it no longer reserves the left edge, so showing it does not resize anything |
 | ⤷ on an icon | click focuses (again = next window) · middle-click new window · **drag** a pinned icon to reorder · **right-click**: its windows, new window, pin / unpin, close |

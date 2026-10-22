@@ -19,7 +19,7 @@ player, org.mpris.MediaPlayer2.kdeconnect.spotifyremote (Identity
 "Spotify - <device>"; the prefix keeps KDE Connect from echoing it back to the phone).
 So it is just another player to everything else: custom/now-playing draws it
 with its progress line, scroll seeks it (media-seek.sh -> Seek -> PUT
-/me/player/seek), right-click / SUPER+SHIFT+P list it in media-menu.py, and
+/me/player/seek), right-click / SUPER+M list it in media-menu.py, and
 playerctl / media keys / prev / next all work on it. It used to be a separate
 waybar module of its own, which had none of that.
 

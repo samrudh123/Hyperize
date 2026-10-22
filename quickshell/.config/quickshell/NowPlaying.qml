@@ -38,7 +38,7 @@ Row {
                                 : classes.includes("spotify") ? Theme.green
                                 : classes.includes("firefox") ? Theme.peach
                                 : classes.includes("youtube") ? Theme.youtube
-                                : classes.includes("ytmusic") ? Theme.pink : Theme.blue
+                                : classes.includes("ytmusic") ? Theme.pink : Theme.accent
 
     property real now: Date.now()
     readonly property real curUs: Math.min(lenUs, posUs + (playing ? (now - posAt) * 1000 : 0))

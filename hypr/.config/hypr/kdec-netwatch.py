@@ -30,7 +30,9 @@ while the phone is online in Tailscale but KDE Connect can't reach it, it
 refreshes every RETRY s (phone rebooted, KDE Connect restarted on either
 side). And while a phone player is Playing it asks the phone for its player
 list every LIST_REFRESH s, because the phone never reports a CLOSED player
-by itself (see refresh_player_lists). Stdlib only.
+by itself (see refresh_player_lists), and re-asks the selected player for
+its position, because a seek made ON the phone isn't pushed either (see
+resync_position). Stdlib only.
 """
 
 import configparser
@@ -124,7 +126,28 @@ def refresh_player_lists():
         run("busctl", "--user", "call", "org.kde.kdeconnect",
             f"/modules/kdeconnect/devices/{dev}/mprisremote",
             "org.kde.kdeconnect.device.mprisremote", "requestPlayerList")
+        resync_position(dev)
     return playing
+
+
+def resync_position(dev):
+    """Ask the phone again for the position of KDE Connect's selected player
+    (the one now-playing.py shows, see its kdec_focus). Between updates the
+    laptop extrapolates the position from the last one it got, and a seek
+    made on the phone sends none: AnimeKai's "skip intro" in phone Firefox
+    left the bar 88 s behind for the rest of the episode (measured; a fresh
+    request fixed it at once). The only request for one player's status that
+    the plugin offers is a CHANGE of its `player` property, so step to ""
+    (the phone answers nothing for it) and back."""
+    path = f"/modules/kdeconnect/devices/{dev}/mprisremote"
+    iface = "org.kde.kdeconnect.device.mprisremote"
+    m = re.search(r'"(.+)"', run("busctl", "--user", "get-property", "org.kde.kdeconnect",
+                                 path, iface, "player"))
+    if not m:
+        return
+    for name in ("", m.group(1)):
+        run("busctl", "--user", "set-property", "org.kde.kdeconnect", path, iface,
+            "player", "s", name)
 
 
 refresh_player_lists.idle_at = 0.0

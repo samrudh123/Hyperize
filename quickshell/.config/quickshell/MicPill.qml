@@ -52,8 +52,7 @@ Pill {
          + (usage.screen.length > 0 ? " \u{f1483}" : "")       // md-monitor_share
     fg: live && !muted ? Theme.crust : muted ? (live ? Theme.red : Theme.overlay0) : Theme.flamingo
     bg: live && !muted ? Theme.red : "transparent"
-    hoverFg: fg
-    hoverBg: live && !muted ? Qt.lighter(Theme.red, 1.08) : Theme.alpha(Theme.surface0, 0.9)
+    fillHover: true
     fontSize: 14
     tip: {
         if (!ok) return "";

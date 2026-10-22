@@ -5,7 +5,9 @@
 //   right click   the dock's menu (Dock.qml)
 //   drag          reorder — pinned apps only; the dock does the bookkeeping
 import QtQuick
+import QtQuick.Effects
 import Quickshell
+import Quickshell.Io
 
 Item {
     id: btn
@@ -41,6 +43,22 @@ Item {
     readonly property bool running: windows.length > 0
     readonly property bool active: windows.some(w => w.activated)
     readonly property bool hovered: mouse.containsMouse
+    // Hover fills the slab in the icon's own colour and tints the icon dark,
+    // like the bars' pills. Each Mocha glyph is drawn in one colour (its
+    // fill/stroke); an app's own icon (no glyph yet) gets the accent, untinted.
+    readonly property bool lit: hovered && !dragging
+    readonly property color glyphColor: {
+        const m = icon.themed ? /(?:fill|stroke)="(#[0-9a-fA-F]{6})"/.exec(svgFile.text() || "") : null;
+        return m ? m[1] : btn.accent;
+    }
+
+    FileView {
+        id: svgFile
+        path: icon.themed ? btn.iconDir + "/" + btn.appId + ".svg" : ""
+        watchChanges: true                 // a theme switch redraws the glyphs
+        printErrors: false
+        onFileChanged: reload()
+    }
 
     signal launch(string cmd)
     signal menuRequested()
@@ -75,9 +93,10 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 12
-        // surface0: 95% on hover / while dragged, a quieter 70% resting pill
-        // for the focused app
-        color: Theme.alpha(Theme.surface0, btn.dragging || mouse.containsMouse ? 0.95 : btn.active ? 0.70 : 0)
+        // hover: the icon's colour (glyphColor); surface0: 95% while dragged,
+        // a quieter 70% resting pill for the focused app
+        color: btn.lit ? btn.glyphColor
+             : Theme.alpha(Theme.surface0, btn.dragging ? 0.95 : btn.active ? 0.70 : 0)
         border.width: btn.active || btn.dragging ? 1 : 0
         border.color: Theme.alpha(btn.accent, btn.dragging ? 0.6 : 0.35)
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Easing.OutQuint } }
@@ -115,6 +134,13 @@ Item {
 
         scale: btn.dragging ? 1.08 : mouse.pressed ? 0.86 : 1
         Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+
+        layer.enabled: btn.lit && themed
+        layer.effect: MultiEffect {
+            colorization: 1
+            colorizationColor: Theme.crust
+            brightness: -0.6
+        }
     }
 
     MouseArea {

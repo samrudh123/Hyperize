@@ -48,13 +48,13 @@ set notification-warning-fg "#e0af68"
 set completion-bg           "#24283b"
 set completion-fg           "#c0caf5"
 set completion-group-bg     "#16161e"
-set completion-group-fg     "#bb9af7"
-set completion-highlight-bg "#bb9af7"
+set completion-group-fg     "#7aa2f7"
+set completion-highlight-bg "#7aa2f7"
 set completion-highlight-fg "#1a1b26"
 
 set index-bg                "#1a1b26"
 set index-fg                "#c0caf5"
-set index-active-bg         "#bb9af7"
+set index-active-bg         "#7aa2f7"
 set index-active-fg         "#1a1b26"
 
 # search matches (and link-hint labels): every hit yellow, the current one
