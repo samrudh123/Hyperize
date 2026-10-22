@@ -77,6 +77,7 @@ PanelWindow {
             fg: Theme.peach
             fontSize: 15
             padLeft: 9
+            fillHover: true
             padRight: 10
             tip: clipboard.isOpen ? "" : "Clipboard history"
             onClicked: button => { if (button === Qt.LeftButton) clipboard.toggle(); }
@@ -104,6 +105,7 @@ PanelWindow {
         Pill {
             label: "\u{f0ee0} " + Stats.cpu + "%"
             fg: Theme.green
+            fillHover: true
             // per-core usage, four to a line (22 cores)
             tip: {
                 const rows = [];
@@ -119,6 +121,7 @@ PanelWindow {
         Pill {
             label: "\u{f035b} " + Stats.memPct + "%"
             fg: Theme.teal
+            fillHover: true
             tip: Stats.memUsedGiB.toFixed(1) + " GiB / " + Stats.memTotalGiB.toFixed(1) + " GiB"
             onClicked: button => { if (button === Qt.LeftButton) Theme.exec("ghostty -e btop"); }
         }
@@ -128,9 +131,13 @@ PanelWindow {
             label: (Stats.tempC < 50 ? "\u{f10c3}" : Stats.tempC < 75 ? "\u{f050f}" : "\u{f10c2}") + " " + Stats.tempC + "°"
             fg: critical ? Theme.crust : Theme.sapphire
             bg: critical ? Theme.red : "transparent"
-            hoverBg: critical ? Theme.red : Theme.alpha(Theme.surface0, 0.9)
-            interactive: false
+            fillHover: true
             tip: "CPU temperature " + Stats.tempC + " °C"
+                 + "<br><font color='" + Theme.overlay2 + "'>Click: Resources (CPU, with its temperature graph) · Right-click: btop</font>"
+            onClicked: button => {
+                if (button === Qt.LeftButton) Theme.exec("resources --open-tab-id cpu");
+                else if (button === Qt.RightButton) Theme.exec("ghostty -e btop");
+            }
         }
         }
     }
@@ -188,6 +195,7 @@ PanelWindow {
             label: (fs >= 2 ? "\u{f0293}" : fs === 1 ? "\u{f05af}" : floating ? "\u{f10ac}" : "\u{f0574}")
                  + (pinned ? " \u{f0403}" : "")
             fg: fs > 0 ? Theme.peach : pinned ? Theme.yellow : floating ? Theme.accent : Theme.overlay1
+            fillHover: true
             fontSize: 14
             padLeft: 7
             padRight: 7
@@ -264,6 +272,7 @@ PanelWindow {
             label: muted ? "\u{f075f} muted"
                  : (bt ? "\u{f00af}" : pct < 34 ? "\u{f057f}" : pct < 67 ? "\u{f0580}" : "\u{f057e}") + " " + pct + "%"
             fg: muted ? Theme.overlay0 : Theme.pink
+            fillHover: true
             tip: ok ? (sink.description || sink.name) + "  ·  " + (muted ? "muted" : pct + "%")
                       + "<br><font color='" + Theme.overlay2 + "'>Click: mute · Right-click: mixer · Scroll: volume</font>" : ""
             onClicked: button => {
@@ -286,6 +295,7 @@ PanelWindow {
             readonly property bool nightOn: night[0] === "on"
             label: (nightOn ? "\u{f0594} " : "\u{f06e8} ") + Stats.brightness + "%"
             fg: nightOn ? Theme.peach : Theme.yellow
+            fillHover: true
             tip: "Screen brightness " + Stats.brightness + "%  ·  scroll to change, click for 50%<br>"
                  + (nightOn ? "\u{f0594} Night light on, " + night[1] + " K  ·  right-click off, middle-click warmer/cooler"
                             : "Right-click: night light")
@@ -319,6 +329,7 @@ PanelWindow {
                  : kind === "wired" ? "\u{f0200} wired"
                  : kind === "linked" ? "\u{f092b} no IP" : "\u{f092d} offline"
             fg: kind === "offline" ? Theme.red : Theme.blue
+            fillHover: true
             tip: kind === "wifi" ? Stats.essid + "  ·  " + Stats.ipaddr + "<br>\u{f01da} " + Stats.bits(Stats.rxBps) + "   \u{f0552} " + Stats.bits(Stats.txBps)
                : kind === "wired" ? Stats.ifname + "  ·  " + Stats.ipaddr
                : kind === "linked" ? Stats.essid + "  ·  no address yet" : "Offline"
@@ -339,6 +350,7 @@ PanelWindow {
             interval: 0
             defaultFg: Theme.subtext0
             colors: ({ unread: Theme.accent, dnd: Theme.overlay0 })
+            fillHover: true
             fontSize: 15
             // the bell's ink overflows its advance box to the right
             padLeft: 8
@@ -350,6 +362,7 @@ PanelWindow {
         Pill {
             label: "\u{f0493}"
             fg: Theme.subtext0
+            fillHover: true
             fontSize: 15
             padLeft: 8
             padRight: 11

@@ -184,7 +184,11 @@ def symbolic_svg(icon, colour):
         svg = f.read()
     svg = re.sub(r"#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b", colour, svg)
     # symbolic icons often leave the fill unset (= black): set one on the root
-    svg = re.sub(r"<svg\b", f'<svg fill="{colour}"', svg, count=1)
+    # — unless the root already has one (Resources, Showtime: fill="none"); a
+    # second fill attribute makes the file invalid XML, and Qt then can't load it
+    root = re.search(r"<svg\b[^>]*>", svg)
+    if root and not re.search(r"\sfill=", root.group(0)):
+        svg = svg[:root.start()] + f'<svg fill="{colour}"' + svg[root.start() + 4:]
     return svg
 
 

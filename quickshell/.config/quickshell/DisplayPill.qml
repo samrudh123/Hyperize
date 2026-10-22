@@ -29,8 +29,7 @@ Pill {
     label: (mirror ? "\u{f1483}" : "\u{f037a}") + " " + (mirror ? "dup" : "ext")   // md-monitor_share / md-monitor_multiple
     fg: mirror ? Theme.crust : Theme.lavender
     bg: mirror ? Theme.lavender : "transparent"
-    hoverFg: fg
-    hoverBg: mirror ? Qt.lighter(Theme.lavender, 1.08) : Theme.alpha(Theme.surface0, 0.9)
+    fillHover: true
     tip: {
         const dim = s => "<font color='" + Theme.overlay2 + "'>" + s + "</font>";
         let t = "<b>Displays</b>&nbsp;&nbsp;" + dim(mirror ? "duplicated" : "extended, external " + dir) + "<br>";

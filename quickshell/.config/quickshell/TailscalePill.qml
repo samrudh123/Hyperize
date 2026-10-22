@@ -55,8 +55,7 @@ Pill {
          : "\u{f0582}"
     fg: !running ? Theme.overlay0 : exitNode ? Theme.crust : Theme.teal
     bg: running && exitNode ? Theme.teal : "transparent"
-    hoverFg: fg
-    hoverBg: running && exitNode ? Qt.lighter(Theme.teal, 1.08) : Theme.alpha(Theme.surface0, 0.9)
+    fillHover: true
     padLeft: 10
     padRight: 10
     marginH: 2

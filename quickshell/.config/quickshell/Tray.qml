@@ -2,7 +2,11 @@
 // its menu if that is all it has), middle click is the secondary action,
 // right click opens the app's menu — drawn as a themed card rather than a
 // stock Qt menu. Submenus open in place, with a back row.
+//
+// Hover, like the bar's pills: the icon's square fills in the accent and the
+// icon is tinted dark (icons have no text colour of their own).
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Widgets
 import Quickshell.Services.SystemTray
@@ -35,7 +39,7 @@ Item {
                     width: 26
                     height: 26
                     radius: 7
-                    color: mouse.containsMouse ? Theme.alpha(Theme.surface0, 0.9) : Theme.alpha(Theme.surface0, 0)
+                    color: mouse.containsMouse ? Theme.accent : Theme.alpha(Theme.accent, 0)
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
                 }
 
@@ -44,7 +48,13 @@ Item {
                     implicitSize: 15
                     source: icon.modelData.icon
                     // Passive items are dimmed (waybar: -gtk-icon-effect: dim)
-                    opacity: icon.modelData.status === Status.Passive ? 0.55 : 1
+                    opacity: icon.modelData.status === Status.Passive && !mouse.containsMouse ? 0.55 : 1
+                    layer.enabled: mouse.containsMouse
+                    layer.effect: MultiEffect {
+                        colorization: 1
+                        colorizationColor: Theme.crust
+                        brightness: -0.6
+                    }
                 }
 
                 MouseArea {

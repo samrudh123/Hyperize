@@ -544,8 +544,8 @@ actually looked at, before any conclusion is drawn from it.**
   mount-watch.py       re-runs dock-places.sh when a volume mounts/unmounts, so
                        a BitLocker disk unlocked after login still gets an icon
   mount-windows.sh     unlock + mount the BitLocker Windows volume in user space
-                       {--boot | --ensure | --open | no args}. SUPER+M opens it
-                       in yazi; SUPER+E and yazi's `gw` also mount if needed.
+                       {--boot | --ensure | --open | no args}. SUPER+E and
+                       yazi's `gw` mount it if needed.
   .windows-key         OPTIONAL fallback, user-created, mode 600: the BitLocker
                        passphrase in plaintext. Prefer the login keyring —
                        read the trade-off in the script header first.
@@ -1244,7 +1244,7 @@ Its `app_id` comes from `GLib.set_prgname("wallpaper-grid")`, which must run
 
 > Only relevant on a dual-boot machine with a BitLocker Windows partition. On
 > anything else, `mount-windows.sh` finds no such volume and does nothing; the
-> `SUPER+M` / `gw` bindings can be removed. The volume label (`Windows`) and
+> `gw` binding can be removed. The volume label (`Windows`) and
 > mount point (`/run/media/$USER/<label>`) are per machine.
 
 Dual-boot Windows lives on a **BitLocker** partition, so it is locked at boot and
@@ -1257,13 +1257,12 @@ console user to unlock and mount, which is exactly what Files does on a click:
 
 - `mount-watch.py` (above) makes the dock icon appear the moment it mounts,
   however it was mounted — including by hand in Files.
-- `mount-windows.sh` does the unlocking, from four callers:
+- `mount-windows.sh` does the unlocking, from three callers:
 
 | Caller | Mode | Behaviour |
 |---|---|---|
 | `exec-once` | `--boot` | Silent, never prompts, 5 tries × 4s — at login it can beat udisks2, polkit and the keyring to being ready |
 | `SUPER+E` | `--ensure` | Silent, never prompts, 2 tries, backgrounded with `&` so yazi opens immediately either way |
-| `SUPER+M` | `--open` | Mounts, prompting on the tty (echo off) if nothing is stored, then opens the volume in yazi |
 | `gw` in yazi | none | `shell --block` so udisksctl can use yazi's terminal, then `cd` |
 
   The unattended modes never prompt and never print: two of them fire without

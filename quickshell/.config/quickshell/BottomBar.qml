@@ -140,9 +140,12 @@ PanelWindow {
             id: weather
             command: [Theme.hypr + "/weather.py", "status"]
             interval: 60000
-            defaultFg: Theme.text
-            colors: ({ unset: Theme.overlay0, error: Theme.overlay0, stale: Theme.subtext0,
-                       rain: Theme.sapphire, sunny: Theme.yellow, night: Theme.lavender })
+            // accent; grey only when there is no (fresh) data
+            defaultFg: Theme.accent
+            colors: ({ unset: Theme.overlay0, error: Theme.overlay0, stale: Theme.subtext0 })
+            // hover fills the pill in its current colour with dark text
+            hoverFg: Theme.crust
+            hoverBg: fg
             padLeft: 10
             padRight: 12
             marginH: 2
@@ -198,8 +201,9 @@ PanelWindow {
                 defaultFg: Theme.sapphire
                 colors: ({ paused: Theme.subtext0 })
                 defaultBg: Theme.alpha(Theme.surface0, 0.7)
+                // hover fills the pill in its text colour with dark text
                 hoverFg: Theme.crust
-                hoverBg: Theme.sapphire
+                hoverBg: fg
                 progress: json.percentage !== undefined && !hovered ? json.percentage / 100 : -1
                 padLeft: 12
                 padRight: 12
@@ -215,8 +219,9 @@ PanelWindow {
                 interval: 2000
                 colors: ({ pending: Theme.peach, "due-soon": Theme.yellow, overdue: Theme.red, clear: Theme.green, empty: Theme.overlay0, error: Theme.red })
                 defaultBg: Theme.alpha(Theme.surface0, 0.7)
+                // hover fills the pill in its text colour with dark text
                 hoverFg: Theme.crust
-                hoverBg: Theme.accent
+                hoverBg: fg
                 padLeft: 14
                 padRight: 14
                 marginH: 2
@@ -232,10 +237,11 @@ PanelWindow {
                 // shared by every screen's bar, kept across config reloads
                 readonly property bool on: BarState.keepAwake
                 label: on ? "\u{f0176}" : "\u{f0faa}"
-                fg: on ? Theme.crust : Theme.overlay0
-                bg: on ? Theme.yellow : "transparent"
-                hoverFg: on ? Theme.crust : Theme.text
-                hoverBg: on ? Qt.lighter(Theme.yellow, 1.05) : Theme.alpha(Theme.surface0, 0.9)
+                // accent icon either way (the glyph tells on from off); hover
+                // fills the pill accent with a dark icon, like the power pill
+                fg: Theme.accent
+                hoverFg: Theme.crust
+                hoverBg: Theme.accent
                 fontSize: 15
                 padLeft: 10
                 padRight: 10
@@ -251,11 +257,16 @@ PanelWindow {
             }
 
             ScriptPill {
-                command: [Theme.hypr + "/power-profile.sh", "status"]
-                interval: 5000
+                // long-running: a line per profile change (D-Bus), so a click
+                // shows the new profile at once instead of at the next poll
+                command: [Theme.hypr + "/power-profile.sh", "watch"]
+                interval: 0
                 defaultFg: Theme.green
-                colors: ({ balanced: Theme.blue, performance: Theme.crust })
-                bgs: ({ performance: Theme.peach })
+                colors: ({ balanced: Theme.accent, performance: Theme.peach })
+                // saver / balanced / performance: green / accent / orange
+                // text; hover fills the pill in that colour with dark text
+                hoverFg: Theme.crust
+                hoverBg: fg
                 padLeft: 10
                 padRight: 10
                 marginH: 2
@@ -267,7 +278,7 @@ PanelWindow {
                 command: [Theme.hypr + "/wallpaper-control.sh", "status"]
                 interval: 2000
                 maxChars: 48
-                defaultFg: Theme.lavender
+                defaultFg: Theme.accent
                 colors: ({ paused: Theme.overlay0 })
                 defaultBg: Theme.alpha(Theme.surface0, 0.7)
                 hoverFg: Theme.crust

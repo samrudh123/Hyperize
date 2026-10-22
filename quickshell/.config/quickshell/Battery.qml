@@ -30,7 +30,7 @@ Pill {
     label: (charging ? "\u{f0084}" : plugged ? "\u{f0085}" : icons[Math.min(9, Math.floor(pct / 10))]) + " " + pct + "%"
     fg: critical ? Theme.crust : charging ? Theme.green : warning ? Theme.peach : Theme.lavender
     bg: critical ? Theme.red : "transparent"
-    hoverBg: critical ? Theme.red : Theme.alpha(Theme.surface0, 0.9)
+    fillHover: true
     tip: {
         if (!present) return "";
         const t = charging ? hm(dev.timeToFull) : hm(dev.timeToEmpty);

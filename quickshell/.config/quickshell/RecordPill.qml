@@ -32,8 +32,7 @@ Pill {
         : "\u{f0d5d}"                                   // md-camera_outline
     fg: recording ? Theme.crust : Theme.flamingo
     bg: recording ? (st.state === "paused" ? Theme.yellow : Theme.red) : "transparent"
-    hoverFg: recording ? Theme.crust : Theme.flamingo
-    hoverBg: recording ? (st.state === "paused" ? Theme.yellow : Theme.red) : Theme.alpha(Theme.surface0, 0.9)
+    fillHover: true
     fontSize: recording ? 13 : 15
     padLeft: recording ? 10 : 9
     padRight: recording ? 10 : 10

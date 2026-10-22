@@ -59,15 +59,18 @@ Pill {
     label: idle ? "\u{f051b}"                                               // md-timer_outline
          : (paused ? "\u{f03e4}" : phase === "break" ? "\u{f0d9e}" : "\u{f051b}")   // pause / tea / timer
            + " " + clock(remain)
-           + (phase === "work" && task ? "&nbsp;&nbsp;<font color='" + Theme.subtext0 + "'>" + esc(trim(task, 22)) + "</font>" : "")
-    fg: idle ? Theme.subtext0 : tint
-    hoverFg: idle ? Theme.text : tint
+           + (phase === "work" && task ? "&nbsp;&nbsp;<font color='" + (hovered ? Theme.mantle : Theme.subtext0) + "'>" + esc(trim(task, 22)) + "</font>" : "")
+    // hover fills the pill in its colour (accent when idle) with dark text,
+    // like the power / keep-awake pills
+    fg: idle ? Theme.accent : tint
+    hoverFg: Theme.crust
+    hoverBg: fg
     fontSize: idle ? 15 : 13
     padLeft: idle ? 10 : 12
     padRight: idle ? 10 : 12
     marginH: 2
     progress: frac >= 0 ? frac : -1
-    progressColor: tint
+    progressColor: hovered ? Theme.crust : tint
     tipEdge: Edges.Top
     tip: {
         const dim = s => "<font color='" + Theme.overlay2 + "'>" + s + "</font>";

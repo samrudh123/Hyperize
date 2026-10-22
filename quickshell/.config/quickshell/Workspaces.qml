@@ -1,7 +1,7 @@
 // Workspaces 1–7 always (waybar's persistent-workspaces), plus any other
 // that exists. The accent pill SLIDES to the focused workspace and stretches
-// on the way, instead of jumping. Numbers are dim when empty, brighter when
-// the workspace has windows; urgent ones turn red.
+// on the way, instead of jumping. Numbers are in the accent, faded when the
+// workspace is empty; urgent ones turn red.
 //
 // Each number is followed by the icons of the apps open there (one per app,
 // at most `maxIcons`, then "+n"), the dock's themed glyphs; on the focused
@@ -10,6 +10,10 @@
 // Click = go there; click an app icon = focus that app's window there (again
 // to cycle through them). Scroll = workspace-scroll.sh (the same stops as
 // SUPER+scroll: occupied ones plus one empty).
+//
+// Hover, like the bar's pills: a workspace fills in the accent and the
+// number and icons go dark; the focused (accent) and urgent (red) ones,
+// already filled, just lighten.
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -74,7 +78,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         height: 32
         radius: 8
-        color: Theme.accent
+        color: btn && btn.hovered ? Qt.lighter(Theme.accent, 1.08) : Theme.accent
+        Behavior on color { ColorAnimation { duration: 200; easing.type: Easing.OutQuint } }
         Behavior on x { NumberAnimation { duration: 280; easing.type: Easing.OutBack; easing.overshoot: 0.9 } }
         Behavior on width { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
     }
@@ -98,6 +103,15 @@ Item {
                 readonly property bool occupied: w !== null && w.toplevels.values.length > 0
                 readonly property bool urgent: w !== null && w.urgent
                 readonly property var apps: root.appsOn(w)
+                // the whole button, icons included (their MouseAreas take
+                // the hover from `mouse`; a HoverHandler sees through them)
+                readonly property bool hovered: hover.hovered
+                // numbers in the accent: full when the workspace has windows,
+                // faded when it is empty
+                readonly property color rest: btn.occupied ? Theme.accent : Theme.alpha(Theme.accent, 0.45)
+                readonly property bool filled: btn.focused || btn.urgent || btn.hovered
+
+                HoverHandler { id: hover }
 
                 width: content.implicitWidth + (focused ? 26 : 20)
                 height: 32
@@ -106,9 +120,10 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 8
-                    color: btn.urgent && !btn.focused ? Theme.red
-                         : mouse.containsMouse && !btn.focused ? Theme.alpha(Theme.surface0, 0.8)
-                         : Theme.alpha(Theme.surface0, 0)
+                    color: btn.focused ? Theme.alpha(Theme.surface0, 0)      // the indicator
+                         : btn.urgent ? (btn.hovered ? Qt.lighter(Theme.red, 1.08) : Theme.red)
+                         : btn.hovered ? Theme.accent
+                         : Theme.alpha(btn.rest, 0)
                     Behavior on color { ColorAnimation { duration: 200; easing.type: Easing.OutQuint } }
                 }
 
@@ -125,9 +140,7 @@ Item {
                         font.family: Theme.font
                         font.pixelSize: 13
                         font.weight: btn.focused ? Font.Bold : Font.DemiBold
-                        color: btn.focused || btn.urgent ? Theme.crust
-                             : mouse.containsMouse ? Theme.text
-                             : btn.occupied ? Theme.subtext0 : Theme.overlay0
+                        color: btn.filled ? Theme.crust : btn.rest
                         Behavior on color { ColorAnimation { duration: 200; easing.type: Easing.OutQuint } }
                     }
 
@@ -156,11 +169,11 @@ Item {
                                     source: themed ? "file://" + root.iconDir + "/" + app.modelData.id + ".svg?" + Theme.themeId
                                                    : Quickshell.iconPath(app.entry ? app.entry.icon : app.modelData.id, "application-x-executable")
                                     onStatusChanged: if (status === Image.Error && themed) themed = false
-                                    opacity: btn.focused || btn.urgent || appMouse.containsMouse || mouse.containsMouse ? 1 : 0.75
+                                    opacity: btn.filled ? 1 : 0.75
                                     scale: appMouse.pressed ? 0.8 : appMouse.containsMouse ? 1.15 : 1
                                     Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
                                     Behavior on opacity { NumberAnimation { duration: Theme.fast } }
-                                    layer.enabled: btn.focused || btn.urgent
+                                    layer.enabled: btn.filled
                                     layer.effect: MultiEffect {
                                         colorization: 1
                                         colorizationColor: Theme.crust
@@ -210,7 +223,7 @@ Item {
                     radius: 1
                     anchors.horizontalCenter: parent.horizontalCenter
                     y: parent.height - 7
-                    color: btn.urgent ? Theme.crust : Theme.alpha(Theme.subtext0, 0.6)
+                    color: btn.filled ? Theme.crust : Theme.alpha(Theme.accent, 0.6)
                 }
 
                 MouseArea {

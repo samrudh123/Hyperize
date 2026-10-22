@@ -148,9 +148,8 @@
   },
 
   "custom/powerprofile": {
-    "exec": "~/.config/hypr/power-profile.sh status",
+    "exec": "~/.config/hypr/power-profile.sh watch",   // a line per change
     "return-type": "json",
-    "interval": 5,
     "on-click": "~/.config/hypr/power-profile.sh next"
   },
 

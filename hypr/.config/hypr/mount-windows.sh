@@ -65,7 +65,7 @@ RUNDIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 [ -w "$RUNDIR" ] || RUNDIR="${TMPDIR:-/tmp}"
 
 # Absolute path on purpose: keybind children do NOT get ~/.local/bin on PATH,
-# so a bare `yazi` dies with "not found" the moment this runs from SUPER+M.
+# so a bare `yazi` dies with "not found" the moment this runs from a bind.
 YAZI="$HOME/.local/bin/yazi"
 [ -x "$YAZI" ] || YAZI="$(command -v yazi 2>/dev/null)"
 

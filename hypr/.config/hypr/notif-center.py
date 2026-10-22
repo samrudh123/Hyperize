@@ -2,6 +2,8 @@
 """Notification centre — the bell in the top bar, left of the settings cog.
 
     notif-center.py [toggle]    open / close the panel (bar on-click)
+    notif-center.py phone       the same, opening on the Phone tab (the bottom
+                                bar's phone-notifications pill)
     notif-center.py bar         long-running JSON for waybar's custom/notifications
     notif-center.py dnd [on|off|toggle]   do not disturb (bar right-click)
 
@@ -235,7 +237,7 @@ def ago(t):
     return time.strftime("%d %b", lt)
 
 
-def panel():
+def panel(tab=None):
     if toggle_or_claim():
         return 0
     close_network_panel()
@@ -407,9 +409,10 @@ def panel():
             outer.pack_start(self.nb, True, True, 0)
 
             self.refresh()
-            # Open on the tab with the newest unread notification.
+            # Open on the tab asked for, else the one with the newest unread
+            # notification.
             new = [e for e in data["entries"] if e.get("time", 0) > self.seen_before]
-            if new and is_phone(new[-1]):
+            if tab == "phone" or (tab is None and new and is_phone(new[-1])):
                 self.nb.set_current_page(1)
 
             # Popups would sit on top of the panel (mako draws on the overlay
@@ -682,6 +685,8 @@ def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "toggle"
     if cmd == "toggle":
         sys.exit(panel())
+    elif cmd == "phone":
+        sys.exit(panel("phone"))
     elif cmd == "bar":
         try:
             bar()

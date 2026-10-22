@@ -27,7 +27,7 @@ region)
     # Catppuccin Mocha selection box: mauve border on a dimmed ground.
     # slurp exits non-zero when cancelled with Escape — that is a normal
     # outcome, not an error, so leave without writing or notifying.
-    GEOM=$(slurp -d -b 1a1b26aa -c bb9af7ff -s 00000000 -w 2) || exit 0
+    GEOM=$(slurp -d -b 1a1b26aa -c 7aa2f7ff -s 00000000 -w 2) || exit 0
     [ -n "$GEOM" ] || exit 0
     grim -g "$GEOM" "$FILE" || { notify -u critical "Screenshot failed" "grim could not capture the region"; exit 1; }
     LABEL="Region captured"

@@ -13,10 +13,14 @@ Item {
     property string label
     property color fg: Theme.text
     property color bg: "transparent"
-    // Hover: either a quiet surface fill (default) or a filled accent pill
-    // (`hoverFill`, the "button" modules: power, tasks, wallpaper…).
-    property color hoverFg: fg
-    property color hoverBg: Theme.alpha(Theme.surface0, 0.9)
+    // Hover: a quiet surface fill by default. With `fillHover` the pill
+    // fills in its text colour and the text goes dark; a pill that is
+    // already filled (bg set, dark text) just lightens.
+    property bool fillHover: false
+    readonly property bool filled: bg.a > 0.5
+    property color hoverFg: fillHover && !filled ? Theme.crust : fg
+    property color hoverBg: !fillHover ? Theme.alpha(Theme.surface0, 0.9)
+                          : filled ? Qt.lighter(bg, 1.08) : fg
     property bool interactive: true
     property real fontSize: 13
     property int fontWeight: Font.DemiBold
