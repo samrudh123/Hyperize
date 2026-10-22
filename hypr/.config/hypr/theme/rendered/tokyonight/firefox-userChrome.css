@@ -36,6 +36,25 @@
     --ctp-accent:   #@@ACCENT@@;
 }
 
+/* LIVE COLOURS. The Rice Accent extension (~/.config/firefox-accent) applies a
+ * Firefox theme built from the desktop palette + accent and re-applies it on
+ * every SUPER+ALT+C / SUPER+SHIFT+T. Firefox exposes a theme's colours as the
+ * CSS variables below, so while it is active the --ctp-* colours are read
+ * from them and change without a restart; the hex above is the fallback.
+ * [lwtheme] = a theme is applied — under Firefox's default theme these
+ * variables hold Firefox's own colours and must not be used. Which theme slot
+ * carries which role is in the extension's background.js (themeFor). */
+:root[lwtheme] {
+    --ctp-base:     var(--panel-background-color, #1a1b26);
+    --ctp-mantle:   var(--toolbar-background-color, #16161e);
+    --ctp-crust:    var(--lwt-accent-color, #13131a);
+    --ctp-surface0: var(--toolbarbutton-background-color-hover, #24283b);
+    --ctp-surface1: var(--toolbarbutton-background-color-active, #343a52);
+    --ctp-subtext0: var(--lwt-text-color, #9aa5ce);
+    --ctp-text:     var(--toolbar-text-color, #c0caf5);
+    --ctp-accent:   var(--toolbarbutton-icon-fill-attention, #@@ACCENT@@);
+}
+
 /* ── Frame ──────────────────────────────────────────────────────────────── */
 #navigator-toolbox {
     background-color: var(--ctp-mantle) !important;
@@ -202,39 +221,39 @@ findbar {
  * rings, badges, the "primary" blue), so nothing stock-blue or grey is left
  * in panels, dialogs and the sidebar. Accent = the desktop accent. */
 :root {
-    --color-accent-primary:          #@@ACCENT@@ !important;
-    --color-accent-primary-hover:    color-mix(in srgb, #@@ACCENT@@ 85%, white) !important;
-    --color-accent-primary-active:   color-mix(in srgb, #@@ACCENT@@ 75%, white) !important;
-    --button-text-color-primary:     #13131a !important;
-    --focus-outline-color:           #@@ACCENT@@ !important;
-    --toolbar-field-focus-border-color: #@@ACCENT@@ !important;
-    --toolbox-bgcolor:               #13131a !important;
-    --toolbox-bgcolor-inactive:      #13131a !important;
-    --toolbox-textcolor:             #c0caf5 !important;
-    --toolbar-bgcolor:               #16161e !important;
-    --toolbar-color:                 #c0caf5 !important;
-    --toolbar-field-background-color: #24283b !important;
-    --toolbar-field-focus-background-color: #24283b !important;
-    --toolbar-field-color:           #c0caf5 !important;
-    --toolbar-field-focus-color:     #c0caf5 !important;
-    --tab-selected-bgcolor:          #1a1b26 !important;
-    --tab-selected-textcolor:        #c0caf5 !important;
-    --tab-loading-fill:              #@@ACCENT@@ !important;
-    --tab-attention-icon-color:      #@@ACCENT@@ !important;
-    --arrowpanel-background:         #16161e !important;
-    --arrowpanel-color:              #c0caf5 !important;
-    --arrowpanel-border-color:       #24283b !important;
-    --sidebar-background-color:      #16161e !important;
-    --sidebar-text-color:            #c0caf5 !important;
-    --urlbarView-highlight-background: #24283b !important;
-    --urlbarView-highlight-color:    #c0caf5 !important;
-    --background-color-canvas:       #1a1b26 !important;
-    --text-color:                    #c0caf5 !important;
-    --border-color:                  #24283b !important;
-    --link-color:                    #@@ACCENT@@ !important;
-    --checkbox-checked-bgcolor:      #@@ACCENT@@ !important;
-    --checkbox-checked-color:        #13131a !important;
+    --color-accent-primary:          var(--ctp-accent) !important;
+    --color-accent-primary-hover:    color-mix(in srgb, var(--ctp-accent) 85%, white) !important;
+    --color-accent-primary-active:   color-mix(in srgb, var(--ctp-accent) 75%, white) !important;
+    --button-text-color-primary:     var(--ctp-crust) !important;
+    --focus-outline-color:           var(--ctp-accent) !important;
+    --toolbar-field-focus-border-color: var(--ctp-accent) !important;
+    --toolbox-bgcolor:               var(--ctp-crust) !important;
+    --toolbox-bgcolor-inactive:      var(--ctp-crust) !important;
+    --toolbox-textcolor:             var(--ctp-text) !important;
+    --toolbar-bgcolor:               var(--ctp-mantle) !important;
+    --toolbar-color:                 var(--ctp-text) !important;
+    --toolbar-field-background-color: var(--ctp-surface0) !important;
+    --toolbar-field-focus-background-color: var(--ctp-surface0) !important;
+    --toolbar-field-color:           var(--ctp-text) !important;
+    --toolbar-field-focus-color:     var(--ctp-text) !important;
+    --tab-selected-bgcolor:          var(--ctp-base) !important;
+    --tab-selected-textcolor:        var(--ctp-text) !important;
+    --tab-loading-fill:              var(--ctp-accent) !important;
+    --tab-attention-icon-color:      var(--ctp-accent) !important;
+    --arrowpanel-background:         var(--ctp-mantle) !important;
+    --arrowpanel-color:              var(--ctp-text) !important;
+    --arrowpanel-border-color:       var(--ctp-surface0) !important;
+    --sidebar-background-color:      var(--ctp-mantle) !important;
+    --sidebar-text-color:            var(--ctp-text) !important;
+    --urlbarView-highlight-background: var(--ctp-surface0) !important;
+    --urlbarView-highlight-color:    var(--ctp-text) !important;
+    --background-color-canvas:       var(--ctp-base) !important;
+    --text-color:                    var(--ctp-text) !important;
+    --border-color:                  var(--ctp-surface0) !important;
+    --link-color:                    var(--ctp-accent) !important;
+    --checkbox-checked-bgcolor:      var(--ctp-accent) !important;
+    --checkbox-checked-color:        var(--ctp-crust) !important;
 }
 /* The window behind a page while it loads (otherwise a dark-grey flash). */
 #tabbrowser-tabpanels,
-#tabbrowser-tabbox { background-color: #1a1b26 !important; }
+#tabbrowser-tabbox { background-color: var(--ctp-base) !important; }

@@ -91,6 +91,7 @@ so it does nothing to them:
 | `SUPER + SHIFT + T` | Theme picker — Catppuccin Mocha, Tokyo Night, Gruvbox Dark, Nord, Rosé Pine, Everforest, Dracula, Kanagawa; recolours the whole desktop (press again to close) |
 | ⤷ in the picker | `←/→` or wheel move · `Enter` apply · `1`–`8` jump · `b` bar style: classic ⇄ floating islands · `Esc` close |
 | Brightness pill (top bar) | scroll = brightness · click = 50 % · **right-click = night light** on/off · middle-click = warmer/cooler (4500 → 3500 → 2700 K) |
+| Display pill (top bar, only with an external monitor plugged in) | `dup` = duplicated, `ext` = extended. Click: **Duplicate** / **Extend** and which side the external screen sits on (right / left / above / below). Middle-click (or `SUPER + P`) flips duplicate ↔ extend. Both bars show on every screen. A monitor plugged in for the first time is **duplicated**; after that your choice is remembered per monitor and re-applied on replug (`hypr/display-mode.py`) |
 | `SUPER + Tab` | Workspace picker — the wallpaper carousel, one card per workspace with windows plus the next empty one, each a miniature of the workspace (press again to close) |
 | ⤷ in the picker | `←/→` or wheel move (mouse wheel up / two-finger down = next) · `Enter` go there · `1`–`9` pick that workspace · `m` carry the focused window along (`Shift+Enter` = once) · `/` search window titles / apps · `Esc` close |
 | `SUPER + H/J/K/L` | Move focus left/down/up/right (arrows work too) — also into / out of floating popups (screenshot save, tasks, notifications, …) |
@@ -98,7 +99,8 @@ so it does nothing to them:
 | `SUPER + CTRL + arrows` | Resize the window |
 | `SUPER + F` | Fullscreen |
 | `SUPER + V` | Float this window |
-| `SUPER + P` | Pseudotile — keep the slot, stop stretching to fill it |
+| `SUPER + P` | Displays: switch duplicate ↔ extend (with an external monitor plugged in) |
+| `SUPER + ALT + P` | Pseudotile — keep the slot, stop stretching to fill it |
 | `SUPER + ALT + T` | Flip the split direction (was `SUPER + T`) |
 | `SUPER + drag` | Left button moves, right button resizes |
 

@@ -8,15 +8,15 @@
       "right": 3
     },
     "color": {
-      "1": "magenta",
-      "2": "blue"
+      "1": "38;5;53",
+      "2": "38;5;54"
     }
   },
   "display": {
     "separator": "  ",
     "color": {
-      "keys": "magenta",
-      "title": "blue"
+      "keys": "38;5;53",
+      "title": "38;5;54"
     },
     "percent": {
       "type": [
@@ -40,9 +40,9 @@
     {
       "type": "title",
       "color": {
-        "user": "magenta",
+        "user": "38;5;53",
         "at": "white",
-        "host": "blue"
+        "host": "38;5;54"
       }
     },
     {
@@ -52,32 +52,32 @@
     {
       "type": "os",
       "key": "  󰍹 os     ",
-      "keyColor": "magenta"
+      "keyColor": "38;5;53"
     },
     {
       "type": "kernel",
       "key": "   kernel ",
-      "keyColor": "magenta"
+      "keyColor": "38;5;53"
     },
     {
       "type": "uptime",
       "key": "  󰅐 uptime ",
-      "keyColor": "magenta"
+      "keyColor": "38;5;53"
     },
     {
       "type": "packages",
       "key": "  󰏖 pkgs   ",
-      "keyColor": "magenta"
+      "keyColor": "38;5;53"
     },
     {
       "type": "shell",
       "key": "   shell  ",
-      "keyColor": "magenta"
+      "keyColor": "38;5;53"
     },
     {
       "type": "terminal",
       "key": "   term   ",
-      "keyColor": "magenta"
+      "keyColor": "38;5;53"
     },
     {
       "type": "custom",
@@ -86,22 +86,22 @@
     {
       "type": "wm",
       "key": "  󰖲 wm     ",
-      "keyColor": "blue"
+      "keyColor": "38;5;54"
     },
     {
       "type": "theme",
       "key": "  󰉼 theme  ",
-      "keyColor": "blue"
+      "keyColor": "38;5;54"
     },
     {
       "type": "icons",
       "key": "  󰀻 icons  ",
-      "keyColor": "blue"
+      "keyColor": "38;5;54"
     },
     {
       "type": "display",
       "key": "  󰍺 display",
-      "keyColor": "blue"
+      "keyColor": "38;5;54"
     },
     {
       "type": "custom",

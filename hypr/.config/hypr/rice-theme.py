@@ -17,6 +17,8 @@ byte-for-byte as before.
     rice-theme.py subst-file [--ints] [--theme id] FILE...   in place
     rice-theme.py map-accent HEX FROM TO   the accent's role carried across themes
     rice-theme.py nearest HEX [id]         nearest accent ROLE NAME in a theme
+    rice-theme.py derive HEX [id]          colours derived from the accent, as
+                                           "TOKEN hex" lines (set-accent.sh)
     rice-theme.py gtk ROLE [id]            build/refresh the GTK3 theme for a
                                            theme + accent role, print its name
 
@@ -188,6 +190,12 @@ def subst(text, tid, ints=False, gtk=False):
 def nearest(hexc, tid):
     p = palette(tid)
     t = rgb(hexc.lstrip("#").lower())
+    if max(t) - min(t) < 24:
+        # a grey (a black-and-white wallpaper's accent): by distance a mid grey
+        # lands on green, so the apps that only take a role name (GTK theme,
+        # Discord, folders, …) went green on a black-and-white desktop. Take
+        # the theme's most neutral accent instead (rosewater, in most).
+        return min(ACCENTS, key=lambda r: max(rgb(p[r])) - min(rgb(p[r])))
     return min(ACCENTS, key=lambda r: sum((a - b) ** 2 for a, b in zip(rgb(p[r]), t)))
 
 
@@ -198,6 +206,9 @@ def map_accent(hexc, src, dst):
     for r in ACCENTS:
         if ps[r] == hexc:
             return pd[r]
+    t = rgb(hexc)
+    if max(t) - min(t) < 24:
+        return hexc                 # a grey has no role: it stays the same grey
     return pd[nearest(hexc, src)]
 
 
@@ -241,6 +252,32 @@ def gtk(role, tid):
     return name
 
 
+# Colours derived from the accent, for templates that want more than one
+# accent-family colour (ghostty's palette slots 53-56, which the shell draws
+# with). set-accent.sh puts them in for @@<NAME>@@ the same way it puts the
+# accent in for @@ACCENT@@.
+#   ACCENT_COMP   the complementary hue (HLS hue + 180°, same L and S; for a
+#                 grey accent, the same grey darker), so it
+#                 sits next to the accent at the same weight
+#   ACCENT_MID    accent sunk 60% into the theme's surface0: a dark tint that
+#                 still reads as the accent, for text-coloured labels on top
+#   ACCENT_LOW    accent sunk 80% into surface0: barely-tinted, for accent-
+#                 coloured labels on top
+def derive(hexc, tid):
+    import colorsys
+    a = hexc.lstrip("#").lower()
+    s0 = palette(tid)["surface0"]
+    h, l, s = colorsys.rgb_to_hls(*(v / 255 for v in rgb(a)))
+    if s < 0.15:
+        # a grey (a black-and-white wallpaper's accent) has no opposite hue:
+        # its partner is the same grey a shade darker, so the pair still
+        # reads as two colours — and stays black and white
+        comp = hexof(v * 255 for v in colorsys.hls_to_rgb(h, l * 0.72, s))
+    else:
+        comp = hexof(v * 255 for v in colorsys.hls_to_rgb((h + 0.5) % 1.0, l, s))
+    return {"ACCENT_COMP": comp, "ACCENT_MID": mix(a, s0, 0.40), "ACCENT_LOW": mix(a, s0, 0.20)}
+
+
 def as_json(tid):
     p = {r: "#" + h for r, h in palette(tid).items()}
     p.update({"id": tid, "name": THEMES[tid]["name"], "accent": THEMES[tid]["accent"]})
@@ -282,6 +319,9 @@ def main(argv):
         print(map_accent(args[0], args[1], args[2]))
     elif cmd == "nearest":
         print(nearest(args[0], args[1] if len(args) > 1 else current()))
+    elif cmd == "derive":
+        for k, v in derive(args[0], args[1] if len(args) > 1 else current()).items():
+            print(k, v)
     elif cmd == "gtk":
         print(gtk(args[0], args[1] if len(args) > 1 else current()))
     else:

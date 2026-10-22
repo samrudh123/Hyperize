@@ -22,7 +22,7 @@ BACKUP="$HOME/.dotfiles-backup/$(date +%Y-%m-%d_%H-%M-%S)"
 # the config packages: each mirrors $HOME (hypr/.config/hypr/… -> ~/.config/hypr/…)
 PACKAGES=(hypr quickshell yazi ghostty mako fuzzel nwg waybar portals bat btop glow fastfetch tmux
           zsh bash git dl-popup aria2 systemd environment applications bin gtk vscode zathura
-          vscode-pdf-zathura nvim)
+          vscode-pdf-zathura nvim firefox-accent)
 
 say() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
@@ -128,6 +128,13 @@ do_copy() {
     if [ ! -e "$HOME/.mozilla/native-messaging-hosts/pdf_zathura.json" ]; then
         say "Firefox extension: PDF in Zathura"
         sh "$HOME/.config/vscode-pdf-zathura/firefox/build.sh" || warn "pdf-zathura Firefox build failed"
+    fi
+    # Rice Accent (Firefox follows the accent live): same deal — sign the xpi
+    # on AMO (~/.config/firefox-accent/README.md); this builds it and
+    # registers the native host that feeds it the theme
+    if [ ! -e "$HOME/.mozilla/native-messaging-hosts/rice_accent.json" ]; then
+        say "Firefox extension: Rice Accent"
+        sh "$HOME/.config/firefox-accent/build.sh" || warn "rice-accent Firefox build failed"
     fi
     # dl-popup's Firefox extension: same deal (sign the xpi on AMO, see
     # ~/.local/share/dl-popup/README.md); this builds it and registers the

@@ -23,13 +23,13 @@ wide, its neighbours thin slices, and a pill toolbar above it:
 
 COLOUR FILTERS. Every wallpaper (a video by a frame of it) is sorted into
 one bucket — Red Orange Yellow Green Blue Purple Pink, or Mono when too little
-of it is saturated — by hue-weighting its saturated pixels. Cached in
-~/.cache/wallpaper-thumbs/colours.json by mtime. "All" is sorted by bucket,
+of it is saturated — by wallpaper-index.py's classify() (vivid colours vote by
+perceptual hue). Cached in ~/.cache/wallpaper-thumbs/colours.json by mtime. "All" is sorted by bucket,
 so the band runs as a rainbow.
 
 ACCENT. Setting a wallpaper also sets the accent (set-accent.sh) to the
-Catppuccin Mocha colour of its bucket — the filter's colour when one is on.
-Mono leaves the accent alone. 󰏘 / `c` turns this off (remembered in
+Catppuccin Mocha colour of its bucket — the filter's colour when one is on;
+a Mono wallpaper sets its own grey. 󰏘 / `c` turns this off (remembered in
 ~/.config/hypr/wallpaper-accent-sync). The accent picker (SUPER+ALT+C) is
 untouched: it can still set any accent afterwards; the next wallpaper pick
 sets it again. Note set-accent.sh restarts the bars and re-themes Spotify /
@@ -62,7 +62,6 @@ set-lockscreen.sh. The accent toggle is separate here and starts OFF
 default only the desktop wallpaper drives it.
 """
 
-import colorsys
 import hashlib
 import json
 import math
@@ -297,38 +296,20 @@ def open_still(path):
     return im.convert("RGB")
 
 
-def classify(im):
-    """-> bucket name. Hue histogram of the saturated pixels, each weighted by
-    saturation × value; Mono when under 12 % of the picture is colourful."""
-    small = im.copy()
-    small.thumbnail((96, 96))
-    weights = {name: 0.0 for name, _ in COLOURS}
-    total = colourful = 0
-    for r, g, b in small.getdata():
-        total += 1
-        h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-        if s < 0.22 or v < 0.18:
-            continue
-        colourful += 1
-        deg = h * 360
-        if deg < 12 or deg >= 345:
-            name = "Red"
-        elif deg < 40:
-            name = "Orange"
-        elif deg < 68:
-            name = "Yellow"
-        elif deg < 165:
-            name = "Green"
-        elif deg < 255:
-            name = "Blue"
-        elif deg < 312:            # Ubuntu's aubergine (~305°) is purple, not pink
-            name = "Purple"
-        else:
-            name = "Pink"
-        weights[name] += s * v
-    if not total or colourful / total < 0.12:
-        return "Mono"
-    return max(weights, key=weights.get)
+def index_module():
+    """wallpaper-index.py (the Quickshell picker's lister), whose classify()
+    and cache this picker shares — one classifier, one colours.json."""
+    global _INDEX_MODULE
+    if _INDEX_MODULE is None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("wallpaper_index",
+                                                      os.path.join(HYPR, "wallpaper-index.py"))
+        _INDEX_MODULE = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_INDEX_MODULE)
+    return _INDEX_MODULE
+
+
+_INDEX_MODULE = None
 
 
 def card_image(path, w, h):
@@ -369,14 +350,14 @@ def save_index(index):
 
 
 def bucket_of(path, index):
-    _, mtime = key_for(path)
-    hit = index.get(path)
-    if hit and hit.get("mtime") == mtime:
-        return hit["bucket"]
-    im = open_still(path)
-    bucket = classify(im) if im is not None else "Mono"
-    index[path] = {"mtime": mtime, "bucket": bucket}
-    return bucket
+    """-> (bucket, accent): see wallpaper-index.py's classify()."""
+    return index_module().bucket_of(path, index)
+
+
+def accent_of(e):
+    """The accent a wallpaper sets: its bucket's colour, or for a Mono one
+    its own grey."""
+    return e.get("accent") or None if e["bucket"] == "Mono" else ACCENT_FOR.get(e["bucket"])
 
 
 # ── pidfile toggle (same scheme as wallpaper-grid.py) ──────────────────────
@@ -481,11 +462,11 @@ class Picker(Gtk.Window):
                         "name": "Live screen"})
         for p in wallpapers(self.mode):
             try:
-                bucket = bucket_of(p, index)
+                bucket, accent = bucket_of(p, index)
             except Exception as e:                       # noqa: BLE001 — one bad file
                 print(f"wallpaper-picker: {p}: {e}", file=sys.stderr)
-                bucket = "Mono"
-            out.append({"path": p, "bucket": bucket, "video": is_video(p),
+                bucket, accent = "Mono", ""
+            out.append({"path": p, "bucket": bucket, "accent": accent, "video": is_video(p),
                         "name": os.path.splitext(os.path.basename(p))[0]})
         try:
             save_index(index)
@@ -839,7 +820,7 @@ class Picker(Gtk.Window):
             else [e["bucket"]] + (["animated"] if e["video"] else [])
         if e["path"] == self.current:
             bits.append(f"{I_CHECK} current")
-        if self.sync and e["bucket"] in ACCENT_FOR:
+        if self.sync and e["path"] != SCREENSHOT and accent_of(e):
             bits.append("sets accent")
         if not self.mode.lock:
             label = next((lb for k, lb, _ in TRANSITIONS if k == self.transition), "")
@@ -1014,7 +995,7 @@ class Picker(Gtk.Window):
         if not self.items:
             return
         e = self.items[self.target]
-        hexc = ACCENT_FOR.get(e["bucket"]) if self.sync else None
+        hexc = accent_of(e) if self.sync and e["path"] != SCREENSHOT else None
         if hexc and hexc.lower() == self.accent.lower():
             hexc = None
         # Detached, one after the other: the wallpaper first (instant), then

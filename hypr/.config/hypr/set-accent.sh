@@ -166,11 +166,25 @@ init() {
     return 0
 }
 
+# The sed program that fills a template in at accent $1: @@ACCENT@@ itself,
+# plus the colours rice-theme.py derives from it (@@ACCENT_COMP@@, the
+# complementary hue, and darker tints — see derive() there). ghostty-config
+# maps them onto 256-colour slots 53-56, which the shell draws with
+# (starship, fastfetch, eza, fzf): reloading ghostty recolours all of it live.
+fill_expr() {
+    local hex="$1" expr="s/$TOKEN/$1/g" k v
+    while read -r k v; do
+        expr+="; s/@@${k}@@/$v/g"
+    done < <(/usr/bin/python3 "$RICE" derive "$hex" "$THEME_ID" 2>/dev/null)
+    printf '%s\n' "$expr"
+}
+
 # Regenerate the given template names (default: all) at the given colour.
 render() {
     local hex="$1"; shift
     local only=" $* "
     local name rel dst
+    local fill; fill=$(fill_expr "$hex")
     while IFS=$'\t' read -r name rel; do
         [ "$#" -gt 0 ] && [[ "$only" != *" $name "* ]] && continue
         [ -f "$TEMPLATES/$name" ] || continue
@@ -182,7 +196,7 @@ render() {
         # Render to a temp file in the same directory and move it into place,
         # so a half-written config can never be read by anything.
         local tmp="$dst.accent-tmp.$$"
-        sed "s/$TOKEN/$hex/g" "$(tpl_for "$name")" > "$tmp" || { rm -f "$tmp"; continue; }
+        sed "$fill" "$(tpl_for "$name")" > "$tmp" || { rm -f "$tmp"; continue; }
         # Preserve the original mode (screenshot.sh and wallpaper-grid.py are
         # executable; a plain > would have kept the temp file's 644).
         chmod --reference="$dst" "$tmp" 2>/dev/null
@@ -245,6 +259,57 @@ reload_live() {
     fi
 }
 
+# Apps that can recolour in place but only on a nudge — run on a COMMITTED
+# change (pick, --restore, --revert), never on --preview: these files are not
+# in PREVIEW_SET, so a preview keystroke would only make them reload the old
+# colours. Everything here is a no-op when the app isn't running.
+# zsh in terminals other than Ghostty draws its accent with palette slots
+# 53-56 as well, but those terminals never read Ghostty's config: each such
+# interactive zsh registers its tty in $XDG_RUNTIME_DIR/accent-ttys/<pid>
+# (.zshrc), and this re-sends the slots there as OSC 4. The terminal repaints
+# text already on screen, the same as a Ghostty reload does.
+retint_ttys() {
+    local reg="${XDG_RUNTIME_DIR:-/tmp}/accent-ttys" seq="" slot f pid tty seen=" "
+    [ -d "$reg" ] || return 0
+    while IFS= read -r slot; do                     # 53=#rrggbb
+        seq+=$'\e]4;'"${slot%%=*};${slot#*=}"$'\e\\'
+    done < <(sed -n 's/^palette = \(5[3-6]=#[0-9a-fA-F]\{6\}\).*/\1/p' "$HOME/.config/ghostty/config")
+    [ -n "$seq" ] || return 0
+    for f in "$reg"/*; do
+        [ -f "$f" ] || continue
+        pid=${f##*/}
+        # a shell that died without its zshexit hook (SIGKILL, crash)
+        if [ "$(cat "/proc/$pid/comm" 2>/dev/null)" != zsh ]; then rm -f "$f"; continue; fi
+        IFS= read -r tty < "$f"
+        [[ "$seen" == *" $tty "* ]] && continue      # nested shells share a tty
+        seen+="$tty "
+        [ -c "$tty" ] && [ -w "$tty" ] && printf '%s' "$seq" > "$tty" 2>/dev/null
+    done
+    return 0
+}
+
+reload_apps() {
+    retint_ttys
+    # ...and again a little later: VS Code resets its terminals to the stock
+    # palette when it applies the settings.json just rendered, which lands
+    # AFTER the send above and wipes it. (Its shells also re-send at every
+    # prompt — .zshrc — but this keeps an idle terminal live.)
+    ( sleep 1; retint_ttys; sleep 2; retint_ttys ) >/dev/null 2>&1 &
+    # Ghostty >= 1.2 re-reads its config on SIGUSR2: open terminals pick up
+    # the new cursor / selection / split divider / search colours.
+    pkill -USR2 -x ghostty 2>/dev/null
+    # btop re-reads btop.conf AND its theme file on SIGUSR2 (tested: a running
+    # btop switched to the new colour ~2 s later).
+    pkill -USR2 -x btop 2>/dev/null
+    # Claude Code: regenerate ~/.claude/themes/rice.json (theme "custom:rice");
+    # it watches that folder, so running sessions recolour by themselves.
+    /usr/bin/python3 "$HOME/.config/hypr/claude-theme.py" 2>/dev/null
+    # yazi has no reload at all: each file-manager yazi quits and its launcher
+    # (~/.config/yazi/yazi-live.sh) reopens it on the same files/tabs.
+    "$HOME/.config/yazi/yazi-live.sh" --relaunch-all >/dev/null 2>&1 &
+    return 0
+}
+
 case "${1:-}" in
     --show)
         init >/dev/null
@@ -278,6 +343,7 @@ case "${1:-}" in
         [ -s "$STATE" ] && IFS= read -r hex < "$STATE"
         valid "$hex" || hex="$ORIGINAL"
         updated=0; clean=0; failed=0
+        fill=$(fill_expr "$hex")
         while IFS=$'\t' read -r name rel; do
             src="$HOME/$rel"
             tpl="$TEMPLATES/$name"
@@ -286,7 +352,7 @@ case "${1:-}" in
             # rendered in the current theme; the diff is replayed onto the
             # Mocha template (an edit to a COLOUR line made under another
             # theme carries that theme's hex — edit the template by hand then)
-            sed "s/$TOKEN/$hex/g" "$(tpl_for "$name")" > "$rendered"
+            sed "$fill" "$(tpl_for "$name")" > "$rendered"
             if cmp -s "$rendered" "$src"; then
                 clean=$((clean + 1))
                 rm -f "$rendered"
@@ -317,6 +383,7 @@ case "${1:-}" in
         valid "$hex" || hex="$ORIGINAL"
         render "$hex"
         reload_live "$hex"
+        reload_apps
         # No-op unless the apps are behind the saved accent (see app-accent.sh).
         hyprctl dispatch exec "$HYPR/app-accent.sh $hex" >/dev/null
         ;;
@@ -328,6 +395,7 @@ case "${1:-}" in
         done < <(manifest)
         printf '%s\n' "$ORIGINAL" > "$STATE"
         reload_live "$ORIGINAL"
+        reload_apps
         say "Reverted to the original theme"
         ;;
     "")
@@ -341,6 +409,7 @@ case "${1:-}" in
         render "$hex"
         printf '%s\n' "$hex" > "$STATE"
         reload_live "$hex"
+        reload_apps
         # No bar restart: the bars and dock are Quickshell since 2026-10-09
         # and follow theme/accent (written above) live. Restarting the shell
         # here also cut short the wallpaper transition the picker had just

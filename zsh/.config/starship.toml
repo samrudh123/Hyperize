@@ -1,19 +1,15 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
 format = """
-[](surface0)\
+[](surface0)\
 $os\
 $username\
-[](bg:peach fg:surface0)\
+[](bg:accent fg:surface0)\
 $directory\
-[](fg:peach bg:green)\
-$git_branch\
-$git_status\
-[](fg:green bg:sapphire)\
-$c$rust$golang$nodejs$php$java$kotlin$haskell$python\
-[](fg:sapphire bg:lavender)\
-$docker_context$conda\
-[ ](fg:lavender)\
+[](fg:accent)\
+([](fg:accent_comp)$git_branch$git_status[](fg:accent_comp))\
+([](fg:accent_mid)$c$rust$golang$nodejs$php$java$kotlin$haskell$python[](fg:accent_mid))\
+([](fg:accent_low)$docker_context$conda${custom.venv}[](fg:accent_low))\
 $fill\
 $cmd_duration\
 $line_break$character"""
@@ -24,7 +20,7 @@ palette = 'catppuccin_mocha'
 rosewater = "#f7c3c6"
 flamingo  = "#f7a8b0"
 pink      = "#fca7ea"
-mauve     = "#ff9e64"
+mauve     = "#babdc1"
 red       = "#f7768e"
 maroon    = "#db4b4b"
 peach     = "#ff9e64"
@@ -39,6 +35,15 @@ text      = "#c0caf5"
 overlay0  = "#545c7e"
 surface0  = "#24283b"
 base      = "#1a1b26"
+# the powerline follows the desktop accent: directory = accent, git = its
+# complement, then two tints of the accent sinking into surface0 for the
+# language / env segments. These are 256-colour palette SLOTS, not hexes —
+# ghostty's config maps 53-56 to the accent family (set-accent.sh renders it
+# and reloads ghostty), so prompts already on screen recolour live too.
+accent      = "53"
+accent_comp = "54"
+accent_mid  = "55"
+accent_low  = "56"
 
 [os]
 disabled = false
@@ -46,8 +51,8 @@ style = "bg:surface0 fg:text"
 format = '[ $symbol]($style)'
 
 [os.symbols]
-Ubuntu = ""
-Linux  = ""
+Ubuntu = ""
+Linux  = ""
 
 [username]
 show_always = true
@@ -56,7 +61,7 @@ style_root = "bg:surface0 fg:red"
 format = '[ $user ]($style)'
 
 [directory]
-style = "fg:base bg:peach"
+style = "fg:base bg:accent"
 format = "[ $path ]($style)"
 truncation_length = 3
 truncation_symbol = "…/"
@@ -64,74 +69,93 @@ read_only = " 󰌾"
 
 [directory.substitutions]
 "Documents" = "󰈙 "
-"Downloads" = " "
+"Downloads" = " "
 "Music"     = "󰝚 "
-"Pictures"  = " "
+"Pictures"  = " "
 "Developer" = "󰲋 "
 
 [git_branch]
-symbol = ""
-style = "bg:green fg:base"
+symbol = ""
+style = "bg:accent_comp fg:base"
 format = '[ $symbol $branch ]($style)'
 
 [git_status]
-style = "bg:green fg:base"
+style = "bg:accent_comp fg:base"
 format = '[($all_status$ahead_behind )]($style)'
 conflicted = "󰞇 "
 ahead = "⇡${count}"
 behind = "⇣${count}"
 diverged = "⇕⇡${ahead_count}⇣${behind_count}"
 untracked = "?${count}"
-stashed = " ${count}"
+stashed = " ${count}"
 modified = "!${count}"
 staged = "+${count}"
 renamed = "»${count}"
 deleted = "✘${count}"
 
 [nodejs]
-symbol = ""
-style = "bg:sapphire fg:base"
+symbol = ""
+style = "bg:accent_mid fg:text"
 format = '[ $symbol $version ]($style)'
 
 [python]
-symbol = ""
-style = "bg:sapphire fg:base"
+symbol = ""
+style = "bg:accent_mid fg:text"
 format = '[ $symbol $version ]($style)'
 
 [rust]
-symbol = ""
-style = "bg:sapphire fg:base"
+symbol = ""
+style = "bg:accent_mid fg:text"
 format = '[ $symbol $version ]($style)'
 
 [golang]
-symbol = ""
-style = "bg:sapphire fg:base"
+symbol = ""
+style = "bg:accent_mid fg:text"
 format = '[ $symbol $version ]($style)'
 
 [c]
-symbol = " "
-style = "bg:sapphire fg:base"
+symbol = ""
+style = "bg:accent_mid fg:text"
 format = '[ $symbol $version ]($style)'
 
 [java]
-symbol = ""
-style = "bg:sapphire fg:base"
+symbol = ""
+style = "bg:accent_mid fg:text"
 format = '[ $symbol $version ]($style)'
 
 [haskell]
-symbol = ""
-style = "bg:sapphire fg:base"
+symbol = ""
+style = "bg:accent_mid fg:text"
 format = '[ $symbol $version ]($style)'
 
 [docker_context]
-symbol = ""
-style = "bg:lavender fg:base"
+symbol = ""
+style = "bg:accent_low fg:accent"
 format = '[ $symbol $context ]($style)'
 
 [conda]
 symbol = "󱔎"
-style = "bg:lavender fg:base"
+style = "bg:accent_low fg:accent"
 format = '[ $symbol $environment ]($style)'
+
+# Python venv, styled like conda. Starship has no venv module of its own (the
+# python module only folds the name into its version segment), so a custom
+# one, shown while $VIRTUAL_ENV is set. (detect_env_vars alone shows nothing
+# and with `when = true` shows always — it doesn't gate — hence the test.)
+# Name: the venv's --prompt if it has one, else its folder, else — for the
+# usual .venv / venv / env — the project folder that holds it.
+[custom.venv]
+when = 'test -n "$VIRTUAL_ENV"'
+shell = ["sh"]
+command = '''
+n=$(printf %s "${VIRTUAL_ENV_PROMPT:-}" | tr -d '() ')
+[ -n "$n" ] || n=${VIRTUAL_ENV##*/}
+case $n in .venv|venv|.env|env) n=${VIRTUAL_ENV%/*}; n=${n##*/} ;; esac
+printf %s "$n"
+'''
+symbol = "󰆧"           # a box: an isolated env (the python logo is the version's)
+style = "bg:accent_low fg:accent"
+format = '[ $symbol $output ]($style)'
 
 [fill]
 symbol = " "
@@ -144,4 +168,4 @@ format = '[󱎫 $duration ]($style)'
 [character]
 success_symbol = '[❯](bold green)'
 error_symbol   = '[❯](bold red)'
-vicmd_symbol   = '[❮](bold mauve)'
+vicmd_symbol   = '[❮](bold accent)'
