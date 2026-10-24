@@ -22,7 +22,7 @@ BACKUP="$HOME/.dotfiles-backup/$(date +%Y-%m-%d_%H-%M-%S)"
 # the config packages: each mirrors $HOME (hypr/.config/hypr/… -> ~/.config/hypr/…)
 PACKAGES=(hypr quickshell yazi ghostty mako fuzzel nwg waybar portals bat btop glow fastfetch tmux
           zsh bash git dl-popup aria2 systemd environment applications bin gtk vscode zathura
-          vscode-pdf-zathura nvim firefox-accent)
+          vscode-pdf-zathura nvim firefox-accent video-fullscreen)
 
 say() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
@@ -135,6 +135,13 @@ do_copy() {
     if [ ! -e "$HOME/.mozilla/native-messaging-hosts/rice_accent.json" ]; then
         say "Firefox extension: Rice Accent"
         sh "$HOME/.config/firefox-accent/build.sh" || warn "rice-accent Firefox build failed"
+    fi
+    # Video fullscreen (only a fullscreened VIDEO is drawn opaque): Firefox xpi
+    # to sign on AMO, Brave folder to load unpacked (~/.config/video-fullscreen/README.md);
+    # this builds both and registers the native host
+    if [ ! -e "$HOME/.mozilla/native-messaging-hosts/video_fullscreen.json" ]; then
+        say "Browser extension: Video fullscreen"
+        sh "$HOME/.config/video-fullscreen/build.sh" || warn "video-fullscreen build failed"
     fi
     # dl-popup's Firefox extension: same deal (sign the xpi on AMO, see
     # ~/.local/share/dl-popup/README.md); this builds it and registers the
