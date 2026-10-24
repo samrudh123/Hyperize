@@ -219,6 +219,6 @@ unset __conda_setup
 [[ -r ~/.config/dl-popup/terminal.zsh ]] && source ~/.config/dl-popup/terminal.zsh
 
 # ─── zoxide must init LAST (after syntax highlighting) ─────────────────────
-# Claude Code's shell snapshot drops zoxide's chpwd hook, which trips zoxide's doctor
-[[ -n $CLAUDECODE ]] && export _ZO_DOCTOR=0
-command -v zoxide >/dev/null && eval "$(zoxide init zsh --cmd cd)"
+# Claude Code's shell snapshot drops zoxide's chpwd hook (tripping zoxide's doctor) and keeps
+# functions but not env vars, so _ZO_DOCTOR=0 can't survive — skip zoxide there (builtin cd)
+[[ -z $CLAUDECODE ]] && command -v zoxide >/dev/null && eval "$(zoxide init zsh --cmd cd)"
