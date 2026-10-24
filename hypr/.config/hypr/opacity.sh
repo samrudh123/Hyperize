@@ -21,7 +21,8 @@
 # switching tab or Spotify changing song snapped back to the default.
 #
 # Whole-window opacity fades text along with the background, hence the MIN
-# floor. Fullscreen windows stay opaque (fullscreen_opacity is 1.0).
+# floor. Fullscreen / maximised windows follow it too: each rule's third value,
+# and decoration:fullscreen_opacity for untagged windows (keep it = DEFAULT).
 #
 # SUPER+SHIFT, not SHIFT alone: SHIFT+Scroll is horizontal scrolling in
 # browsers / VS Code / file managers and a global bind would steal it.
@@ -80,8 +81,9 @@ fi
 
 # ── which window is under the cursor ───────────────────────────────────────
 # Hit-test the cursor against windows on the workspaces actually on screen
-# (each monitor's active + special). Floating windows sit above tiled ones;
-# among overlapping candidates the most recently focused wins (lowest
+# (each monitor's active + special). Pinned windows sit on top, then a
+# fullscreen one (it covers the rest of its workspace), then floating, then
+# tiled; among overlapping candidates the most recently focused wins (lowest
 # focusHistoryID), which is the one drawn on top.
 read -r cx cy < <(hyprctl cursorpos | tr -d ',')
 visible=$(hyprctl monitors -j | jq -c '[.[] | .activeWorkspace.id, .specialWorkspace.id] | map(select(. != 0))')
@@ -89,7 +91,8 @@ win=$(hyprctl clients -j | jq -r --argjson x "$cx" --argjson y "$cy" --argjson w
     [ .[] | select(.mapped and (.hidden | not) and (.workspace.id as $w | $ws | index($w)))
           | select($x >= .at[0] and $x < .at[0] + .size[0]
                and $y >= .at[1] and $y < .at[1] + .size[1]) ]
-    | sort_by((if .floating or .pinned then 0 else 1 end), .focusHistoryID)
+    | sort_by((if .pinned then 0 elif .fullscreen == 2 then 1 elif .floating then 2 else 3 end),
+              .focusHistoryID)
     | first // empty
     | "\(.address)\t\(.class)\t\(.tags | map(select(test("^op[0-9]+$"))) | first // "")"')
 [ -n "$win" ] || exit 0                 # cursor is over the bar / wallpaper

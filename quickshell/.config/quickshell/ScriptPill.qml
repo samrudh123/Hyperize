@@ -6,6 +6,8 @@
 //   interval  ms between polls; 0 = the script is long-running and prints a
 //             line per change (restarted 5 s after it exits, like waybar's
 //             restart-interval)
+//   pokable   long-running script that re-polls on SIGUSR1 (hypr/barwatch.py),
+//             so a click still refreshes it at once
 //   colors    class -> text colour; bgs: class -> fill; first match wins,
 //             in the order the script lists its classes
 //   onLeft / onRight / onMiddle   shell commands (run via Hyprland exec)
@@ -21,6 +23,7 @@ Pill {
 
     required property var command
     property int interval: 2000
+    property bool pokable: false
     property var colors: ({})
     property var bgs: ({})
     property color defaultFg: Theme.text
@@ -58,6 +61,7 @@ Pill {
 
     function refresh() {
         if (sp.interval > 0 && !proc.running) proc.running = true;
+        else if (sp.interval === 0 && sp.pokable && proc.running) proc.signal(10);   // SIGUSR1
     }
 
     readonly property string shownText: textFilter(rawText)

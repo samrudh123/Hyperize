@@ -1,5 +1,9 @@
 #!/usr/bin/python3
-"""Pause the animated wallpaper only while the CURRENT workspace is fullscreen.
+"""Pause the animated wallpaper only while the CURRENT workspace is fullscreen
+— and only when that fullscreen window is fully opaque. Fullscreen windows
+follow the transparency settings (opacity-rules.conf's third value,
+decoration:fullscreen_opacity), so a see-through one keeps the wallpaper
+moving behind it.
 
 mpvpaper's own `-a full` pauses whenever ANY window is fullscreen: the window
 list it gets from the compositor (wlr-foreign-toplevel) carries no workspace,
@@ -17,6 +21,7 @@ and the bottom-bar pause button uses SIGSTOP, so the three do not fight.
 Still wallpapers (swaybg) have no socket; the send just fails quietly.
 """
 
+import fcntl
 import json
 import os
 import select
@@ -28,11 +33,12 @@ import time
 TRIGGERS = {
     "workspace", "workspacev2", "focusedmon", "focusedmonv2", "fullscreen",
     "openwindow", "closewindow", "movewindow", "movewindowv2",
-    "activewindowv2", "changefloatingmode",
+    "activewindowv2", "changefloatingmode", "configreloaded",
 }
 DEBOUNCE = 0.08
 # Re-assert the state now and then, so a wallpaper restarted while fullscreen
-# (new mpv, default unpaused) gets paused within a few seconds.
+# (new mpv, default unpaused) gets paused within a few seconds — and so an
+# opacity change on a fullscreen window (a tag; Hyprland sends no event) lands.
 RESYNC = 3.0
 
 DEBUG = os.environ.get("WALLPAPER_FS_DEBUG") == "1"
@@ -70,7 +76,22 @@ def request(text):
 
 
 def active_is_fullscreen():
-    return bool(json.loads(request("j/activeworkspace")).get("hasfullscreen"))
+    """True while the active workspace's fullscreen window hides the wallpaper
+    completely, i.e. is fullscreen AND renders at opacity 1."""
+    ws = json.loads(request("j/activeworkspace"))
+    if not ws.get("hasfullscreen"):
+        return False
+    win = next((c for c in json.loads(request("j/clients"))
+                if c.get("fullscreen") and c.get("workspace", {}).get("id") == ws.get("id")), None)
+    if win is None:
+        return True
+    if win["fullscreen"] != 2:      # maximised: the wallpaper still shows around the bars
+        return False
+    w = f"address:{win['address']}"
+    alpha = json.loads(request(f"j/getprop {w} opacity_fullscreen")).get("opacity_fullscreen", 1)
+    if not json.loads(request(f"j/getprop {w} opacity_fullscreen_override")).get("opacity_fullscreen_override"):
+        alpha *= json.loads(request("j/getoption decoration:fullscreen_opacity")).get("float", 1)
+    return alpha >= 0.999
 
 
 def set_pause(paused):
@@ -97,6 +118,14 @@ def sync(last):
 
 
 def main():
+    # one instance: a second exec (a reload, a manual start) would double the
+    # pause/resume traffic
+    lock = open(f"{RUN}/wallpaper-fullscreen.lock", "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("wallpaper-fullscreen: already running", file=sys.stderr)
+        return 1
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.connect(f"{BASE}/.socket2.sock")
     log("listening")
@@ -128,4 +157,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

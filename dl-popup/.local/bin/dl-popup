@@ -10,6 +10,7 @@
     dl-popup fetch curl|wget ARGS...                      a terminal download via JDownloader
                                                           (exit 3 = run the real tool instead)
     dl-popup bar / bar-toggle                             waybar module output / pause-resume all
+    dl-popup watch [SEC]                                  `bar` every SEC s (2), a line per change
 
 `add` prints one JSON line on stdout, which the Firefox extension acts on:
     {"action": "aria2" | "jd" | "firefox" | "preview" | "cancel" | "error", ...}
@@ -1101,6 +1102,45 @@ def bar():
                      ensure_ascii=False))
 
 
+def bar_watch(interval):
+    """`bar` every `interval` s in ONE process, printing only when the line
+    changes — the Quickshell pill. Polling `dl-popup bar` started a fresh
+    python3 every 2 s (~110 ms of CPU each, mostly start-up). SIGUSR1 polls
+    right away (the pill pokes after a click). Mirrors ~/.config/hypr/barwatch.py;
+    copied so this package stays self-contained."""
+    import contextlib
+    import ctypes
+    import io
+    import signal
+    global CFG
+    ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)   # PR_SET_PDEATHSIG
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGUSR1})          # sigtimedwait() takes it
+    last = cfg_mtime = None
+    while True:
+        try:                        # pick up config.json edits, as a fresh run would
+            m = os.stat(CONFIG).st_mtime_ns
+        except OSError:
+            m = None
+        if m != cfg_mtime:
+            cfg_mtime, CFG = m, load_config()
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                bar()
+            lines = buf.getvalue().strip().splitlines()
+            line = lines[-1] if lines else ""
+        except Exception:           # noqa: BLE001 — keep the last line, keep going
+            line = last
+        if line and line != last:
+            try:
+                print(line, flush=True)
+            except BrokenPipeError:
+                return
+            last = line
+        signal.sigtimedwait({signal.SIGUSR1}, interval)
+
+
 def bar_toggle():
     try:
         active = aria2("aria2.tellActive", ["gid"])
@@ -1127,6 +1167,8 @@ def main():
     f.add_argument("tool", choices=["curl", "wget"])
     f.add_argument("args", nargs=argparse.REMAINDER)
     sub.add_parser("bar")
+    w = sub.add_parser("watch")
+    w.add_argument("interval", nargs="?", type=float, default=2.0)
     sub.add_parser("bar-toggle")
     args = ap.parse_args()
 
@@ -1134,6 +1176,8 @@ def main():
         sys.exit(fetch(args.tool, args.args))
     elif args.cmd == "bar":
         bar()
+    elif args.cmd == "watch":
+        bar_watch(args.interval)
     elif args.cmd == "bar-toggle":
         bar_toggle()
     elif args.cmd == "status":
