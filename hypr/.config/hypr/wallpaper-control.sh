@@ -14,12 +14,21 @@
 
 STATE="$HOME/.config/hypr/wallpaper"
 
-pid=$(pgrep -x mpvpaper | head -1)
+# Polled every 2 s by the bar, so bash builtins only: pgrep is the one
+# process started (head/basename/ps/cut were ~8 forks a poll).
+pid=$(pgrep -x mpvpaper)
+pid=${pid%%$'\n'*}
 name=""
-[ -s "$STATE" ] && name=$(basename "$(head -1 "$STATE")")
+[ -s "$STATE" ] && { IFS= read -r name < "$STATE"; name=${name##*/}; }
 name="${name%.*}"
 
-paused() { [ -n "$pid" ] && [ "$(ps -o stat= -p "$pid" | cut -c1)" = "T" ]; }
+# /proc/PID/stat: "pid (comm) S ..." — S is T while SIGSTOPped
+paused() {
+    local st
+    [ -n "$pid" ] && IFS= read -r st 2>/dev/null < "/proc/$pid/stat" || return 1
+    st=${st##*) }
+    [ "${st%% *}" = T ]
+}
 
 case "$1" in
     toggle)

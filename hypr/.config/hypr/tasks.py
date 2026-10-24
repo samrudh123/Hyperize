@@ -2,6 +2,7 @@
 """Tasks — the bottom bar's to-do icon, its panel, and the daily log.
 
     tasks.py status          waybar JSON for custom/tasks (count + tooltip)
+    tasks.py watch [SEC]     `status` every SEC s (2), a line per change (bar pill)
     tasks.py toggle          open the panel, or close it if it is open
     tasks.py panel           open the panel
     tasks.py quickadd        one-line fuzzel prompt -> new task (right-click)
@@ -2011,6 +2012,9 @@ def main():
     rest = " ".join(args[1:])
     if cmd == "status":
         cmd_status()
+    elif cmd == "watch":                     # the bar: `status` on a timer, in one process
+        import barwatch
+        barwatch.run(cmd_status, float(args[1]) if len(args) > 1 else 2)
     elif cmd == "toggle":
         cmd_toggle()
     elif cmd == "panel":

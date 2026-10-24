@@ -93,6 +93,11 @@ def state():
 
 
 def cmd_watch():
+    # SIGTERM us when Quickshell exits: this only prints on change, so an idle
+    # watcher never hits a broken pipe and outlived every Quickshell restart.
+    import ctypes
+    import signal
+    ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)   # PR_SET_PDEATHSIG
     loop = GLib.MainLoop()
     pending = {"src": 0, "last": None}
 

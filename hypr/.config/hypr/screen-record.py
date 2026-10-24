@@ -217,16 +217,20 @@ def saved(file):
 
 # ── OBS (obs-websocket 5) ───────────────────────────────────────────────────
 
+def is_obs(pid):
+    try:
+        with open(f"/proc/{pid}/comm") as f:
+            return f.read().strip() == "obs"
+    except OSError:
+        return False
+
+
+def obs_pid():
+    return next((p for p in os.listdir("/proc") if p.isdigit() and is_obs(p)), None)
+
+
 def obs_running():
-    for pid in os.listdir("/proc"):
-        if pid.isdigit():
-            try:
-                with open(f"/proc/{pid}/comm") as f:
-                    if f.read().strip() == "obs":
-                        return True
-            except OSError:
-                pass
-    return False
+    return obs_pid() is not None
 
 
 class Obs:
@@ -310,11 +314,27 @@ def obs_cmd(action):
             o.close()
 
 
+def die_with_parent():
+    """SIGTERM us when Quickshell exits: watch() only prints on change, so an
+    idle one never hits a broken pipe and outlived every Quickshell restart."""
+    import ctypes
+    ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)   # PR_SET_PDEATHSIG
+
+
 # ── watch: one JSON line per change, for the pill ───────────────────────────
 
+OBS_SCAN = 5      # s between /proc sweeps for OBS in watch() while it is not running
+
+
 def watch():
+    die_with_parent()
     last = None
     obs = None
+    # Sweeping all of /proc every second (~450 opens) just to spot OBS was the
+    # bulk of this loop's CPU: once found, only its own pid is checked; while
+    # absent, the sweep runs every OBS_SCAN s (OBS takes longer than that to
+    # bring its websocket up anyway).
+    opid, next_scan = None, 0.0
     while True:
         out = {"state": "idle", "backend": "", "elapsed": 0, "obs": False,
                "audio": audio_mode(), "wf": wf_binary() is not None}
@@ -322,7 +342,11 @@ def watch():
         if st:
             out.update(state="recording", backend="wf", elapsed=int(time.time() - st["started"]),
                        mode=st.get("mode", "screen"))
-        if obs_running():
+        if opid and not is_obs(opid):
+            opid, next_scan = None, 0.0
+        if not opid and time.monotonic() >= next_scan:
+            opid, next_scan = obs_pid(), time.monotonic() + OBS_SCAN
+        if opid:
             out["obs"] = True
             if obs is None:
                 obs = obs_connect()

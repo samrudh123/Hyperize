@@ -688,6 +688,10 @@ def main():
     elif cmd == "phone":
         sys.exit(panel("phone"))
     elif cmd == "bar":
+        # SIGTERM us when Quickshell exits (bar() only prints on change, so an
+        # idle one would never hit a broken pipe and outlive the restart)
+        import ctypes
+        ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)   # PR_SET_PDEATHSIG
         try:
             bar()
         except (KeyboardInterrupt, BrokenPipeError):

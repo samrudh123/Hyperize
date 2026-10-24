@@ -94,8 +94,9 @@ PanelWindow {
         }
 
         ScriptPill {
-            command: [Theme.hypr + "/spotify-remote.py", "status"]
-            interval: 3000
+            command: [Theme.hypr + "/spotify-remote.py", "watch", "3"]
+            interval: 0
+            pokable: true
             defaultFg: Theme.green
             colors: ({ login: Theme.overlay0, paused: Theme.subtext0 })
             padLeft: 12
@@ -195,8 +196,11 @@ PanelWindow {
             // here from the top bar 2026-10-11.)
             ScriptPill {
                 id: downloads
-                command: [Theme.home + "/.local/bin/dl-popup", "bar"]
-                interval: 2000
+                // long-running: `bar` every 2 s in one process (pokable: a
+                // click re-polls at once)
+                command: [Theme.home + "/.local/bin/dl-popup", "watch", "2"]
+                interval: 0
+                pokable: true
                 textFilter: t => t.replace(/\s*[▰▱]+/, "")
                 defaultFg: Theme.sapphire
                 colors: ({ paused: Theme.subtext0 })
@@ -215,8 +219,9 @@ PanelWindow {
             Item { width: 6; height: 1; visible: downloads.shown }
 
             ScriptPill {
-                command: [Theme.hypr + "/tasks.py", "status"]
-                interval: 2000
+                command: [Theme.hypr + "/tasks.py", "watch", "2"]
+                interval: 0
+                pokable: true
                 colors: ({ pending: Theme.peach, "due-soon": Theme.yellow, overdue: Theme.red, clear: Theme.green, empty: Theme.overlay0, error: Theme.red })
                 defaultBg: Theme.alpha(Theme.surface0, 0.7)
                 // hover fills the pill in its text colour with dark text

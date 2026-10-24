@@ -4,6 +4,7 @@
     spotify-remote.py mpris         the bridge (exec-once from hyprland.conf)
     spotify-remote.py status        JSON for waybar's custom/spotify-remote —
                                     only ever a "log in" prompt now
+    spotify-remote.py watch [SEC]   `status` every SEC s (3), a line per change (bar pill)
     spotify-remote.py login         one-time browser login
     spotify-remote.py toggle        play / pause
     spotify-remote.py click         log in if needed, else toggle (bar on-click)
@@ -1280,6 +1281,9 @@ def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
     if cmd == "status":
         status()
+    elif cmd == "watch":                     # the bar: `status` on a timer, in one process
+        import barwatch
+        barwatch.run(status, float(sys.argv[2]) if len(sys.argv) > 2 else 3)
     elif cmd == "mpris":
         sys.exit(bridge())
     elif cmd == "login":
