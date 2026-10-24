@@ -32,3 +32,7 @@ firefox-accent/.config/firefox-accent/*.xpi
 
 # dl-popup: the .xpi is build.sh's output (signed copies come from AMO)
 dl-popup/.local/share/dl-popup/*.xpi
+
+# video-fullscreen: build.sh's outputs (xpi to sign, unpacked Chromium copy)
+video-fullscreen/.config/video-fullscreen/*.xpi
+video-fullscreen/.config/video-fullscreen/chromium/
