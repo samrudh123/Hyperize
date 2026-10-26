@@ -4,7 +4,7 @@
 #   ./install.sh                 everything below, in order
 #   ./install.sh packages        apt install packages/apt.txt          (sudo)
 #   ./install.sh build           fonts, yazi, Quickshell, mpvpaper, file-picker
-#                                portal, nwg-drawer into ~/.local      (~20 min)
+#                                portal, nwg-drawer, Zen Browser into ~/.local (~20 min)
 #   ./install.sh copy            copy the configs into ~, seed the per-machine
 #                                files (aria2, OBS, spicetify…)
 #   ./install.sh system          systemd user units, zsh as login shell
@@ -22,7 +22,7 @@ BACKUP="$HOME/.dotfiles-backup/$(date +%Y-%m-%d_%H-%M-%S)"
 # the config packages: each mirrors $HOME (hypr/.config/hypr/… -> ~/.config/hypr/…)
 PACKAGES=(hypr quickshell yazi ghostty mako fuzzel nwg waybar portals bat btop glow fastfetch tmux
           zsh bash git dl-popup aria2 systemd environment applications bin gtk vscode zathura
-          vscode-pdf-zathura nvim firefox-accent video-fullscreen)
+          vscode-pdf-zathura nvim firefox-accent video-fullscreen zen)
 
 say() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
@@ -37,7 +37,7 @@ do_packages() {
 
 # ── builds ──────────────────────────────────────────────────────────────────
 do_build() {
-    for b in fonts yazi quickshell mpvpaper termfilechooser nwg; do
+    for b in fonts yazi quickshell mpvpaper termfilechooser nwg zen; do
         say "build: $b"
         bash "$REPO/build/$b.sh"
     done
