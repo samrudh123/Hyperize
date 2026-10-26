@@ -1,0 +1,82 @@
+/* Zen Browser in-content pages — Catppuccin Mocha + the desktop accent.
+ *
+ * ⚠ GENERATED. In set-accent.sh's manifest; run
+ *     ~/.config/hypr/set-accent.sh --resync
+ * after editing, or the next accent change reverts it.
+ *
+ * LIVE: each colour is var(--rice-<role>, <hex this file was rendered with>).
+ * ~/.config/zen-rice/rice-live.cfg registers a small sheet defining --rice-*
+ * on Zen's own pages whenever the accent / theme changes, so the new tab
+ * page, settings and about: pages recolour without a restart.
+ *
+ * userChrome.css styles the browser frame; this file styles what is INSIDE
+ * the viewport, and only for the browser's own pages. It deliberately does not
+ * touch ordinary websites — recolouring arbitrary pages breaks them.
+ */
+
+:root {
+    --ctp-base:     #1e1e2e;
+    --ctp-mantle:   #181825;
+    --ctp-surface0: #313244;
+    --ctp-surface2: #585b70;
+    --ctp-text:     #cdd6f4;
+    --ctp-accent:   #@@ACCENT@@;
+}
+
+/* Blank and new-tab pages. Without this there is a white flash on every new
+ * tab, which is the single most visible break in an otherwise dark desktop —
+ * ui.systemUsesDarkTheme in user.js handles the styled about: pages, but not
+ * the bare background these paint before content loads. */
+@-moz-document url("about:blank"),
+               url("about:newtab"),
+               url("about:home"),
+               url("about:privatebrowsing") {
+    :root, body { background-color: var(--rice-base, #1e1e2e) !important; }
+}
+
+/* Scrollbars on Firefox's own pages. Left off ordinary websites on purpose:
+ * scrollbar-color on arbitrary sites overrides their design and is a common
+ * cause of invisible scrollbars on light pages. */
+@-moz-document url-prefix("about:") {
+    :root { scrollbar-color: var(--rice-surface2, #585b70) var(--rice-base, #1e1e2e) !important; }
+}
+
+/* Accent the links on Firefox's own pages so about:config, about:support and
+ * the error pages agree with the chrome around them. */
+@-moz-document url-prefix("about:"), url-prefix("chrome://") {
+    a, a:visited { color: var(--rice-accent, #@@ACCENT@@) !important; }
+}
+
+/* ── Firefox's own pages (settings, add-ons, new tab, about:…) ─────────
+ * They are built from the same design tokens, so setting those recolours
+ * every one of them: Mocha surfaces, the desktop accent for the "primary"
+ * colour (buttons, toggles, links, focus rings). */
+@-moz-document url-prefix("about:"), url-prefix("chrome://") {
+    :root {
+        --background-color-canvas:       var(--rice-base, #1e1e2e) !important;
+        --background-color-box:          var(--rice-mantle, #181825) !important;
+        --in-content-page-background:    var(--rice-base, #1e1e2e) !important;
+        --in-content-box-background:     var(--rice-mantle, #181825) !important;
+        --in-content-box-border-color:   var(--rice-surface0, #313244) !important;
+        --in-content-page-color:         var(--rice-text, #cdd6f4) !important;
+        --text-color:                    var(--rice-text, #cdd6f4) !important;
+        --text-color-deemphasized:       var(--rice-subtext0, #a6adc8) !important;
+        --border-color:                  var(--rice-surface0, #313244) !important;
+        --border-color-card:             var(--rice-surface0, #313244) !important;
+        --color-accent-primary:          var(--rice-accent, #@@ACCENT@@) !important;
+        --color-accent-primary-hover:    color-mix(in srgb, var(--rice-accent, #@@ACCENT@@) 85%, white) !important;
+        --color-accent-primary-active:   color-mix(in srgb, var(--rice-accent, #@@ACCENT@@) 75%, white) !important;
+        --button-text-color-primary:     var(--rice-crust, #11111b) !important;
+        --button-background-color:       var(--rice-surface0, #313244) !important;
+        --button-background-color-hover: var(--rice-surface1, #45475a) !important;
+        --focus-outline-color:           var(--rice-accent, #@@ACCENT@@) !important;
+        --link-color:                    var(--rice-accent, #@@ACCENT@@) !important;
+        --link-color-hover:              color-mix(in srgb, var(--rice-accent, #@@ACCENT@@) 85%, white) !important;
+        --newtab-background-color:       var(--rice-base, #1e1e2e) !important;
+        --newtab-background-color-secondary: var(--rice-surface0, #313244) !important;
+        --newtab-text-primary-color:     var(--rice-text, #cdd6f4) !important;
+        --newtab-primary-action-background: var(--rice-accent, #@@ACCENT@@) !important;
+        --newtab-element-hover-color:    var(--rice-surface0, #313244) !important;
+        --newtab-wallpaper-color:        var(--rice-base, #1e1e2e) !important;
+    }
+}
