@@ -105,7 +105,14 @@ GLYPHS = {
     "YouTube Music":          ("md-music", "pink"),
     "com.github.th_ch.youtube_music": ("md-music", "pink"),
     "mpv":                    ("md-play_circle", "mauve"),
+    "zen":                    ("shape-zen", "text"),             # Zen Browser: its own logo, cream like the real one
     "dock-trash":             ("md-trash_can_outline", "subtext0"),
+}
+# Logos the Nerd Font has no glyph for, drawn here ("shape-…" in GLYPHS):
+# concentric rings as (inner, outer) radius, a fraction of the outermost.
+# Zen's three rings, measured off its own 128 px icon.
+SHAPES = {
+    "shape-zen": [(0.31, 0.39), (0.55, 0.67), (0.82, 1.0)],
 }
 # Prefix rules (dock-places.sh names disks dock-disk-<label>).
 PREFIX_GLYPHS = [("dock-disk-", ("md-harddisk", "subtext0"))]
@@ -136,7 +143,18 @@ class Glyphs:
         return self.cmap.get(ord(ch))
 
 
+def rings_svg(rings, colour, fill=FILL):
+    c, big = SIZE / 2, SIZE * fill / 2
+    d = ""
+    for r in (f * big for ring in rings for f in ring):
+        d += f"M{c - r:.3f} {c:.3f}a{r:.3f} {r:.3f} 0 1 0 {2 * r:.3f} 0a{r:.3f} {r:.3f} 0 1 0 {-2 * r:.3f} 0Z"
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{SIZE}" height="{SIZE}" '
+            f'viewBox="0 0 {SIZE} {SIZE}"><path fill="{colour}" fill-rule="evenodd" d="{d}"/></svg>\n')
+
+
 def glyph_svg(glyphs, name, colour, fill=FILL):
+    if name in SHAPES:
+        return rings_svg(SHAPES[name], colour, fill)
     d, (x0, y0, x1, y1) = glyphs.path(name)
     w, h = x1 - x0, y1 - y0
     s = SIZE * fill / max(w, h)
