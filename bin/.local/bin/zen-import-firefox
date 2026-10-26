@@ -87,6 +87,11 @@ cat >> "$dst/user.js" <<'EOF'
 // over by zen-import-firefox (browser.newtabpage.pinned) show up.
 user_pref("browser.newtabpage.activity-stream.feeds.topsites", true);
 user_pref("zen.urlbar.replace-newtab", false);
+// The rice's own extensions (mpris-position, …) unsigned, straight from
+// their source folders — no AMO round trip for each new version. Zen honours
+// this (built without MOZ_REQUIRE_SIGNING; release Firefox ignores it). Any
+// other unsigned add-on still needs you to accept its install prompt.
+user_pref("xpinstall.signatures.required", false);
 EOF
 
 # Zen's profiles.ini: this profile, the default (an existing one is kept as
