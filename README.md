@@ -37,12 +37,15 @@ After it finishes:
   `git config --file ~/.gitconfig.local user.email you@example.com`
 - **Check the per-machine settings** below — GPU driver, monitor scale.
 - Zen Browser is the browser (`SUPER+B`, the dock, "Open YouTube"; Firefox-based,
-  `build/zen.sh` installs it into `~/.local/opt/zen`). Make it the system
-  default with `xdg-settings set default-web-browser zen.desktop`. With Firefox
-  and Zen closed, `zen-import-firefox` copies your Firefox profile into Zen —
-  bookmarks, history, cookies, passwords, extensions — and themes Zen's chrome
-  with the accent. The extensions' native hosts are shared (Zen reads
-  `~/.mozilla/native-messaging-hosts` too).
+  `build/zen.sh` installs it into `~/.local/opt/zen`), and the only one the
+  rice themes and builds extensions for. Make it the system default with
+  `xdg-settings set default-web-browser zen.desktop`. Coming from Firefox: with
+  both closed, `zen-import-firefox` copies your Firefox profile into Zen —
+  bookmarks, history, cookies, site data, passwords, extensions — and themes
+  Zen's chrome with the accent. The rice's own extensions are then installed
+  unsigned (no AMO signing): re-run their `build.sh`, or
+  `zen-install-xpi file.xpi`. Their native hosts live in
+  `~/.mozilla/native-messaging-hosts`, which Zen reads.
 - OBS: open it once and pick the screen in each capture prompt (tick "allow
   restore token") — the portal remembers it after that.
 - Wallpapers: `install.sh` downloads them into `~/Pictures/wallpapers` from
@@ -78,13 +81,14 @@ Files of yours that a copy would overwrite are moved to
 | `quickshell` | top bar, bottom bar, dock, wallpaper / workspace / theme pickers, clipboard and recorder |
 | `yazi` | file manager config, plugins, grid view (`Alt+G`) |
 | `ghostty` `mako` `fuzzel` `tmux` `bat` `btop` `glow` `fastfetch` `zathura` `nvim` | app configs |
-| `firefox-accent` | Firefox extension + native host: the toolbar/tabs/menus follow the theme and accent live (`copy` builds it and registers the host; sign the xpi on AMO, see its README) |
-| `video-fullscreen` | Firefox + Brave extension and native host (`hypr/video-fullscreen.py`): only a video put fullscreen with the player's button is drawn opaque, F11 / SUPER+F keep the transparency; YouTube Music via MPRIS (`copy` builds it and registers the host; sign the xpi on AMO / load `chromium/` unpacked in Brave, see its README) |
-| `vscode-pdf-zathura` | VS Code extension: PDFs open in a zathura-style viewer themed from `zathurarc` (`copy` builds and installs it); `firefox/` is the same viewer as a Firefox extension (sign the xpi on AMO, see its README) |
+| `zen` | Zen's live theme + accent (an autoconfig script, `build/zen.sh` installs it) — see `zen/.config/zen-rice/README.md` |
+| `firefox-accent` | the old Firefox-only live-accent extension; no longer installed (Zen has `zen` instead) |
+| `video-fullscreen` | Zen + Brave extension and native host (`hypr/video-fullscreen.py`): only a video put fullscreen with the player's button is drawn opaque, F11 / SUPER+F keep the transparency; YouTube Music via MPRIS (`copy` builds it, installs it into Zen and registers the host; load `chromium/` unpacked in Brave, see its README) |
+| `vscode-pdf-zathura` | VS Code extension: PDFs open in a zathura-style viewer themed from `zathurarc` (`copy` builds and installs it); `firefox/` is the same viewer as a Zen extension (its `build.sh` installs it into Zen) |
 | `nwg` `waybar` | the app grid, and the old waybar setup (kept as a fallback) |
 | `portals` | routes file dialogs to yazi, screen sharing to the Hyprland portal |
 | `zsh` `bash` `git` | shell, prompt (starship), git (identity in `~/.gitconfig.local`) |
-| `dl-popup` `aria2` | the download popup, its Firefox extension + native host (`.local/share/dl-popup`, sign the xpi on AMO, see its README) and its aria2 daemon hooks |
+| `dl-popup` `aria2` | the download popup, its Zen extension + native host (`.local/share/dl-popup`, `build.sh` installs it into Zen) and its aria2 daemon hooks |
 | `systemd` `environment` `applications` `bin` `gtk` `vscode` | user units, env, `.desktop` overrides, small scripts, GTK, VS Code settings |
 | `notes` | `Hyprland_CLAUDE.md` — the long-form notes: how it all works, landmines (not copied; read it here) |
 | `extras/` | seeded **once** on install, never overwritten later: OBS profile/scenes/theme, spicetify, aria2.conf, dl-popup config — apps rewrite these files themselves, or they hold a per-machine secret |

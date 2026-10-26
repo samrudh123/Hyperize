@@ -22,7 +22,7 @@ BACKUP="$HOME/.dotfiles-backup/$(date +%Y-%m-%d_%H-%M-%S)"
 # the config packages: each mirrors $HOME (hypr/.config/hypr/… -> ~/.config/hypr/…)
 PACKAGES=(hypr quickshell yazi ghostty mako fuzzel nwg waybar portals bat btop glow fastfetch tmux
           zsh bash git dl-popup aria2 systemd environment applications bin gtk vscode zathura
-          vscode-pdf-zathura nvim firefox-accent video-fullscreen zen)
+          vscode-pdf-zathura nvim video-fullscreen zen)
 
 say() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
@@ -123,32 +123,25 @@ do_copy() {
         say "VS Code extension: PDF in Zathura"
         sh "$HOME/.config/vscode-pdf-zathura/build.sh" || warn "pdf-zathura extension did not install"
     fi
-    # ...and its Firefox twin: the xpi still has to be signed on AMO (see its
-    # README); this builds it and registers the native host that themes it
+    # The browser extensions below: each build.sh packs the xpi, installs it
+    # into Zen unsigned (zen-install-xpi — needs Zen's profile, so after
+    # zen-import-firefox re-run a build.sh to install it) and registers its
+    # native host in ~/.mozilla/native-messaging-hosts, which Zen reads too.
+    # ...the PDF viewer's browser twin (same viewer, themed from zathurarc)
     if [ ! -e "$HOME/.mozilla/native-messaging-hosts/pdf_zathura.json" ]; then
-        say "Firefox extension: PDF in Zathura"
-        sh "$HOME/.config/vscode-pdf-zathura/firefox/build.sh" || warn "pdf-zathura Firefox build failed"
+        say "Zen extension: PDF in Zathura"
+        sh "$HOME/.config/vscode-pdf-zathura/firefox/build.sh" || warn "pdf-zathura browser build failed"
     fi
-    # Rice Accent (Firefox follows the accent live): same deal — sign the xpi
-    # on AMO (~/.config/firefox-accent/README.md); this builds it and
-    # registers the native host that feeds it the theme
-    if [ ! -e "$HOME/.mozilla/native-messaging-hosts/rice_accent.json" ]; then
-        say "Firefox extension: Rice Accent"
-        sh "$HOME/.config/firefox-accent/build.sh" || warn "rice-accent Firefox build failed"
-    fi
-    # Video fullscreen (only a fullscreened VIDEO is drawn opaque): Firefox xpi
-    # to sign on AMO, Brave folder to load unpacked (~/.config/video-fullscreen/README.md);
-    # this builds both and registers the native host
+    # Video fullscreen (only a fullscreened VIDEO is drawn opaque): the Zen
+    # xpi, plus a Brave folder to load unpacked (~/.config/video-fullscreen/README.md)
     if [ ! -e "$HOME/.mozilla/native-messaging-hosts/video_fullscreen.json" ]; then
         say "Browser extension: Video fullscreen"
         sh "$HOME/.config/video-fullscreen/build.sh" || warn "video-fullscreen build failed"
     fi
-    # dl-popup's Firefox extension: same deal (sign the xpi on AMO, see
-    # ~/.local/share/dl-popup/README.md); this builds it and registers the
-    # native host that hands its downloads to the popup
+    # dl-popup's extension: hands the browser's downloads to the popup
     if [ ! -e "$HOME/.mozilla/native-messaging-hosts/dl_popup.json" ]; then
-        say "Firefox extension: dl-popup"
-        sh "$HOME/.local/share/dl-popup/build.sh" || warn "dl-popup Firefox build failed"
+        say "Zen extension: dl-popup"
+        sh "$HOME/.local/share/dl-popup/build.sh" || warn "dl-popup browser build failed"
     fi
 }
 

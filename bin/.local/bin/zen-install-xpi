@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Install the rice's own extensions into Zen straight from their builds —
+unsigned, no AMO round trip.
+
+    zen-install-xpi FILE.xpi…      install / update each one
+
+Zen is built without MOZ_REQUIRE_SIGNING, so a profile with
+xpinstall.signatures.required = false (zen-import-firefox sets it) loads
+unsigned add-ons. Each xpi is put in the profile's extensions/ folder under
+its add-on id — the same place a normal install puts it — and Zen picks the
+new file up the next time it starts (a running Zen keeps the copy it has
+open; the file is swapped, not overwritten). The add-on's settings and data
+stay: Zen sees an update of the same id.
+
+The extensions' build.sh scripts call this after packing their xpi.
+ZEN_PROFILE=/path picks the profile (default: Zen's default profile).
+"""
+
+import configparser
+import json
+import os
+import shutil
+import sys
+import zipfile
+
+ZEN = os.path.expanduser("~/.zen")
+
+
+def profile():
+    if os.environ.get("ZEN_PROFILE"):
+        return os.environ["ZEN_PROFILE"]
+    cp = configparser.ConfigParser(interpolation=None, strict=False)
+    cp.optionxform = str
+    if not cp.read(os.path.join(ZEN, "profiles.ini")):
+        return None
+    # the profile this install uses ([Install<hash>]), else the Default=1 one
+    for s in cp.sections():
+        if s.startswith("Install") and cp[s].get("Default"):
+            return os.path.join(ZEN, cp[s]["Default"])
+    for s in cp.sections():
+        if cp[s].get("Default") == "1" and cp[s].get("Path"):
+            p = cp[s]["Path"]
+            return os.path.join(ZEN, p) if cp[s].get("IsRelative", "1") == "1" else p
+    return None
+
+
+def addon_id(xpi):
+    with zipfile.ZipFile(xpi) as z:
+        m = json.loads(z.read("manifest.json"))
+    for key in ("browser_specific_settings", "applications"):
+        gid = m.get(key, {}).get("gecko", {}).get("id")
+        if gid:
+            return gid, m.get("version", "?")
+    raise ValueError("no gecko id in manifest.json")
+
+
+def unsigned_ok(prof):
+    for name in ("user.js", "prefs.js"):
+        try:
+            with open(os.path.join(prof, name)) as f:
+                if '"xpinstall.signatures.required", false' in f.read():
+                    return True
+        except OSError:
+            pass
+    return False
+
+
+def zen_running():
+    for pid in os.listdir("/proc"):
+        try:
+            with open(f"/proc/{pid}/comm") as f:
+                if f.read().strip() == "zen":
+                    return True
+        except OSError:
+            pass
+    return False
+
+
+def main():
+    xpis = sys.argv[1:]
+    if not xpis or xpis[0] in ("-h", "--help"):
+        print(__doc__.strip())
+        return 0 if xpis else 2
+    prof = profile()
+    if not prof or not os.path.isdir(prof):
+        print("zen-install-xpi: no Zen profile yet (run zen-import-firefox, or start Zen once) — skipped",
+              file=sys.stderr)
+        return 0
+    if not unsigned_ok(prof):
+        print(f"zen-install-xpi: {prof} doesn't allow unsigned add-ons — add\n"
+              '    user_pref("xpinstall.signatures.required", false);\n'
+              "to its user.js first", file=sys.stderr)
+        return 1
+    ext = os.path.join(prof, "extensions")
+    os.makedirs(ext, exist_ok=True)
+    for xpi in xpis:
+        gid, version = addon_id(xpi)
+        dst = os.path.join(ext, gid + ".xpi")
+        shutil.copyfile(xpi, dst + ".tmp")
+        os.replace(dst + ".tmp", dst)          # new inode: a running Zen keeps its open copy
+        print(f"installed {gid} {version} into Zen")
+    print("loads when Zen next starts" + (" (it's running: restart it)" if zen_running() else ""))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

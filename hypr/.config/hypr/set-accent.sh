@@ -125,8 +125,6 @@ btop-mocha.theme	.config/btop/themes/catppuccin_mocha.theme
 starship.toml	.config/starship.toml
 tmux.conf	.config/tmux/tmux.conf
 vscode-settings.json	.config/Code/User/settings.json
-firefox-userChrome.css	.mozilla/firefox/er3XIFsH.Profile 1/chrome/userChrome.css
-firefox-userContent.css	.mozilla/firefox/er3XIFsH.Profile 1/chrome/userContent.css
 zen-userChrome.css	.zen/imported-firefox/chrome/userChrome.css
 zen-userContent.css	.zen/imported-firefox/chrome/userContent.css
 ghostty-config	.config/ghostty/config

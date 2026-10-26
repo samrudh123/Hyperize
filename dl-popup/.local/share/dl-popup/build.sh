@@ -1,13 +1,16 @@
 #!/bin/sh
-# Pack the Firefox extension (dl-popup.xpi) and register the native host
-# (native-host.py) it talks to. Release Firefox only installs signed add-ons:
-# see README.md.
+# Pack the browser extension (dl-popup.xpi), install it into Zen and register
+# the native host (native-host.py) it talks to. Release Firefox only installs
+# signed add-ons: see README.md.
 set -e
 cd "$(dirname "$0")"
 here=$PWD
 rm -f dl-popup.xpi
 (cd firefox-extension && zip -qr "$here/dl-popup.xpi" .)
 echo "built $here/dl-popup.xpi"
+# Zen (the browser): installed unsigned, straight from this build — no AMO
+# signing needed there (zen-install-xpi; loads when Zen next starts)
+[ -x "$HOME/.local/bin/zen-install-xpi" ] && "$HOME/.local/bin/zen-install-xpi" "$here/dl-popup.xpi" || true
 
 hosts="$HOME/.mozilla/native-messaging-hosts"
 mkdir -p "$hosts"

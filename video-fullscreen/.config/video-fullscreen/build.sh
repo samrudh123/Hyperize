@@ -1,13 +1,14 @@
 #!/bin/sh
 # Build the "Video fullscreen" extension for both browsers and register the
-# native host (~/.config/hypr/video-fullscreen.py) with each. See README.md
-# for the one-time install (Firefox: sign on AMO; Brave: load unpacked).
+# native host (~/.config/hypr/video-fullscreen.py) with each. Zen gets the xpi
+# installed unsigned right here; see README.md for the others (Firefox: sign
+# on AMO; Brave: load unpacked).
 set -e
 cd "$(dirname "$0")"
 here=$PWD
 host="$HOME/.config/hypr/video-fullscreen.py"
 
-# Firefox: an xpi (release Firefox installs only signed add-ons)
+# Zen / Firefox: an xpi (release Firefox installs only signed add-ons)
 rm -f video-fullscreen.xpi
 tmp=$(mktemp -d)
 cp content.js background.js icon.svg "$tmp"/
@@ -15,6 +16,9 @@ cp manifest.firefox.json "$tmp"/manifest.json
 (cd "$tmp" && zip -q "$here/video-fullscreen.xpi" manifest.json content.js background.js icon.svg)
 rm -rf "$tmp"
 echo "built $here/video-fullscreen.xpi"
+# Zen (the browser): installed unsigned, straight from this build — no AMO
+# signing needed there (zen-install-xpi; loads when Zen next starts)
+[ -x "$HOME/.local/bin/zen-install-xpi" ] && "$HOME/.local/bin/zen-install-xpi" "$here/video-fullscreen.xpi" || true
 
 # Brave / Chromium: an unpacked folder (brave://extensions -> Load unpacked).
 # manifest "key" pins the ID, so the host manifest below can name it.

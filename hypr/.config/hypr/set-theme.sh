@@ -15,13 +15,13 @@
 #     palette live (Theme.qml), no restart
 #   * set-accent.sh renders every template through the palette (Hyprland,
 #     hyprlock, mako, fuzzel, GTK4/libadwaita CSS, yazi, btop, tmux, starship,
-#     VS Code, Firefox, OBS, Ghostty, the waybar fallback …) and runs
+#     VS Code, Zen (live, via its autoconfig), OBS, Ghostty, the waybar fallback …) and runs
 #     app-accent.sh, which follows the theme too (GTK3 theme, KDE/Qt colours,
 #     Spotify, YouTube Music, Discord, LibreOffice)
 #   * then the things that only re-read on a nudge: Hyprland (reload — the
 #     inactive border / shadow are in the rendered config), Ghostty (SIGUSR2
 #     reloads its config), bat's theme cache, yazi's preview theme.
-# Apps that read colours only at start (Firefox, VS Code's window chrome until
+# Apps that read colours only at start (VS Code's window chrome until
 # it re-reads settings, KDE apps, LibreOffice) change on their next start.
 
 set -u
