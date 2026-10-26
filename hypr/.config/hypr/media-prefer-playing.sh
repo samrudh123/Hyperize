@@ -38,12 +38,18 @@ superseded() {
         org.mpris.MediaPlayer2 Identity 2>/dev/null | grep -qi '^s "spotify'
 }
 
-# Firefox's own player while the mpris-position extension's per-tab players
-# (firefox.tab_<id>) cover its YouTube tab — same rule as now-playing.py.
+# Firefox's (or Zen's) own player while the mpris-position extension's per-tab
+# players (firefox.tab_<id> / zen.tab_<id>) cover its YouTube tab — same rule
+# as now-playing.py.
 ff_covered() {
     local p=$1; shift
     [[ $p == firefox.instance* ]] || return 1
-    printf '%s\n' "$@" | grep -q '^firefox\.tab_' || return 1
+    # Zen's own player is ALSO firefox.instance_* (Gecko hard-codes the name);
+    # its Identity is "Mozilla zen" and its tab players are zen.tab_<id>
+    local b=firefox
+    busctl --user get-property "org.mpris.MediaPlayer2.$p" /org/mpris/MediaPlayer2 \
+        org.mpris.MediaPlayer2 Identity 2>/dev/null | grep -qi zen && b=zen
+    printf '%s\n' "$@" | grep -q "^$b\.tab_" || return 1
     playerctl -p "$p" metadata xesam:url 2>/dev/null | grep -q 'youtube\.com'
 }
 

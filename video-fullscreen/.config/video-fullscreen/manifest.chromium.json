@@ -1,17 +1,32 @@
 {
   "manifest_version": 3,
   "name": "Video fullscreen",
-  "version": "1.0.0",
-  "description": "Tells Hyprland when a VIDEO is fullscreen (the player's button, not F11), so only then is the window drawn fully opaque. Native host: ~/.config/hypr/video-fullscreen.py.",
+  "version": "1.1.0",
+  "description": "Tells Hyprland when a VIDEO is fullscreen (a player's fullscreen button, embedded players included; not F11), so only then is the window drawn fully opaque. Native host: ~/.config/hypr/video-fullscreen.py.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlHJfohJpylvQ3nfI5DAHZqlFXwjEc2PmdPYJMhnV2gHIXpvKfhUfRSFLuRucfBBFsrBFYDVFfgOg40TxprNHA6nXn1pkILT3c0ac0OOh9h3TG3HKlHbsPbIFrgGxxSJvwBAVfrf6LrH4MWiUs8DpHON4tSHiHJ6iLux2v9J9eUYSrqgLTlpHGVp/vXej1FSrySTgUSjV5Hqx9XSctgTDiRQFRnJu+B/YNvT5Te5K8/Y0iLdlwl4wKe6jsWoIuSKPSWO+ZGziM8/kUqWMlS/t2OK2ELvapcpdjHC3ZLI9gQSNUzCgUCT/c5IGyq1PYA9x/jm3k7nz9ojhu+UjyUjSCQIDAQAB",
-  "permissions": ["nativeMessaging"],
-  "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["content.js"],
-    "all_frames": true,
-    "match_about_blank": true,
-    "run_at": "document_start"
-  }],
-  "background": { "service_worker": "background.js" },
-  "icons": { "128": "icon.png" }
+  "permissions": [
+    "nativeMessaging",
+    "scripting"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "all_frames": false,
+      "run_at": "document_start"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "128": "icon.png"
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ]
 }

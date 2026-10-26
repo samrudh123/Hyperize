@@ -59,20 +59,54 @@ PanelWindow {
     }
 
     // ── left: media ─────────────────────────────────────────────────────────
+    // The players' titles are cut short ("…") so the group ends left of
+    // where the centre island wants to sit — two players (with ⇄ ⏮ ⏭ ⟲ each)
+    // used to push the focus timer off centre, or off the bar. Shared fairly:
+    // a short title keeps all of its width, the other gets the rest.
+    readonly property real minTitle: 90
+    readonly property real leftRoom: {
+        const c = centreGroup;
+        const want = Math.min((bar.width - c.width) / 2, rightGroup.x - 12 - c.width);
+        return want - 12 - leftGroup.x;
+    }
+    // the left group's width without the two titles — summed from where
+    // each part is heading, not from the laid-out widths (those lag a frame
+    // behind and fed back into the titles: the row jittered and overlapped)
+    readonly property real leftFixed: 2 * leftGroup.pad
+        + (local.visible ? local.chromeWidth : 0) + visLocal.targetWidth
+        + (local.visible && remote.visible ? 6 : 0)
+        + (remote.visible ? remote.chromeWidth : 0) + visRemote.targetWidth
+        + nothingPill.implicitWidth + spotifyLogin.implicitWidth + menuChevron.implicitWidth
+    readonly property var titleWidths: {
+        const a = local.visible ? local.naturalTextWidth : 0;
+        const b = remote.visible ? remote.naturalTextWidth : 0;
+        const room = Math.max(leftRoom - leftFixed,
+                              (local.visible ? minTitle : 0) + (remote.visible ? minTitle : 0));
+        if (a + b <= room) return [a, b];
+        if (!remote.visible) return [room, 0];
+        if (!local.visible) return [0, room];
+        const half = room / 2;
+        if (a <= half) return [a, room - a];
+        if (b <= half) return [room - b, b];
+        return [half, half];
+    }
+
     Island {
         id: leftGroup
         x: Theme.islands ? 10 : 6
         anchors.verticalCenter: parent.verticalCenter
         spacing: 0
 
-        NowPlaying { id: local; scope: "local" }
+        NowPlaying { id: local; scope: "local"; maxTextWidth: bar.titleWidths[0] }
         Visualizer {
+            id: visLocal
             active: local.visible && local.playing
             tint: local.tint
         }
         Item { width: 6; height: 1; visible: local.visible && remote.visible }
-        NowPlaying { id: remote; scope: "remote" }
+        NowPlaying { id: remote; scope: "remote"; maxTextWidth: bar.titleWidths[1] }
         Visualizer {
+            id: visRemote
             active: remote.visible && remote.playing
             fake: true
             tint: remote.tint
@@ -81,6 +115,7 @@ PanelWindow {
         // Nothing playing anywhere: a faint, empty progress line — the "no
         // player is open" sign. Not clickable.
         Pill {
+            id: nothingPill
             shown: !local.visible && !remote.visible
             label: "---"
             fg: Theme.overlay0
@@ -94,6 +129,7 @@ PanelWindow {
         }
 
         ScriptPill {
+            id: spotifyLogin
             command: [Theme.hypr + "/spotify-remote.py", "watch", "3"]
             interval: 0
             pokable: true
@@ -107,6 +143,7 @@ PanelWindow {
         }
 
         Pill {
+            id: menuChevron
             label: "\u{f0143}"                     // md-chevron_up
             fg: Theme.subtext0
             hoverFg: Theme.text

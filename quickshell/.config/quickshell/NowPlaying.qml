@@ -1,4 +1,4 @@
-// One player group on the bottom bar: [⏮  pill  ⏭]. Replaces the waybar
+// One player group on the bottom bar: [⇄  ⏮  pill  ⏭  ⟲]. Replaces the waybar
 // CFFI plugin (waybar/modules/nowplaying.c) — same data, same gestures.
 //
 // All the logic stays in ~/.config/hypr/now-playing.py, run exactly as the
@@ -6,11 +6,19 @@
 // nudge_bars()' pkill pattern still finds it). One line per change, fields
 // joined by \x1f:
 //     text  classes  tooltip(\n -> \x1e)  pos_us  len_us  player  playing
+//     shuffle(1/0/"")  loop(None/Playlist/Track/"")
 //
 //   pill            click: play/pause · right: media-menu · scroll: ±5 s
 //   bottom 11 px    the seek zone: line thickens, knob + time bubble;
 //                   click = jump, drag = seek on release (one request)
 //   ⏮ ⏭            media-skip.sh prev|next <player>
+//   ⇄ ⟲            "shuffle|repeat <player>" on now-playing.py's stdin
+//                   (media_modes.py, on its warm connection): shuffle on/off,
+//                   repeat off -> playlist -> track. Only for players that can
+//                   ("" = can't, or unknown: Firefox, phone YouTube, phone
+//                   Spotify asleep); dim = off. No optimistic step: the
+//                   script reads the phone's real state and sets the next one
+//                   from it, so the button pulses until that comes back.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -30,6 +38,18 @@ Row {
     property string player
     property bool playing: false
     property real holdUntil: 0                // optimistic seek, until data catches up
+    property string shuffle                   // "1" | "0" | "" (can't)
+    property string loop                      // "None" | "Playlist" | "Track" | ""
+    property string pendingMode               // "shuffle" | "repeat" while a click is on its way
+
+    // Width the title may take (BottomBar.qml keeps both players left of
+    // the centre island); longer titles end in "…". The tooltip has it all.
+    property real maxTextWidth: 100000
+    readonly property real naturalTextWidth: label.implicitWidth
+    // everything but the title: ⇄ ⏮ ⏭ ⟲ and the pill's padding (not from
+    // the laid-out widths, which lag a frame and fed back into the titles)
+    readonly property real chromeWidth: shuffleBtn.implicitWidth + prevBtn.implicitWidth
+                                      + nextBtn.implicitWidth + repeatBtn.implicitWidth + 28
 
     readonly property bool hidden: classes.includes("hidden") || text === ""
     readonly property bool seekable: lenUs > 0 && player !== ""
@@ -64,7 +84,20 @@ Row {
         lenUs = Number(f[4]);
         player = f[5];
         playing = f[6] === "1";
+        const s = f[7] ?? "", l = f[8] ?? "";
+        if (s !== shuffle || l !== loop) pendingMode = "";
+        shuffle = s;
+        loop = l;
     }
+
+    function setMode(what) {
+        if (!player || pendingMode) return;   // one at a time: each steps from the real state
+        pendingMode = what;
+        pendingTimeout.restart();
+        proc.write(what + " " + player + "\n");
+    }
+    // the script gave up (no change came back): stop pulsing
+    Timer { id: pendingTimeout; interval: 7000; onTriggered: np.pendingMode = "" }
 
     visible: !hidden
     spacing: 0
@@ -73,6 +106,7 @@ Row {
         id: proc
         command: ["/usr/bin/python3", Theme.hypr + "/now-playing.py", "--cffi", "--scope", np.scope]
         running: true
+        stdinEnabled: true                    // the ⇄ ⟲ clicks
         stdout: SplitParser { onRead: line => np.apply(line) }
         onExited: respawn.start()
     }
@@ -103,7 +137,40 @@ Row {
         }
     }
 
-    SkipButton { dir: "prev" }
+    // ⇄ / ⟲: dim while off, the player's colour while on
+    component ModeButton: Pill {
+        required property string mode         // "shuffle" | "repeat"
+        readonly property bool isOn: mode === "shuffle" ? np.shuffle === "1"
+                                                      : np.loop === "Playlist" || np.loop === "Track"
+        shown: mode === "shuffle" ? np.shuffle !== "" : np.loop !== ""
+        label: mode === "shuffle" ? (isOn ? "\u{f049d}" : "\u{f049e}")
+             : np.loop === "Track" ? "\u{f0458}" : isOn ? "\u{f0456}" : "\u{f0457}"
+        fg: isOn ? np.tint : Theme.overlay1
+        hoverFg: isOn ? np.tint : Theme.text
+        hoverBg: Theme.alpha(Theme.surface0, 0.8)
+        fontSize: 15
+        padLeft: 7
+        padRight: 7
+        tipEdge: Edges.Top
+        // waiting for the real state: pulse
+        readonly property bool pending: np.pendingMode === mode
+        onPendingChanged: if (!pending) opacity = 1
+        SequentialAnimation on opacity {
+            running: pending
+            loops: Animation.Infinite
+            NumberAnimation { to: 0.35; duration: 450; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 1; duration: 450; easing.type: Easing.InOutSine }
+        }
+        tip: mode === "shuffle" ? "Shuffle: " + (isOn ? "on" : "off")
+           : "Repeat: " + ({ None: "off", Playlist: "playlist", Track: "this track" }[np.loop] ?? "off")
+             + "  (click: off → playlist → track)"
+        onClicked: button => {
+            if (button === Qt.LeftButton) np.setMode(mode);
+        }
+    }
+
+    ModeButton { id: shuffleBtn; mode: "shuffle" }
+    SkipButton { id: prevBtn; dir: "prev" }
 
     // ── the pill ────────────────────────────────────────────────────────────
     Item {
@@ -114,7 +181,7 @@ Row {
         Rectangle {
             id: body
             x: 2
-            width: label.implicitWidth + 24
+            width: label.width + 24
             height: 32
             radius: 8
             color: mouse.containsMouse && !mouse.inZone ? Theme.alpha(Theme.surface0, 0.9) : Theme.alpha(Theme.surface0, 0)
@@ -128,6 +195,8 @@ Row {
                 anchors.verticalCenterOffset: -1
                 text: np.text
                 textFormat: Text.StyledText
+                width: Math.min(implicitWidth, Math.max(40, np.maxTextWidth))
+                elide: Text.ElideRight
                 color: np.tint
                 font.family: Theme.font
                 font.pixelSize: 13
@@ -280,5 +349,6 @@ Row {
         }
     }
 
-    SkipButton { dir: "next" }
+    SkipButton { id: nextBtn; dir: "next" }
+    ModeButton { id: repeatBtn; mode: "repeat" }
 }

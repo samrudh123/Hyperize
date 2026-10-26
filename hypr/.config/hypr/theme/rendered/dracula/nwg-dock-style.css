@@ -1,0 +1,101 @@
+/* ─── nwg-dock-hyprland · Catppuccin Mocha ──────────────────────────────────
+   Vertical dock on the left edge. Kept visually identical to the waybar top
+   bar: same translucent base, same 1px surface1 border, same radius.       */
+
+window {
+  background: rgba(40, 42, 54, 0.80);     /* base @ 80%, as waybar - Hyprland blurs behind (xray) */
+  border-radius: 16px;
+  border-style: solid;
+  border-width: 1px;
+  border-color: rgba(68, 71, 90, 0.70);   /* surface1, as waybar */
+}
+
+#box {
+  /* horizontal padding here is dead space either side of every icon — keep it
+     tight, the icons already have their own padding. */
+  padding: 8px 4px;
+}
+
+/* the app buttons */
+button, image {
+  background: none;
+  border-style: none;
+  box-shadow: none;
+  color: #f8f8f2;                          /* text */
+}
+
+button {
+  /* The icons are flat Mocha glyphs (dock-theme-icons.py) at -i 30, so the
+     button padding is what makes the hover pill: 30 + 2×7 = a 44px square,
+     the same height as the bars' pills feel. The dock is sized by its
+     content, so this also sets its width.
+     margin is the vertical gap between icons — this is what "compact" means. */
+  padding: 7px;
+  margin: 2px 0;
+  border-radius: 12px;
+  transition: background-color 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+button:hover {
+  background-color: rgba(52, 55, 70, 0.95); /* surface0 */
+}
+
+/* the focused window's app: a resting pill, like hover but quieter. The
+   running dots beside the icons are the accent (images/task-*-vertical.svg,
+   recoloured by set-accent.sh). */
+#active {
+  background-color: rgba(52, 55, 70, 0.70); /* surface0 */
+  box-shadow: inset 0 0 0 1px alpha(#@@ACCENT@@, 0.35); /* accent, faint */
+}
+
+/* the launcher / exit buttons at the end of the strip */
+/* The "more apps" button is pinned to the BOTTOM of the dock (-lp end plus the
+   PackEnd patch). The border above it separates it from the app icons; the
+   margin keeps the icons from crowding the line. */
+#launcher-button, #exit-button {
+  color: #8790bf;                          /* overlay2 */
+}
+
+/* The bottom group: the -bottom pins (disk, trash) plus the launcher, packed
+   together at the foot of the dock. The separator belongs to this whole row,
+   so it sits above the disk icon rather than just above the grid.
+
+   The line is PAINTED, not a border. A border-top can only span the box's full
+   width, so insetting the line used to mean insetting the box itself with
+   `margin: 18px 6px 0 6px` — and that inset the BUTTONS too: disk, trash and
+   the grid all sat 6px to the right of every app icon above the line. Drawing
+   the line as a 1px background gradient insets the line on its own, so the box
+   can keep zero horizontal margin and its buttons line up with the ones above.
+   (Losing that margin also drops 10px of dead space off the dock's width.)
+
+   The gradient paints ON the box's first row — inside padding-top, not above
+   it — so the gaps either side of the line are:
+       above = 3px (button margin) + margin-top
+       below = padding-top - 1px (the line's own row) + 3px (button margin)
+   Equal spacing therefore wants padding-top = margin-top + 1. 10/11 gives 13px
+   of air on both sides and keeps the group 27px tall — exactly what the old
+   18 + border + 2 came to — so the dock's height does not change. */
+#bottom-box {
+  margin: 6px 0 0 0;
+  padding-top: 7px;
+  background-image: linear-gradient(to right,
+                                    rgba(68, 71, 90, 0.9),
+                                    rgba(68, 71, 90, 0.9));   /* surface1 */
+  background-repeat: no-repeat;
+  background-size: calc(100% - 16px) 1px;   /* 8px inset either side */
+  background-position: 8px 0;
+}
+#launcher-button:hover, #exit-button:hover {
+  color: #@@ACCENT@@;
+}
+
+tooltip {
+  background: rgba(25, 26, 33, 0.97);      /* crust */
+  border-radius: 9px;
+  border: 1px solid #44475a;
+}
+
+tooltip label {
+  color: #f8f8f2;
+  padding: 3px 5px;
+}

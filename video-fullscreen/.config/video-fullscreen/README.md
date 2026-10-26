@@ -7,8 +7,8 @@ fullscreen request — so this extension tells it.
 
 | Piece | File |
 |---|---|
-| Every frame: is what's fullscreen a video (a `<video>`, or an element holding one that covers ≥ 40 % of the screen)? | `content.js` |
-| Forwards each change to the native host | `background.js` |
+| Top frame: "something in this tab went in/out of DOM fullscreen" (F11 / SUPER+F never fire it) | `content.js` |
+| Looks into **every** frame (cross-origin too): is the fullscreen element a big `<video>` / holds one, or holds a big frame while some frame shows a big `<video>`? Tells the native host | `background.js` |
 | Native host: tags the browser's fullscreen window `vidfs` (and a detached follower drops the tag when it leaves fullscreen) | `~/.config/hypr/video-fullscreen.py` |
 | Rule `video-fullscreen-opaque` (tag `vidfs` + fullscreen state 2 → opacity 1) | `~/.config/hypr/hyprland.conf` |
 
@@ -37,8 +37,16 @@ re-sign for Firefox, press the reload arrow on the Brave card.
 ## Testing
 `VIDEO_FS_LOG=/some/file` in the browser's environment makes the host log each
 message. `video-fullscreen.py tag PID` / `untag PID` drive the tag by hand.
-Tested headless (Firefox Marionette with a temporary install; Brave
-`--headless=new --load-extension` + CDP at a 1920×1200 viewport): a player
-`<div>` with a video, a bare `<video>`, and a cross-origin iframe player
-(Firefox) send `true`/`false`; the whole page put fullscreen with a small
-video on it sends nothing.
+
+1.1.0 (2026-10-26) — 1.0.0 decided per frame, so it missed players whose
+page fullscreens the `<iframe>` (or a box around it): inside the player's
+frame nothing is fullscreen, and up top the fullscreen element holds no
+`<video>`. Tested headless, Firefox (Marionette, temporary install) and Brave
+(`--headless=new --load-extension` + CDP, 1920×1200 viewport):
+player `<div>`, bare `<video>`, iframe player fullscreening its own box or
+its `<html>`, nested iframes, the page fullscreening the iframe or a wrapper
+around it → `true`; a page put fullscreen with a small clip on it, a
+fullscreened non-video box → nothing. Real sites: AnimeSuge (Plyr in
+my.1anime.site), AnimeKai (JW Player in megaplay.buzz), HiAnime (JW Player in
+zokoanime.video). Headless fullscreen is 1366×768 in Firefox and 800×544 in
+Brave unless overridden — the 20 %-of-screen size test reads differently there.

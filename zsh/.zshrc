@@ -21,7 +21,10 @@ export LANG=en_US.UTF-8
 # reload resets the terminal to the stock xterm palette, where 53/54 are dark
 # purples (VS Code's contrast boost then shows both as the same muted mauve).
 # The config is only re-read when its mtime changes, so this costs one stat.
-if [[ -z $GHOSTTY_RESOURCES_DIR && -t 1 && -r ~/.config/ghostty/config ]]; then
+# Skipped over SSH: the palette belongs to the terminal you're sitting at, so
+# a riced remote shell must not repaint it with ITS accent — its prompt then
+# shows in the local accent (it draws with the same slots).
+if [[ -z $SSH_CONNECTION && -z $GHOSTTY_RESOURCES_DIR && -t 1 && -r ~/.config/ghostty/config ]]; then
   zmodload -F zsh/stat b:zstat
   autoload -Uz add-zsh-hook
   _accent_osc() {
@@ -43,6 +46,43 @@ if [[ -z $GHOSTTY_RESOURCES_DIR && -t 1 && -r ~/.config/ghostty/config ]]; then
     _accent_tty_unregister() { rm -f $_accent_ttys/$$ }
     add-zsh-hook zshexit _accent_tty_unregister
   fi
+  # VS Code only opens a terminal's xterm.js when its tab is first shown, and
+  # until then silently drops OSC 4 — so a background terminal (e.g. restored
+  # on startup) ate the startup send above and showed the stock palette until
+  # its next prompt. Opening also resets the palette. Fix: while at a prompt,
+  # ask for focus reports (DECSET 1004) and re-send on focus-in (ESC [ I),
+  # which arrives right after the tab is shown — or when the window regains
+  # focus after an accent change. Off while a command runs, so programs never
+  # see the reports as input.
+  if [[ $TERM_PROGRAM == vscode ]]; then
+    _accent_focus_on()  { print -rn -- $'\e[?1004h' }
+    _accent_focus_off() { print -rn -- $'\e[?1004l' }
+    _accent_focus_in()  { _accent_osc }
+    _accent_focus_out() { }
+    zle -N _accent_focus_in
+    zle -N _accent_focus_out
+    for _km in emacs viins vicmd; do
+      bindkey -M $_km '\e[I' _accent_focus_in '\e[O' _accent_focus_out
+    done
+    unset _km
+    add-zsh-hook precmd _accent_focus_on
+    add-zsh-hook preexec _accent_focus_off
+  fi
+fi
+
+# ssh: a remote shell that does send OSC 4 (an older copy of this file,
+# another rice) leaves its accent in this terminal after you disconnect.
+# Elsewhere the next prompt's re-send repairs that, but Ghostty shells don't
+# re-send, so reset slots 53-57 to the config palette (OSC 104 — tested: it
+# restores Ghostty's configured value; leaves no override behind to fight
+# later accent reloads).
+if [[ -n $GHOSTTY_RESOURCES_DIR && -z $SSH_CONNECTION ]]; then
+  ssh() {
+    command ssh "$@"
+    local rc=$?
+    [[ -w $TTY ]] && print -rn -- $'\e]104;53;54;55;56;57\e\\' > $TTY
+    return rc
+  }
 fi
 
 # ─── History ───────────────────────────────────────────────────────────────
@@ -103,6 +143,13 @@ if command -v fzf >/dev/null; then
   command -v batcat >/dev/null && export FZF_CTRL_T_OPTS="--preview 'batcat -n --color=always --line-range :300 {}'"
   export FZF_ALT_C_OPTS="--preview 'eza --tree --color=always --icons {} | head -200'"
 fi
+
+# Claude Code in VS Code: the classic renderer ("tui": "default" in
+# ~/.claude/settings.json) prints the transcript into the terminal's own
+# scrollback at the width of the moment, so a session squeezed by tiling stays
+# squeezed after the window widens again. The fullscreen renderer redraws the
+# whole conversation on every resize (this env var overrides the setting).
+[[ $TERM_PROGRAM == vscode ]] && export CLAUDE_CODE_NO_FLICKER=1
 
 # ─── Aliases ───────────────────────────────────────────────────────────────
 if command -v eza >/dev/null; then

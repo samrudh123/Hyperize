@@ -26,7 +26,9 @@ Item {
 
     visible: width > 0.5
     implicitHeight: 32
-    implicitWidth: shown ? bars * barWidth + (bars - 1) * gap + 12 : 0
+    // where implicitWidth is heading (BottomBar.qml's title room)
+    readonly property real targetWidth: shown ? bars * barWidth + (bars - 1) * gap + 12 : 0
+    implicitWidth: targetWidth
     width: implicitWidth
     clip: true
     Behavior on implicitWidth { NumberAnimation { duration: Theme.normal; easing.type: Easing.OutCubic } }

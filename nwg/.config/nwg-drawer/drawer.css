@@ -11,7 +11,7 @@ window {
 entry {
   background-color: rgba(36, 40, 59, 0.85);   /* surface0 */
   color: #c0caf5;
-  caret-color: #7aa2f7;                       /* mauve */
+  caret-color: #9ece6a;                       /* mauve */
   border: 1px solid rgba(52, 58, 82, 0.9);    /* surface1 */
   border-radius: 12px;
   padding: 6px 12px;
@@ -19,11 +19,11 @@ entry {
 }
 
 entry:focus {
-  border-color: #7aa2f7;
+  border-color: #9ece6a;
 }
 
 entry selection {
-  background-color: #7aa2f7;
+  background-color: #9ece6a;
   color: #13131a;                             /* crust */
 }
 

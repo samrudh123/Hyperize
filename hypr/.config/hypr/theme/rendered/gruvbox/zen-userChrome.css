@@ -1,0 +1,147 @@
+/* Zen Browser chrome — Catppuccin Mocha + the desktop accent.
+ *
+ * ⚠ GENERATED. This file is in set-accent.sh's manifest, so SUPER+ALT+C
+ * rewrites it from theme/templates/zen-userChrome.css (and SUPER+SHIFT+T
+ * recolours the Mocha values for the chosen theme). Edit it freely, then run
+ *     ~/.config/hypr/set-accent.sh --resync
+ * or the next accent change silently reverts your edit.
+ *
+ * Colours change live through the --rice-* variables (see :root below).
+ * Needs toolkit.legacyUserProfileCustomizations.stylesheets = true (../user.js,
+ * copied from Firefox by zen-import-firefox).
+ *
+ * Zen derives its whole UI from a few variables (zen-theme.css in omni.ja):
+ * --zen-primary-color (the accent; Zen's own colour picker and workspace
+ * gradients write it as an inline style, which !important beats), the
+ * branding dark/paper pair, and --zen-main-browser-background. Setting those
+ * recolours the sidebar, tabs, URL bar, panels and buttons in one go.
+ */
+
+:root {
+    /* LIVE: ~/.config/zen-rice/rice-live.cfg (Zen autoconfig, installed by
+     * build/zen.sh) watches theme/accent + theme/palette.json and sets the
+     * --rice-* variables on every Zen window, so SUPER+ALT+C / SUPER+SHIFT+T
+     * recolour Zen without a restart. The hex after each comma is what this
+     * file was rendered with — used until the script has run, or without it. */
+    --ctp-base:     var(--rice-base, #282828);
+    --ctp-mantle:   var(--rice-mantle, #1d2021);
+    --ctp-crust:    var(--rice-crust, #141617);
+    --ctp-surface0: var(--rice-surface0, #32302f);
+    --ctp-surface1: var(--rice-surface1, #3c3836);
+    --ctp-surface2: var(--rice-surface2, #504945);
+    --ctp-overlay0: var(--rice-overlay0, #665c54);
+    --ctp-subtext0: var(--rice-subtext0, #a89984);
+    --ctp-text:     var(--rice-text, #ebdbb2);
+    --ctp-accent:   var(--rice-accent, #@@ACCENT@@);
+
+    /* Zen's inputs */
+    --zen-primary-color: var(--ctp-accent) !important;
+    --zen-branding-dark: var(--ctp-crust) !important;
+    --zen-main-browser-background: var(--ctp-mantle) !important;
+    --zen-main-browser-background-toolbar: var(--ctp-mantle) !important;
+    --zen-themed-toolbar-bg-transparent: var(--ctp-mantle) !important;
+
+    /* surfaces Zen hard-codes as greys */
+    --zen-dialog-background: var(--ctp-base) !important;
+    --zen-urlbar-background: var(--ctp-surface0) !important;
+    --zen-colors-tertiary: var(--ctp-base) !important;
+    --zen-colors-input-bg: var(--ctp-surface0) !important;
+    --zen-colors-border: var(--ctp-surface1) !important;
+    --arrowpanel-background: var(--ctp-base) !important;
+    --arrowpanel-color: var(--ctp-text) !important;
+    --arrowpanel-border-color: var(--ctp-surface1) !important;
+    --toolbox-textcolor: var(--ctp-text) !important;
+    --toolbar-field-background-color: var(--ctp-surface0) !important;
+    --toolbar-field-focus-background-color: var(--ctp-surface0) !important;
+    --toolbar-field-color: var(--ctp-text) !important;
+    --toolbar-field-focus-color: var(--ctp-text) !important;
+    --toolbar-field-focus-border-color: var(--ctp-accent) !important;
+    --focus-outline-color: var(--ctp-accent) !important;
+    --toolbarbutton-icon-fill-attention: var(--ctp-accent) !important;
+    --tab-selected-bgcolor: color-mix(in srgb, var(--ctp-accent) 16%, var(--ctp-surface0)) !important;
+    --tab-selected-textcolor: var(--ctp-text) !important;
+}
+
+/* the selected tab: accent-tinted, with an accent edge */
+.tabbrowser-tab[selected] .tab-background,
+.tabbrowser-tab[visuallyselected] .tab-background {
+    background: color-mix(in srgb, var(--ctp-accent) 16%, var(--ctp-surface0)) !important;
+    box-shadow: inset 2px 0 0 var(--ctp-accent) !important;
+}
+.tabbrowser-tab:not([selected]):hover .tab-background {
+    background: var(--ctp-surface0) !important;
+}
+
+/* URL bar: accent ring while focused */
+#urlbar[focused] > #urlbar-background,
+#urlbar[open] > #urlbar-background {
+    outline: 1.5px solid var(--ctp-accent) !important;
+    background: var(--ctp-base) !important;
+}
+#urlbar .urlbarView-row[selected] {
+    background: color-mix(in srgb, var(--ctp-accent) 22%, transparent) !important;
+}
+
+/* menus and panels */
+menupopup, panel {
+    --panel-background: var(--ctp-base) !important;
+    --panel-color: var(--ctp-text) !important;
+    --panel-border-color: var(--ctp-surface1) !important;
+}
+menu:where([_moz-menuactive]:not([disabled="true"])),
+menuitem:where([_moz-menuactive]:not([disabled="true"])) {
+    background-color: color-mix(in srgb, var(--ctp-accent) 22%, transparent) !important;
+}
+
+::selection {
+    background-color: color-mix(in srgb, var(--ctp-accent) 40%, transparent) !important;
+    color: var(--ctp-text) !important;
+}
+
+/* ── Bookmarks sidebar (Ctrl+B) ─────────────────────────────────────────────
+ * Firefox's bookmarks panel, which Zen docks as its own column between the
+ * tab sidebar and the page (zen-sidebar.css). Zen keeps it open across
+ * restarts. userChrome.css reaches the panel's own document (it's chrome too),
+ * so the rules below style the list itself. */
+#sidebar-box {
+    --sidebar-background-color: var(--ctp-mantle) !important;
+    --sidebar-text-color: var(--ctp-text) !important;
+    background-color: var(--ctp-mantle) !important;
+    color: var(--ctp-text) !important;
+}
+#sidebar-header {
+    background-color: var(--ctp-mantle) !important;
+    color: var(--ctp-text) !important;
+    border-color: var(--ctp-surface0) !important;
+}
+#bookmarksPanel, #historyPanel {
+    background-color: var(--ctp-mantle) !important;
+    color: var(--ctp-text) !important;
+}
+#bookmarksPanel #search-box, #historyPanel #search-box {
+    background-color: var(--ctp-surface0) !important;
+    color: var(--ctp-text) !important;
+    border: 1px solid var(--ctp-surface1) !important;
+    outline-color: var(--ctp-accent) !important;
+}
+#bookmarks-view, #historyTree {
+    background-color: transparent !important;
+    color: var(--ctp-text) !important;
+    --tree-row-hover: var(--ctp-surface0);
+}
+#bookmarks-view treechildren::-moz-tree-row(hover),
+#historyTree treechildren::-moz-tree-row(hover) {
+    background-color: var(--ctp-surface0) !important;
+}
+#bookmarks-view treechildren::-moz-tree-row(selected),
+#historyTree treechildren::-moz-tree-row(selected) {
+    background-color: color-mix(in srgb, var(--ctp-accent) 30%, transparent) !important;
+}
+#bookmarks-view treechildren::-moz-tree-cell-text,
+#historyTree treechildren::-moz-tree-cell-text {
+    color: var(--ctp-text) !important;
+}
+#bookmarks-view treechildren::-moz-tree-twisty,
+#bookmarks-view treechildren::-moz-tree-image(container) {
+    fill: var(--ctp-accent) !important;
+}

@@ -47,6 +47,7 @@ import threading
 import time
 
 import spotify_where   # same directory: which Spotify copy is only a mirror
+import media_modes     # same directory: shuffle / repeat (the ⇄ ⟲ buttons)
 
 I_SPOTIFY = "\U000F04C7"   # md-spotify
 I_YOUTUBE = "\U000F05C3"   # md-youtube
@@ -55,6 +56,7 @@ I_PHONE = "\U000F011C"     # md-cellphone
 I_PAUSE = "\U000F03E4"     # md-pause
 I_FIREFOX = "\U000F0239"   # md-firefox
 I_BRAVE = "\U000F059F"     # md-web
+I_ZEN = "\U000F059F"       # md-web (no Zen glyph in the Nerd Font)
 I_CHROMIUM = "\U000F02AF"  # md-google_chrome
 I_DEFAULT = "\U000F0386"   # md-music_note
 
@@ -128,7 +130,11 @@ def describe(inst):
         return "ytmusic", I_MUSIC, "YouTube Music", False
     return {
         "spotify": ("spotify", I_SPOTIFY, "Spotify", False),
-        "firefox": ("firefox", I_FIREFOX, "Firefox", False),
+        # Zen publishes its own player as firefox.instance_* too (the name is
+        # hard-coded in Gecko); its Identity says "Mozilla zen".
+        "firefox": (("firefox", I_ZEN, "Zen", False) if gecko_owner(inst) == "zen"
+                    else ("firefox", I_FIREFOX, "Firefox", False)),
+        "zen": ("firefox", I_ZEN, "Zen", False),        # its per-tab players
         "brave": ("other", I_BRAVE, "Brave", False),
         "chromium": ("other", I_CHROMIUM, "Chromium", False),
     }.get(name, ("other", I_DEFAULT, name, False))
@@ -209,27 +215,50 @@ def clock(us):
 # (~/.local/share/firefox-mpris-position/host.py) publishes one player per
 # YouTube tab, "firefox.tab_<id>", and names the tab you're on (the focused
 # Firefox window's, else the last one you were on that has a player) here.
-FF_CURRENT = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "firefox-tabs.current")
+# Zen Browser runs the same extension: "zen.tab_<id>", zen-tabs.current.
+GECKO = ("firefox", "zen")
+RT_DIR = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+
+
+def gecko_owner(p):
+    """Which browser a player belongs to: "firefox" / "zen" / None. Zen's
+    OWN player is named firefox.instance_* as well (Gecko hard-codes it);
+    only its Identity ("Mozilla zen") tells them apart."""
+    b = p.split(".")[0]
+    if b == "firefox" and p.startswith("firefox.instance"):
+        if p not in _owner:             # a bus name is one process: ask once
+            _owner[p] = "zen" if "zen" in identity(p).lower() else "firefox"
+        return _owner[p]
+    return b if b in GECKO else None
+
+
+_owner = {}
 
 
 def firefox_tabs(players):
     """With per-tab players around, show only the CURRENT tab (the others
-    stay in media-menu.py, where picking one switches Firefox to it), and
-    not Firefox's own player when it is one of those YouTube tabs (Firefox
-    publishes just one, for the tab it last started)."""
-    tabs = [p for p in players if p.startswith("firefox.tab_")]
+    stay in media-menu.py, where picking one switches the browser to it),
+    and not the browser's own player when it is one of those YouTube tabs
+    (Firefox / Zen publish just one, for the tab they last started)."""
+    for b in GECKO:
+        players = _gecko_tabs(players, b)
+    return players
+
+
+def _gecko_tabs(players, b):
+    tabs = [p for p in players if p.startswith(f"{b}.tab_")]
     if not tabs:
         return players
     try:
-        with open(FF_CURRENT) as f:
+        with open(os.path.join(RT_DIR, f"{b}-tabs.current")) as f:
             cur = f.read().strip()
     except OSError:
         cur = ""
     out = []
     for p in players:
-        if p.startswith("firefox.tab_") and cur in tabs and p != cur:
+        if p.startswith(f"{b}.tab_") and cur in tabs and p != cur:
             continue
-        if p.startswith("firefox.instance") and "youtube.com" in run(
+        if ".instance" in p and gecko_owner(p) == b and "youtube.com" in run(
                 "playerctl", "-p", p, "metadata", "xesam:url"):
             continue
         out.append(p)
@@ -298,7 +327,7 @@ SEEK_SETTLE = 1.0
 
 
 def held_position(inst, title, status, position):
-    if not inst.startswith("firefox") or status != "Paused" \
+    if not inst.startswith(GECKO) or status != "Paused" \
             or time.monotonic() < _live_until[0]:
         _held.pop(inst, None)
         return position
@@ -354,12 +383,15 @@ def render(scope=None):
         pct = max(0, min(100, round(position * 100 / length)))
         classes.append(f"p{pct}")
         when = f"\n{clock(position)} / {clock(length)}"
+    shuffle, loop = media_modes.state(inst, colour == "spotify", f"{status} {title}",
+                                      status == "Playing")
     tooltip = (f"{who}: {title}" + (f" — {artist}" if artist else "") + when
                + "\nClick: play/pause · Right-click: players · Scroll: seek")
     out = {"text": text, "tooltip": html.escape(tooltip), "class": classes,
            # for the bar plugin (--cffi): what a click / drag on the line needs
            "_pos": max(0, position) if length > 0 else 0, "_len": max(0, length),
-           "_player": inst, "_playing": status == "Playing"}
+           "_player": inst, "_playing": status == "Playing",
+           "_shuffle": shuffle, "_loop": loop}
     _last.update(inst=inst, out=out, at=time.monotonic())
     return out, status == "Playing"
 
@@ -385,7 +417,8 @@ def encode(out, cffi):
     """One output line. waybar's custom module: JSON. The bar plugin
     (waybar/modules/nowplaying.c, --cffi): fields joined by \x1f, no JSON
     parser needed in C —
-      text  classes(space-separated)  tooltip(\n -> \x1e)  pos_us  len_us  player  playing(0/1)"""
+      text  classes(space-separated)  tooltip(\n -> \x1e)  pos_us  len_us  player  playing(0/1)
+      shuffle(1/0/"")  loop(None/Playlist/Track/"")   — "" = the player can't"""
     if not cffi:
         return json.dumps({k: v for k, v in out.items() if not k.startswith("_")},
                           ensure_ascii=False)
@@ -394,7 +427,8 @@ def encode(out, cffi):
     return SEP.join([out.get("text", ""), " ".join(cls),
                      out.get("tooltip", "").replace("\n", "\x1e"),
                      str(int(out.get("_pos", 0))), str(int(out.get("_len", 0))),
-                     out.get("_player", ""), "1" if out.get("_playing") else "0"])
+                     out.get("_player", ""), "1" if out.get("_playing") else "0",
+                     out.get("_shuffle", ""), out.get("_loop", "")])
 
 
 def nudge_bars():
@@ -425,6 +459,13 @@ def spotify_may_move():
     return run("playerctl", "-p", "spotify", "status") == "Playing"
 
 
+def read_commands():
+    for line in sys.stdin:
+        what, _, player = line.strip().partition(" ")
+        if what in ("shuffle", "repeat") and player:
+            media_modes.change_bg(what, player)
+
+
 def main(cffi=False, scope=None):
     # Exit with whoever started us (waybar's `sh -c`). When the bar restarts,
     # the old copy otherwise lingers until its next print hits the closed
@@ -437,8 +478,16 @@ def main(cffi=False, scope=None):
     # Seeked for a seek sent through it — so the bar kept the old time.
     import signal
     signal.signal(signal.SIGUSR1, lambda *_: q.put("seek"))
+    media_modes.on_change = lambda: q.put("modes")     # a Web API read changed them
+    if cffi:
+        # The bar's ⇄ ⟲ clicks ("shuffle <player>" / "repeat <player>"):
+        # handled here, on media_modes' warm Web API connection — a fresh
+        # media_modes.py process paid Python start-up + a new TLS handshake.
+        threading.Thread(target=read_commands, daemon=True).start()
     for cmd, token in ((["playerctl", "-a", "-F", "metadata", "--format",
-                         "{{playerInstance}} {{status}} {{title}} {{artist}}"], None),
+                         # shuffle / loop: wake on the ⇄ ⟲ buttons too
+                         "{{playerInstance}} {{status}} {{title}} {{artist}} {{shuffle}} {{loop}}"],
+                        None),
                        (["playerctl", "-p", "playerctld", "-F", "metadata", "--format",
                          "{{status}} {{title}}"], None),
                        # a seek: redraw now, not at the next once-a-second tick
@@ -462,6 +511,10 @@ def main(cffi=False, scope=None):
             settle = _live_until[0] - time.monotonic()
             wait = 1.0 if playing or spotify_may_move() else \
                 (settle + 0.05 if settle > 0 else None)
+            if wait is None and media_modes.web_shown:
+                # paused phone Spotify: keep re-reading shuffle / repeat
+                # from the Web API — they can change on the phone meanwhile
+                wait = media_modes.TTL_PAUSED + 0.1
             tokens.append(q.get(timeout=wait))
             while True:                                 # let a burst settle
                 tokens.append(q.get(timeout=0.25))

@@ -208,7 +208,7 @@
       "mode": "month",
       "on-scroll": 1,
       "format": {
-        "months": "<span color='#7aa2f7'><b>{}</b></span>",
+        "months": "<span color='#9ece6a'><b>{}</b></span>",
         "days": "<span color='#c0caf5'>{}</span>",
         "weekdays": "<span color='#7aa2f7'><b>{}</b></span>",
         "today": "<span color='#f7768e'><b><u>{}</u></b></span>"

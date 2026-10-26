@@ -33,20 +33,39 @@ list every LIST_REFRESH s, because the phone never reports a CLOSED player
 by itself (see refresh_player_lists), and re-asks the selected player for
 its position, because a seek made ON the phone isn't pushed either (see
 resync_position). Stdlib only.
+
+LINK QUALITY (kdec_link.py): a thread pings the phone every LINK_EVERY s
+and publishes ok / bad. KDE Connect keeps saying "reachable" over a link
+that loses half its packets with 1-2 s round trips (phone on mobile data,
+measured) — its view of the phone's players freezes, so spotify-remote.py
+switches to Spotify's Web API while the link is bad. When the link comes
+back after a real outage: a fresh connection (--refresh) and fresh player
+lists / positions at once, instead of waiting for the next timer.
 """
 
+import collections
 import configparser
 import fcntl
 import os
 import re
 import subprocess
 import sys
+import threading
 import time
+
+import kdec_link   # same directory: the verdict this writes
 
 POLL = 3
 LIST_REFRESH = 5    # s between "send me your player list" while a phone player plays
 LIST_REFRESH_IDLE = 15   # ...while phone players exist but none plays (a paused app can be closed too)
 PROBE = 15
+LINK_EVERY = 2      # s between link-quality pings (one ICMP packet over Tailscale)
+LINK_WINDOW = 5     # judge on the last this-many pings
+LINK_BAD_LOST = 2   # ...this many lost -> bad
+LINK_SLOW_MS = 800  # ...or this many slow ones (LINK_BAD_SLOW) -> bad
+LINK_BAD_SLOW = 3
+LINK_GOOD_MS = 500  # bad -> ok again after LINK_GOOD_RUN pings in a row under this
+LINK_GOOD_RUN = 3
 SETTLE = 4
 COOLDOWN = 15
 RETRY = 20
@@ -106,7 +125,7 @@ def path(addr):
     return m.group(1) if m else ""
 
 
-def refresh_player_lists():
+def refresh_player_lists(force=False):
     """Ask every connected phone for its current player list: every
     LIST_REFRESH s while one of its players claims to be Playing (the phone
     is busy then anyway), every LIST_REFRESH_IDLE s while its players are
@@ -118,7 +137,8 @@ def refresh_player_lists():
     if not phone:
         return False
     playing = any(run("playerctl", "-p", p, "status").strip() == "Playing" for p in phone)
-    if not playing and time.monotonic() - refresh_player_lists.idle_at < LIST_REFRESH_IDLE:
+    if not playing and not force and \
+            time.monotonic() - refresh_player_lists.idle_at < LIST_REFRESH_IDLE:
         return playing
     if not playing:
         refresh_player_lists.idle_at = time.monotonic()
@@ -153,6 +173,45 @@ def resync_position(dev):
 refresh_player_lists.idle_at = 0.0
 
 
+def ping_ms(addr):
+    """One ICMP round trip in ms, or None when lost (2 s)."""
+    m = re.search(r"time=([\d.]+) ms", run("ping", "-n", "-c", "1", "-W", "2", addr, timeout=4))
+    return float(m.group(1)) if m else None
+
+
+def link_watch():
+    """Thread: ping the phone, publish ok / bad (kdec_link.py), and on a
+    recovery bring KDE Connect up to date at once."""
+    window = collections.deque(maxlen=LINK_WINDOW)
+    ok, bad_since = True, 0.0
+    while True:
+        addrs = custom_devices()
+        if not addrs:
+            time.sleep(LINK_EVERY * 5)
+            continue
+        t = time.monotonic()
+        rtt = ping_ms(addrs[0])
+        window.append(rtt)
+        lost = sum(r is None for r in window)
+        slow = sum(r is not None and r > LINK_SLOW_MS for r in window)
+        recent = list(window)[-LINK_GOOD_RUN:]
+        if ok and (lost >= LINK_BAD_LOST or slow >= LINK_BAD_SLOW):
+            ok, bad_since = False, time.monotonic()
+            log(f"link BAD ({lost} lost, {slow} slow of last {len(window)}) "
+                "-> Spotify via Web API")
+        elif not ok and len(recent) == LINK_GOOD_RUN and \
+                all(r is not None and r < LINK_GOOD_MS for r in recent):
+            ok = True
+            outage = time.monotonic() - bad_since
+            log(f"link ok again after {outage:.0f} s")
+            if outage > 10:
+                refresh("link recovered")           # a fresh TCP link, not the backed-off one
+            refresh_player_lists(force=True)
+        kdec_link.write({"ok": ok, "rtt_ms": rtt, "lost": lost, "slow": slow,
+                         "of": len(window), "at": time.time()})
+        time.sleep(max(0.0, LINK_EVERY - (time.monotonic() - t)))
+
+
 def reachable():
     return bool(run("kdeconnect-cli", "-a", "--id-only").strip())
 
@@ -171,6 +230,7 @@ def main():
         print("kdec-netwatch: already running", file=sys.stderr)
         return 1
     log("started")
+    threading.Thread(target=link_watch, daemon=True).start()
 
     route = local_route()
     paths = {}                      # addr -> last path seen

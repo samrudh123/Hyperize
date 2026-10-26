@@ -65,6 +65,7 @@ import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import kdec_link       # same directory: is the KDE Connect link to the phone usable?
 import spotify_where   # same directory: is the laptop app real or a mirror?
 
 # The developer app's client ID — per user, kept out of the (public) dotfiles
@@ -361,11 +362,15 @@ def shown_elsewhere():
     (Earlier the bridge superseded KDE Connect's copy, because over
     Bluetooth that copy froze; superseded() in now-playing.py still applies
     if both ever show.)
+
+    Unless the link to the phone is bad (kdec_link.py: lossy / second-long
+    round trips, e.g. phone on mobile data): KDE Connect's copy is frozen
+    then, so the bridge shows the Web API's view and the copy is superseded.
     """
     r = subprocess.run(["playerctl", "-l"], capture_output=True, text=True)
     if spotify_where.where(r.stdout.split()) == "laptop":
         return True
-    return phone_has_spotify() is True
+    return kdec_link.healthy() and phone_has_spotify() is True
 
 
 def phone_has_spotify():
@@ -398,6 +403,36 @@ def phone_has_spotify():
     return known
 
 
+_asked_at = [0.0]
+ASK_EVERY = 5       # s between "send me your player list" asks from fetch()
+ASK_WAIT = 1.5      # s to wait for the answer
+
+
+def ask_phone_players():
+    """Ask the phone for its player list now and wait briefly for Spotify to
+    appear in it -> phone_has_spotify(). KDE Connect's list can lag behind a
+    Spotify just opened on the phone, and fetch() takes "no Spotify in the
+    list" as "closed on the phone" — which kept a freshly opened Spotify off
+    the bar until kdec-netwatch.py's next list refresh (none at all while the
+    phone had no other player)."""
+    if time.monotonic() - _asked_at[0] < ASK_EVERY:
+        return phone_has_spotify()
+    _asked_at[0] = time.monotonic()
+    devs = subprocess.run(["kdeconnect-cli", "-a", "--id-only"], capture_output=True,
+                          text=True).stdout.split()
+    for dev in devs:
+        subprocess.run(["busctl", "--user", "call", "org.kde.kdeconnect",
+                        f"/modules/kdeconnect/devices/{dev}/mprisremote",
+                        "org.kde.kdeconnect.device.mprisremote", "requestPlayerList"],
+                       capture_output=True)
+    end = time.monotonic() + ASK_WAIT
+    while time.monotonic() < end:
+        if phone_has_spotify():
+            return True
+        time.sleep(0.2)
+    return phone_has_spotify()
+
+
 def fetch():
     """-> (kind, playback). kind: login | covered | error | none | ok."""
     if not load_token():
@@ -427,7 +462,10 @@ def fetch():
     # on a speaker or a PC is not in the phone's player list either way.
     on_phone = (not p or not (p.get("device") or {}).get("type")
                 or p["device"]["type"].lower() == "smartphone")
-    gone = on_phone and phone_has_spotify() is False
+    # Only over a good link (kdec_link.py): over a bad one the list is stale.
+    gone = on_phone and kdec_link.healthy() and phone_has_spotify() is False
+    if gone and p and p.get("item") and p.get("is_playing"):
+        gone = ask_phone_players() is False     # just opened, not closed?
     if gone:
         p = None
     elif not p or not p.get("item"):
@@ -467,6 +505,10 @@ def control(cmd, arg=None):
             api("POST", "/me/player/previous")
         elif cmd == "seek":
             api("PUT", f"/me/player/seek?position_ms={int(arg)}")
+        elif cmd == "shuffle":
+            api("PUT", f"/me/player/shuffle?state={'true' if arg else 'false'}")
+        elif cmd == "repeat":
+            api("PUT", f"/me/player/repeat?state={arg}")
         return True
     except ApiError as e:
         if e.status == 403 and "PREMIUM" in e.body.upper():
@@ -497,6 +539,8 @@ FAST_FOR = 10.0
 NUDGE_DELAY = 0.3   # a burst of MPRIS signals -> one early poll
 DEBUG = bool(os.environ.get("SPOTIFY_REMOTE_DEBUG"))   # log every poll to bridge.log
 HOLD = 3.0          # after a local play/pause/seek, polls can't override it for this long
+MODES_HOLD = 5.0    # ...after a shuffle / repeat change (the API takes 1.8-4 s to show it)
+LOOP_TO_API = {"None": "off", "Playlist": "context", "Track": "track"}
 TRACK_HOLD = 8.0    # ...and a new song the phone announced, while the API still has the old one
 SEEK_DEBOUNCE = 0.35
 STALE_AFTER = 60    # API unreachable this long: stop claiming anything is playing
@@ -541,6 +585,8 @@ MPRIS_XML = """
     <property name="CanPause" type="b" access="read"/>
     <property name="CanSeek" type="b" access="read"/>
     <property name="CanControl" type="b" access="read"/>
+    <property name="Shuffle" type="b" access="readwrite"/>
+    <property name="LoopStatus" type="s" access="readwrite"/>
   </interface>
 </node>
 """
@@ -572,7 +618,7 @@ def bridge():
             self.conn = Gio.bus_get_sync(Gio.BusType.SESSION, None)
             for iface in Gio.DBusNodeInfo.new_for_xml(MPRIS_XML).interfaces:
                 self.conn.register_object_with_closures2(MPRIS_PATH, iface, self.on_call,
-                                                         self.on_get, None)
+                                                         self.on_get, self.on_set)
             self.owner = 0                       # bus name id while shown
             self.track = None                    # dict, see set_playback()
             self.device = ""
@@ -584,6 +630,12 @@ def bridge():
             self.q = queue.Queue()               # commands for the worker
             self.fast_until = 0.0                # poll every FAST_POLL until then
             self.device_type = ""
+            # Shuffle / LoopStatus from GET /me/player (None = not known: the
+            # currently-playing fallback has neither, so the properties are
+            # left out and the bar's ⇄ ⟲ use media_modes.py's own reads).
+            # Set through MPRIS -> PUT; polls can't undo it for MODES_HOLD s.
+            self.shuffle, self.loop = None, None
+            self.modes_hold_until = 0.0
             self.nudge_timer = 0
             # Any OTHER player changing track / state / position — above all
             # KDE Connect's copy of the phone's Spotify, which the phone
@@ -644,10 +696,32 @@ def bridge():
                     "CanGoNext": GLib.Variant("b", has), "CanGoPrevious": GLib.Variant("b", has),
                     "CanPlay": GLib.Variant("b", has), "CanPause": GLib.Variant("b", has),
                     "CanSeek": GLib.Variant("b", has and self.track["length"] > 0),
-                    "CanControl": GLib.Variant("b", True)}
+                    "CanControl": GLib.Variant("b", True),
+                    **({"Shuffle": GLib.Variant("b", self.shuffle),
+                        "LoopStatus": GLib.Variant("s", self.loop)}
+                       if self.shuffle is not None and self.loop else {})}
 
         def on_get(self, _conn, _sender, _path, iface, prop):
             return self.props(iface).get(prop)
+
+        def on_set(self, _conn, _sender, _path, iface, prop, value):
+            """MPRIS Shuffle / LoopStatus (the bar's ⇄ ⟲ via playerctl): show
+            it now, PUT it in the worker. Spotify trails its own PUT by
+            1.8-4 s (measured), hence the hold."""
+            if iface != PLAYER_IFACE or self.shuffle is None:
+                return False
+            before = self.snapshot()
+            if prop == "Shuffle":
+                self.shuffle = bool(value.unpack())
+                self.q.put(("shuffle", self.shuffle))
+            elif prop == "LoopStatus" and value.unpack() in LOOP_TO_API:
+                self.loop = value.unpack()
+                self.q.put(("repeat", LOOP_TO_API[self.loop]))
+            else:
+                return False
+            self.modes_hold_until = time.monotonic() + MODES_HOLD
+            self.emit_changed(before)
+            return True
 
         def emit_changed(self, before):
             for iface in (ROOT_IFACE, PLAYER_IFACE):
@@ -758,7 +832,11 @@ def bridge():
         # track id, the album art URL — and to confirm.
         def kdec_spotify(self, sender=None):
             """Bus name of KDE Connect's Spotify copy (or the one owned by
-            `sender`), or None."""
+            `sender`), or None — also while the link to the phone is bad
+            (kdec_link.py): its frozen state isn't taken over then, and
+            commands go through the Web API instead of into a dead link."""
+            if not kdec_link.healthy():
+                return None
             try:
                 names = self.conn.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                             "org.freedesktop.DBus", "ListNames", None, None,
@@ -986,6 +1064,7 @@ def bridge():
 
         def drop_hold(self):
             self.hold_until = 0.0
+            self.modes_hold_until = 0.0          # a refused shuffle / repeat: next poll undoes it
             return False
 
         # ── poll results (main thread) ──
@@ -1043,6 +1122,9 @@ def bridge():
             self.track = track
             self.device = (p.get("device") or {}).get("name") or self.device
             self.device_type = ((p.get("device") or {}).get("type") or self.device_type or "").lower()
+            if "repeat_state" in p and time.monotonic() >= self.modes_hold_until:
+                self.shuffle = bool(p.get("shuffle_state"))
+                self.loop = {v: k for k, v in LOOP_TO_API.items()}.get(p["repeat_state"], "None")
 
             server_pos = int(p.get("progress_ms") or 0) * 1000
             server_pos += int((time.monotonic() - fetched_at) * 1_000_000) if p.get("is_playing") else 0
@@ -1176,7 +1258,8 @@ RESUME_LINK_AFTER = 10           # s without Spotify before the tap-to-open link
 
 def resume_phone(last):
     # Spotify still has a session on the phone (KDE Connect shows it): just play.
-    p = kdec_spotify_player()
+    # Not over a bad link (kdec_link.py) — the play would never arrive.
+    p = kdec_spotify_player() if kdec_link.healthy() else None
     if p:
         subprocess.run(["playerctl", "-p", p, "play"])
         return True

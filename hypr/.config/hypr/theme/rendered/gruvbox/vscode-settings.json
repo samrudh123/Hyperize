@@ -74,12 +74,27 @@
     // Code text, scaled on top of the zoom above (14 x 1.44 = ~20px effective).
     "editor.fontSize": 14,
     "terminal.integrated.fontSize": 14,
+    // No automatic contrast boost: the shell's accent colours are palette
+    // slots that set-accent.sh rewrites live (OSC 4), and xterm.js keeps its
+    // contrast decisions cached across that — the prompt's directory text
+    // stayed "lightened" against the OLD colour, washed out on the new one.
+    "terminal.integrated.minimumContrastRatio": 1,
+    // No sticky scroll: the pinned prompt it draws at the top is a separate
+    // xterm that never receives those OSC 4 colours, so the prompt showed in
+    // the stock palette's dark magentas/violets instead of the accent.
+    "terminal.integrated.stickyScroll.enabled": false,
 
     // ── existing settings, unchanged ────────────────────────────────────────
     "claudeCode.preferredLocation": "panel",
     "colab.serverMounting": true,
     "git.autofetch": true,
     "claudeCode.hideOnboarding": true,
+
+    // PDFs open in the zathura-style viewer (~/.config/vscode-pdf-zathura),
+    // not tomoki1207.pdf, which also claims *.pdf.
+    "workbench.editorAssociations": {
+        "*.pdf": "pdfZathura.view"
+    },
 
     // ── Stop the home directory being indexed ───────────────────────────────
     // $HOME is open as the workspace folder, so VS Code's file indexer walked

@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# Copy your Firefox profile into Zen Browser: bookmarks, history, top sites,
+# cookies (stay logged in), saved passwords, extensions and their data,
+# permissions, prefs and user.js. Both browsers share the engine (Zen's must
+# be the same or NEWER — Zen 1.23 = Firefox 158), so the files carry over.
+#
+#   zen-import-firefox            Firefox's default profile -> a new Zen
+#                                 profile, made Zen's default
+#   zen-import-firefox --force    replace an earlier import
+#
+# Close Firefox AND Zen first: the databases are copied as files.
+# Left out: caches, crash data, telemetry, Firefox's chrome/ (userChrome.css
+# is Firefox-shaped; set-accent.sh renders Zen's own), compatibility.ini and
+# addonStartup.json.lz4 (rebuilt on first start).
+set -euo pipefail
+
+FF="$HOME/.mozilla/firefox"
+ZEN="$HOME/.zen"
+force=0
+[ "${1:-}" = --force ] && force=1
+
+running() { pgrep -x "$1" >/dev/null; }
+if running firefox-bin || running firefox; then
+    echo "Firefox is running — close it first." >&2; exit 1
+fi
+if pgrep -f "/opt/zen/zen( |$)" >/dev/null; then
+    echo "Zen is running — close it first." >&2; exit 1
+fi
+
+# Firefox's default profile: installs.ini's choice, else profiles.ini Default=1
+src=$(python3 - "$FF" <<'EOF'
+import configparser, os, sys
+ff = sys.argv[1]
+ini = configparser.ConfigParser(interpolation=None); ini.optionxform = str
+ini.read(os.path.join(ff, "installs.ini"))
+paths = [ini[s]["Default"] for s in ini.sections() if "Default" in ini[s]]
+if not paths:
+    p = configparser.ConfigParser(interpolation=None); p.optionxform = str
+    p.read(os.path.join(ff, "profiles.ini"))
+    paths = [p[s]["Path"] for s in p.sections() if s.startswith("Profile") and p[s].get("Default") == "1"]
+print(os.path.join(ff, paths[0]) if paths else "")
+EOF
+)
+[ -n "$src" ] && [ -f "$src/prefs.js" ] || { echo "No Firefox profile found in $FF" >&2; exit 1; }
+
+name="imported-firefox"
+dst="$ZEN/$name"
+if [ -e "$dst" ]; then
+    [ "$force" = 1 ] || { echo "$dst exists — run with --force to replace it." >&2; exit 1; }
+    mv "$dst" "$dst.old-$(date +%Y%m%d-%H%M%S)"
+fi
+mkdir -p "$ZEN"
+
+echo "Copying $src"
+echo "     -> $dst"
+python3 - "$src" "$dst" <<'EOF'
+import fnmatch, shutil, sys
+SKIP_FILES = {"lock", ".parentlock", "parent.lock", "compatibility.ini", "addonStartup.json.lz4"}
+SKIP_DIRS = {"startupCache", "cache2", "chrome", "crashes", "minidumps", "datareporting",
+             "saved-telemetry-pings"}
+def ignore(d, names):
+    return [n for n in names if n in SKIP_FILES or n in SKIP_DIRS or fnmatch.fnmatch(n, "*.pre-*")]
+shutil.copytree(sys.argv[1], sys.argv[2], symlinks=True, ignore=ignore)
+EOF
+
+# absolute paths to the old profile (extension files, download dir…)
+python3 - "$src" "$dst" <<'EOF'
+import sys, os
+old, new = sys.argv[1], sys.argv[2]
+for f in ("extensions.json", "prefs.js", "extension-preferences.json", "handlers.json"):
+    p = os.path.join(new, f)
+    if not os.path.exists(p):
+        continue
+    s = open(p, encoding="utf-8").read()
+    if old in s:
+        open(p, "w", encoding="utf-8").write(s.replace(old, new))
+        print(f"  rewrote profile paths in {f}")
+EOF
+
+# Zen's defaults that differ from Firefox's in ways you'd notice
+cat >> "$dst/user.js" <<'EOF'
+
+// ── Zen ────────────────────────────────────────────────────────────────────
+// Zen ships these the other way round from Firefox (its firefox.js): no Top
+// Sites on the new-tab page, and Ctrl+T opens a floating URL bar instead of
+// the new-tab page. Back to Firefox's behaviour, so the shortcuts carried
+// over by zen-import-firefox (browser.newtabpage.pinned) show up.
+user_pref("browser.newtabpage.activity-stream.feeds.topsites", true);
+user_pref("zen.urlbar.replace-newtab", false);
+EOF
+
+# Zen's profiles.ini: this profile, the default (an existing one is kept as
+# profiles.ini.bak).
+[ -f "$ZEN/profiles.ini" ] && cp "$ZEN/profiles.ini" "$ZEN/profiles.ini.bak"
+python3 - "$ZEN" "$name" <<'EOF'
+import configparser, os, sys
+zen, name = sys.argv[1], sys.argv[2]
+ini = configparser.ConfigParser(interpolation=None); ini.optionxform = str
+ini.read(os.path.join(zen, "profiles.ini"))
+if not ini.has_section("General"):
+    ini["General"] = {"StartWithLastProfile": "1", "Version": "2"}
+for s in [s for s in ini.sections() if s.startswith("Profile")]:
+    if ini[s].get("Path") == name:
+        ini.remove_section(s)
+    else:
+        ini[s].pop("Default", None)
+n = 0
+while ini.has_section(f"Profile{n}"):
+    n += 1
+ini[f"Profile{n}"] = {"Name": "Default (imported from Firefox)", "IsRelative": "1",
+                      "Path": name, "Default": "1"}
+with open(os.path.join(zen, "profiles.ini"), "w") as f:
+    ini.write(f, space_around_delimiters=False)
+EOF
+
+# Zen keeps a profile per INSTALL (an [Install<hash>] entry) and on its first
+# start makes a fresh empty one rather than adopting ours. So start it once,
+# headless, to get that entry written, then point it at our profile and drop
+# the empty one it made.
+zen_bin="$HOME/.local/opt/zen/zen"
+if [ -x "$zen_bin" ] && ! grep -q '^\[Install' "$ZEN/profiles.ini"; then
+    before=$(ls -1 "$ZEN")
+    "$zen_bin" --headless about:blank >/dev/null 2>&1 &
+    zpid=$!
+    for _ in $(seq 60); do grep -q '^\[Install' "$ZEN/profiles.ini" 2>/dev/null && break; sleep 0.5; done
+    sleep 2
+    kill "$zpid" 2>/dev/null; wait "$zpid" 2>/dev/null || true
+    printf '%s\n' "$before" > "$ZEN/.before-first-run"
+fi
+python3 - "$ZEN" "$name" <<'EOF'
+import configparser, os, shutil, sys
+zen, name = sys.argv[1], sys.argv[2]
+before_f = os.path.join(zen, ".before-first-run")
+before = set(open(before_f).read().split("\n")) if os.path.exists(before_f) else None
+for fn in ("profiles.ini", "installs.ini"):
+    p = os.path.join(zen, fn)
+    if not os.path.exists(p):
+        continue
+    ini = configparser.ConfigParser(interpolation=None); ini.optionxform = str
+    ini.read(p)
+    for s in ini.sections():
+        if fn == "installs.ini" or s.startswith("Install"):
+            ini[s]["Default"] = name
+            ini[s]["Locked"] = "1"
+    if fn == "profiles.ini" and before is not None:
+        # the empty profile Zen made on that first start
+        for s in [s for s in ini.sections() if s.startswith("Profile")]:
+            path = ini[s].get("Path", "")
+            if path != name and path not in before:
+                ini.remove_section(s)
+                shutil.rmtree(os.path.join(zen, path), ignore_errors=True)
+    with open(p, "w") as f:
+        ini.write(f, space_around_delimiters=False)
+if before is not None:
+    os.remove(before_f)
+EOF
+
+# the desktop theme + accent for Zen's chrome (set-accent.sh templates)
+accent="$HOME/.config/hypr/set-accent.sh"
+[ -x "$accent" ] && "$accent" --render zen-userChrome.css zen-userContent.css \
+    && echo "  themed: chrome/userChrome.css, chrome/userContent.css"
+
+echo "Done. Start Zen; Firefox's profile is untouched."

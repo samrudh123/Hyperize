@@ -8,6 +8,9 @@
 #   set-accent.sh --restore    re-apply the saved accent (used at login)
 #   set-accent.sh --revert     restore the pristine pre-theming configs
 #   set-accent.sh --resync     re-derive templates after editing a themed file
+#   set-accent.sh --render NAME…   (re)write just these templates' files at the
+#                              current accent + theme (a target that did not
+#                              exist before, e.g. zen-import-firefox's profile)
 #   set-accent.sh --show       print the current accent
 #
 # HOW IT WORKS — templates, not in-place edits
@@ -124,6 +127,8 @@ tmux.conf	.config/tmux/tmux.conf
 vscode-settings.json	.config/Code/User/settings.json
 firefox-userChrome.css	.mozilla/firefox/er3XIFsH.Profile 1/chrome/userChrome.css
 firefox-userContent.css	.mozilla/firefox/er3XIFsH.Profile 1/chrome/userContent.css
+zen-userChrome.css	.zen/imported-firefox/chrome/userChrome.css
+zen-userContent.css	.zen/imported-firefox/chrome/userContent.css
 ghostty-config	.config/ghostty/config
 zathurarc	.config/zathura/zathurarc
 EOF
@@ -321,6 +326,19 @@ case "${1:-}" in
         init >/dev/null
         render "$hex" $PREVIEW_SET
         reload_live "$hex"
+        ;;
+    --render)
+        shift
+        init >/dev/null 2>&1
+        hex="$ORIGINAL"
+        [ -s "$STATE" ] && IFS= read -r hex < "$STATE"
+        valid "$hex" || hex="$ORIGINAL"
+        for name in "$@"; do
+            rel=$(manifest | awk -F'\t' -v n="$name" '$1 == n { print $2 }')
+            [ -n "$rel" ] && mkdir -p "$(dirname "$HOME/$rel")"
+        done
+        render "$hex" "$@"
+        exit 0
         ;;
     --resync)
         # Absorb manual edits to themed files back into the templates.

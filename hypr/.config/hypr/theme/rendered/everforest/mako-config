@@ -1,0 +1,62 @@
+# ─── mako · Catppuccin Mocha ───
+font=JetBrainsMono Nerd Font 10
+background-color=#2d353bdd
+text-color=#d3c6aa
+border-color=#@@ACCENT@@
+progress-color=over #343f44
+border-size=2
+border-radius=10
+padding=12,16
+margin=10
+default-timeout=5000
+max-visible=4
+anchor=top-right
+layer=overlay
+width=380
+height=120
+icon-path=/usr/share/icons/Papirus-Dark
+
+[urgency=low]
+border-color=#82a9c9
+default-timeout=3000
+
+[urgency=high]
+border-color=#e67e80
+text-color=#e67e80
+default-timeout=0
+
+# Left-click: pick from the notification's buttons (Bluetooth pairing
+# Confirm/Deny, KDE Connect Accept/Reject…) — see click.sh. Right-click dismisses.
+on-button-left=exec ~/.config/mako/click.sh
+on-button-right=dismiss
+
+# Do not disturb (right-click the bell in the top bar, or notif-center.py dnd):
+# nothing pops up, everything is still logged for the notification centre.
+# Critical ones (urgency=high) still show.
+# While the notification centre is open its popups would cover it; hidden
+# (not dismissed — their buttons still work from the panel) until it closes.
+[mode=panel-open]
+invisible=1
+# Same for the Wi-Fi dropdown (network-panel.py), which opens under the bar's
+# Wi-Fi icon — right where popups appear.
+[mode=netpanel-open]
+invisible=1
+
+[mode=do-not-disturb]
+invisible=1
+[mode=do-not-disturb urgency=high]
+invisible=0
+# On-screen indicators (category "osd": the SUPER+SHIFT+Scroll opacity bar)
+# are feedback for a key you just pressed, not notifications — show them
+# through DND too. notif-log.py already keeps them out of the history.
+[mode=do-not-disturb category=osd]
+invisible=0
+
+# blueman's questions (pairing passkey Confirm/Deny, "Bluetooth Authentication"
+# Accept/Deny): 30 s to answer, not mako's 5 s (too short to compare a passkey)
+# and not forever (blueman asks with no timeout, so they sat there until
+# clicked). 30 s is about when BlueZ gives up on the request anyway; it stays
+# in the notification centre's history after.
+[app-name=blueman actionable]
+default-timeout=30000
+ignore-timeout=1

@@ -61,10 +61,10 @@ while :; do
     total=$(add 0 take)
     [ "$total" = 0 ] && break
     case "$player" in
-        # Firefox too: it turns a relative Seek into the page's "seek forward /
+        # Firefox (and Zen, same engine) too: it turns a relative Seek into the page's "seek forward /
         # back", and YouTube jumps a fixed 5 s whatever the offset (a 4-notch
         # spin = 5 s, measured). Its absolute SetPosition is exact.
-        kdeconnect.*|firefox.*)
+        kdeconnect.*|firefox.*|zen.*)
             cur=$(playerctl -p "$player" position 2>/dev/null) || break
             new=$(awk -v c="$cur" -v d="$total" 'BEGIN { n = c + d; if (n < 0) n = 0; printf "%.3f", n }')
             playerctl -p "$player" position "$new" ;;

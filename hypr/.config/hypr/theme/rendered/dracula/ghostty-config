@@ -1,0 +1,83 @@
+# ─── Ghostty · Catppuccin Mocha ───────────────────────────────────────────
+
+font-family = "JetBrainsMono Nerd Font"
+font-size = 12
+font-feature = calt
+font-feature = liga
+font-thicken = true
+
+# Catppuccin Mocha
+background = 282a36
+foreground = f8f8f2
+# Accent — filled in by set-accent.sh; SIGUSR2 reloads open windows
+cursor-color = @@ACCENT@@
+cursor-text = 191a21
+# selected text turns accent on a muted band, rather than an accent slab
+selection-background = 44475a
+selection-foreground = @@ACCENT@@
+split-divider-color = @@ACCENT@@
+unfocused-split-fill = 191a21
+# Ctrl+Shift+F search: matches muted, the current match in the accent
+search-background = 545770
+search-foreground = f8f8f2
+search-selected-background = @@ACCENT@@
+search-selected-foreground = 191a21
+
+palette = 0=#44475a
+palette = 1=#ff5555
+palette = 2=#50fa7b
+palette = 3=#f1fa8c
+palette = 4=#8aa9f9
+palette = 5=#ff79c6
+palette = 6=#6ef3c5
+palette = 7=#dadbe6
+palette = 8=#545770
+palette = 9=#ff5555
+palette = 10=#50fa7b
+palette = 11=#f1fa8c
+palette = 12=#8aa9f9
+palette = 13=#ff79c6
+palette = 14=#6ef3c5
+palette = 15=#bfc2d6
+# accent slots in the 256-colour cube, for the shell (starship prompt,
+# fastfetch, eza, completion, fzf all draw with 38;5;53-57). Text keeps the
+# palette INDEX, so a reload (set-accent.sh sends SIGUSR2) recolours
+# everything already on screen, scrollback included.
+palette = 53=#@@ACCENT@@
+palette = 54=#@@ACCENT_COMP@@
+palette = 55=#@@ACCENT_MID@@
+palette = 56=#@@ACCENT_LOW@@
+palette = 57=#@@ACCENT_THIRD@@
+
+# ─── Look & feel ──────────────────────────────────────────────────────────
+background-opacity = 0.92
+background-blur-radius = 32
+window-padding-x = 14
+window-padding-y = 12
+window-padding-balance = true
+window-decoration = true
+window-theme = ghostty
+gtk-titlebar = false
+unfocused-split-opacity = 0.7
+
+cursor-style = block
+cursor-style-blink = false
+mouse-hide-while-typing = true
+scrollback-limit = 100000
+copy-on-select = clipboard
+confirm-close-surface = false
+shell-integration = detect
+shell-integration-features = cursor,sudo,title
+
+# ─── Keybinds ─────────────────────────────────────────────────────────────
+keybind = ctrl+shift+enter=new_split:right
+keybind = ctrl+shift+backslash=new_split:down
+keybind = ctrl+shift+h=goto_split:left
+keybind = ctrl+shift+l=goto_split:right
+keybind = ctrl+shift+k=goto_split:up
+keybind = ctrl+shift+j=goto_split:down
+keybind = ctrl+shift+z=toggle_split_zoom
+keybind = ctrl+shift+t=new_tab
+keybind = ctrl+plus=increase_font_size:1
+keybind = ctrl+minus=decrease_font_size:1
+keybind = ctrl+zero=reset_font_size

@@ -5,7 +5,7 @@
    at USER priority, after the built-in stylesheet, so it wins. Apps read it at
    start-up: close and reopen a window to see a change.
 
-   ACCENT: #7aa2f7 below is a set-accent.sh template token (the original
+   ACCENT: #9ece6a below is a set-accent.sh template token (the original
    accent) — the live file is rendered from theme/templates/gtk4.css with the
    current accent, so it follows SUPER+ALT+C and the wallpaper picker. Edit
    this file, then run `set-accent.sh --resync`, or the next accent change
@@ -19,9 +19,9 @@
 
 :root {
   /* accent */
-  --accent-bg-color: #7aa2f7;
+  --accent-bg-color: #9ece6a;
   --accent-fg-color: #13131a;
-  --accent-color: #7aa2f7;
+  --accent-color: #9ece6a;
 
   /* status colours: Mocha red / green / yellow, dark text on the fills */
   --destructive-bg-color: #f7768e;
@@ -81,9 +81,9 @@
 }
 
 /* The same colours under the pre-1.6 names, for GTK4 apps that read those. */
-@define-color accent_bg_color #7aa2f7;
+@define-color accent_bg_color #9ece6a;
 @define-color accent_fg_color #13131a;
-@define-color accent_color #7aa2f7;
+@define-color accent_color #9ece6a;
 @define-color destructive_bg_color #f7768e;
 @define-color destructive_fg_color #13131a;
 @define-color destructive_color #f7768e;
@@ -118,10 +118,10 @@
 .navigation-sidebar > row:selected,
 .navigation-sidebar row:selected {
   background-color: #24283b;
-  box-shadow: inset 3px 0 0 #7aa2f7;
+  box-shadow: inset 3px 0 0 #9ece6a;
 }
 .navigation-sidebar row:selected image {
-  color: #7aa2f7;
+  color: #9ece6a;
 }
 .navigation-sidebar > row:hover:not(:selected) {
   background-color: rgba(36, 40, 59, 0.6);
@@ -137,7 +137,7 @@ list.content {
 /* Files: selected items get the accent tint rather than a solid block. */
 gridview > child:selected,
 columnview > listview > row:selected {
-  background-color: alpha(#7aa2f7, 0.22);
+  background-color: alpha(#9ece6a, 0.22);
   color: #c0caf5;
 }
 
@@ -148,7 +148,7 @@ searchbar entry,
   background-color: #24283b;
 }
 entry:focus-within {
-  outline-color: alpha(#7aa2f7, 0.6);
+  outline-color: alpha(#9ece6a, 0.6);
 }
 
 /* Switches and check boxes read from the accent already; keep the knob dark
