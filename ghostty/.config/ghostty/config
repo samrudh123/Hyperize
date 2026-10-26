@@ -10,17 +10,17 @@ font-thicken = true
 background = 1a1b26
 foreground = c0caf5
 # Accent — filled in by set-accent.sh; SIGUSR2 reloads open windows
-cursor-color = 9ece6a
+cursor-color = bb9af7
 cursor-text = 13131a
 # selected text turns accent on a muted band, rather than an accent slab
 selection-background = 343a52
-selection-foreground = 9ece6a
-split-divider-color = 9ece6a
+selection-foreground = bb9af7
+split-divider-color = bb9af7
 unfocused-split-fill = 13131a
 # Ctrl+Shift+F search: matches muted, the current match in the accent
 search-background = 414868
 search-foreground = c0caf5
-search-selected-background = 9ece6a
+search-selected-background = bb9af7
 search-selected-foreground = 13131a
 
 palette = 0=#343a52
@@ -43,11 +43,11 @@ palette = 15=#9aa5ce
 # fastfetch, eza, completion, fzf all draw with 38;5;53-57). Text keeps the
 # palette INDEX, so a reload (set-accent.sh sends SIGUSR2) recolours
 # everything already on screen, scrollback included.
-palette = 53=#9ece6a
-palette = 54=#9a6ace
-palette = 55=#556a4e
-palette = 56=#3c4944
-palette = 57=#6acecc
+palette = 53=#bb9af7
+palette = 54=#d6f79a
+palette = 55=#605686
+palette = 56=#423f61
+palette = 57=#f79aa8
 
 # ─── Look & feel ──────────────────────────────────────────────────────────
 background-opacity = 0.92

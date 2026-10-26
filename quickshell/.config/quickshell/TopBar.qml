@@ -224,7 +224,7 @@ PanelWindow {
             readonly property string rewritten: {
                 let m;
                 if ((m = /^(.*) — Mozilla Firefox$/.exec(raw))) return "\u{f0239}  " + m[1];
-                if ((m = /^(?:(.*) — )?Zen Browser$/.exec(raw))) return "\u{f059f}  " + (m[1] || "Zen");
+                if ((m = /^(?:(.*) — )?Zen Browser$/.exec(raw))) return "\u{f05dd}  " + (m[1] || "Zen");   // md-bullseye ≈ Zen's rings
                 if (/Ghostty$/.test(raw)) return "\u{f02a0}  terminal";
                 if ((m = /^(.*) - Visual Studio Code$/.exec(raw))) return "\u{f0a1e}  " + m[1];
                 return raw;
