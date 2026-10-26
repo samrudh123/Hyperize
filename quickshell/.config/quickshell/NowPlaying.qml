@@ -57,6 +57,7 @@ Row {
     readonly property color tint: classes.includes("paused") ? Theme.subtext0
                                 : classes.includes("spotify") ? Theme.green
                                 : classes.includes("firefox") ? Theme.peach
+                                : classes.includes("zen") ? Theme.mauve
                                 : classes.includes("youtube") ? Theme.youtube
                                 : classes.includes("ytmusic") ? Theme.pink : Theme.accent
 

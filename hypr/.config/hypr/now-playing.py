@@ -20,7 +20,7 @@ the phone) is the "kdeconnect.spotifyremote" player published by spotify-remote.
 it gets the same line, scroll-seek and menu as everything else.
 
 Classes (bottom.css): spotify green · youtube dim red · firefox peach ·
-ytmusic pink · other blue · paused grey (wins) · hidden. Shows playerctld's
+zen mauve · ytmusic pink · other blue · paused grey (wins) · hidden. Shows playerctld's
 ACTIVE player — the one the bar's click / prev / next act on, which
 media-prefer-playing.sh keeps on a playing one. Long-running: one JSON line
 per change, plus a tick per second while something plays. Stdlib only.
@@ -56,7 +56,7 @@ I_PHONE = "\U000F011C"     # md-cellphone
 I_PAUSE = "\U000F03E4"     # md-pause
 I_FIREFOX = "\U000F0239"   # md-firefox
 I_BRAVE = "\U000F059F"     # md-web
-I_ZEN = "\U000F059F"       # md-web (no Zen glyph in the Nerd Font)
+I_ZEN = "\U000F05DD"       # md-bullseye: concentric rings, like Zen's logo (no Zen glyph in the Nerd Font)
 I_CHROMIUM = "\U000F02AF"  # md-google_chrome
 I_DEFAULT = "\U000F0386"   # md-music_note
 
@@ -132,9 +132,9 @@ def describe(inst):
         "spotify": ("spotify", I_SPOTIFY, "Spotify", False),
         # Zen publishes its own player as firefox.instance_* too (the name is
         # hard-coded in Gecko); its Identity says "Mozilla zen".
-        "firefox": (("firefox", I_ZEN, "Zen", False) if gecko_owner(inst) == "zen"
+        "firefox": (("zen", I_ZEN, "Zen", False) if gecko_owner(inst) == "zen"
                     else ("firefox", I_FIREFOX, "Firefox", False)),
-        "zen": ("firefox", I_ZEN, "Zen", False),        # its per-tab players
+        "zen": ("zen", I_ZEN, "Zen", False),            # its per-tab players
         "brave": ("other", I_BRAVE, "Brave", False),
         "chromium": ("other", I_CHROMIUM, "Chromium", False),
     }.get(name, ("other", I_DEFAULT, name, False))

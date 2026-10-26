@@ -61,7 +61,7 @@ BASE, MANTLE, SURFACE0 = "#1e1e2e", "#181825", "#313244"
 TEXT, SUBTEXT, OVERLAY = "#cdd6f4", "#a6adc8", "#6c7086"
 # "youtube" is a dimmed red rather than Mocha's own (#f38ba8), which sits too
 # close to the YouTube Music pink to tell apart at a glance.
-COLOURS = {"spotify": "#a6e3a1", "youtube": "#bf616a", "firefox": "#fab387",
+COLOURS = {"spotify": "#a6e3a1", "youtube": "#bf616a", "firefox": "#fab387", "zen": "#cba6f7",
            "ytmusic": "#f5c2e7", "other": "#89b4fa", "muted": OVERLAY}
 # "other" (any player without a colour of its own, and "Last played") is the
 # accent, like the bar's player pill. The menu is a fresh process on every
@@ -182,7 +182,7 @@ def describe(instance, url):
         return "YouTube Music", "ytmusic"
     if p == "firefox" and gecko(instance) == "zen":
         p = "zen"
-    colour = {"spotify": "spotify", "firefox": "firefox", "zen": "firefox"}.get(p, "other")
+    colour = {"spotify": "spotify", "firefox": "firefox", "zen": "zen"}.get(p, "other")
     # YouTube tabs are named as such when the browser exposes the URL
     # (Chromium-based ones do; Firefox usually not).
     if "music.youtube.com" in url:
@@ -307,7 +307,7 @@ def entries():
         rows.append(("Pause everything", "", "muted", "paused", ["playerctl", "-a", "pause"]))
     rows += [
         ("Open Spotify", "", "spotify", "open", [FOCUS, "spotify", "/usr/bin/spotify"]),
-        ("Open YouTube", "", "firefox", "open",      # a Zen tab: the browsers' peach
+        ("Open YouTube", "", "zen", "open",          # a Zen tab: Zen's mauve
          ["hyprctl", "dispatch", "exec", f"{BROWSER} --new-tab https://www.youtube.com"]),
         ("Open YouTube Music", "", "ytmusic", "open",
          [FOCUS, "youtube-music", "/usr/bin/youtube-music"]),
