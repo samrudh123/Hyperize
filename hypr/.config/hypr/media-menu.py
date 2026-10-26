@@ -53,7 +53,7 @@ from gi.repository import Gdk, GdkPixbuf, Gtk, Pango  # noqa: E402
 
 ICONS = os.path.expanduser("~/.config/hypr/icons/media")
 FOCUS = os.path.expanduser("~/.config/hypr/focus-or-launch.sh")
-BROWSER = "/usr/bin/firefox"
+BROWSER = os.path.expanduser("~/.local/opt/zen/zen")   # the default browser (Zen)
 LOCK = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "media-menu.lock")
 
 # Catppuccin Mocha, as waybar/bottom.css.
@@ -180,14 +180,16 @@ def describe(instance, url):
         return f"{ident.partition(' - ')[0] or 'Phone'} · Phone", classify_phone(ident)
     if p.lower().startswith("youtubemusic") or p.startswith("youtube-music"):
         return "YouTube Music", "ytmusic"
-    colour = {"spotify": "spotify", "firefox": "firefox"}.get(p, "other")
+    if p == "firefox" and gecko(instance) == "zen":
+        p = "zen"
+    colour = {"spotify": "spotify", "firefox": "firefox", "zen": "firefox"}.get(p, "other")
     # YouTube tabs are named as such when the browser exposes the URL
     # (Chromium-based ones do; Firefox usually not).
     if "music.youtube.com" in url:
         return "YouTube Music", colour
     if "youtube.com" in url or "youtu.be" in url:
         return "YouTube", colour
-    names = {"spotify": "Spotify", "firefox": "Firefox", "brave": "Brave",
+    names = {"spotify": "Spotify", "firefox": "Firefox", "zen": "Zen", "brave": "Brave",
              "chromium": "Chromium"}
     return names.get(p, p[:1].upper() + p[1:]), colour
 
@@ -232,26 +234,41 @@ def last_played_row(players):
 # Firefox tabs: one player per YouTube tab, "firefox.tab_<id>", from the
 # mpris-position extension's native host (~/.local/share/firefox-mpris-position/
 # host.py), which also names the tab you're on (the one the bar shows).
-FF_CURRENT = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "firefox-tabs.current")
+# Zen Browser runs the same extension: "zen.tab_<id>", zen-tabs.current.
+GECKO = ("firefox", "zen")
+RT_DIR = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+
+
+def gecko(inst):
+    """"firefox" / "zen" for that browser's players, else None. Zen's OWN
+    player is named firefox.instance_* too (Gecko hard-codes it); only its
+    Identity ("Mozilla zen") tells them apart."""
+    b = inst.split(".")[0]
+    if b == "firefox" and inst.startswith("firefox.instance"):
+        return "zen" if "zen" in identity(inst).lower() else "firefox"
+    return b if b in GECKO else None
 
 
 def hidden_firefox(inst, url, players):
-    """Firefox's own player while per-tab players exist and it is one of
-    those YouTube tabs (Firefox publishes only one, for the tab it last
+    """Firefox's (or Zen's) own player while per-tab players exist and it is
+    one of those YouTube tabs (it publishes only one, for the tab it last
     started) — the tab rows already cover it. Same rule in now-playing.py."""
-    return (inst.startswith("firefox.instance") and "youtube.com" in url
-            and any(p.startswith("firefox.tab_") for p in players))
+    b = gecko(inst)
+    return (b is not None and ".instance" in inst and "youtube.com" in url
+            and any(p.startswith(f"{b}.tab_") for p in players))
 
 
 def entries():
     """[(name, detail, colour, state, action argv)] — state picks the icon."""
     rows, any_playing = [], False
     players = run("playerctl", "-l").splitlines()
-    try:
-        with open(FF_CURRENT) as f:
-            ff_current = f.read().strip()
-    except OSError:
-        ff_current = ""
+    current = set()                         # each browser's "this tab"
+    for b in GECKO:
+        try:
+            with open(os.path.join(RT_DIR, f"{b}-tabs.current")) as f:
+                current.add(f.read().strip())
+        except OSError:
+            pass
     # Spotify's mirror copy (the laptop app showing the phone's song, or the
     # other way round) — the bar shows only the real one, so does the menu.
     mirrors = spotify_where.hidden(players)
@@ -274,10 +291,10 @@ def entries():
         if len(now) > 52:
             now = now[:51] + "…"
         action = ["playerctl", "-p", inst, "play-pause"]
-        if inst.startswith("firefox.tab_"):
-            # A Firefox tab: picking it switches Firefox to that tab (MPRIS
-            # Raise -> host.py), which makes it the one the bar shows.
-            name += " · this tab" if inst == ff_current else " · tab"
+        if gecko(inst) and ".tab_" in inst:
+            # A Firefox / Zen tab: picking it switches the browser to that
+            # tab (MPRIS Raise -> host.py), which makes it the one the bar shows.
+            name += " · this tab" if inst in current else " · tab"
             action = ["busctl", "--user", "call", "org.mpris.MediaPlayer2." + inst,
                       "/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2", "Raise"]
         rows.append((name, now, colour, state, action))
@@ -290,7 +307,7 @@ def entries():
         rows.append(("Pause everything", "", "muted", "paused", ["playerctl", "-a", "pause"]))
     rows += [
         ("Open Spotify", "", "spotify", "open", [FOCUS, "spotify", "/usr/bin/spotify"]),
-        ("Open YouTube", "", "firefox", "open",      # a Firefox tab: Firefox's peach
+        ("Open YouTube", "", "firefox", "open",      # a Zen tab: the browsers' peach
          ["hyprctl", "dispatch", "exec", f"{BROWSER} --new-tab https://www.youtube.com"]),
         ("Open YouTube Music", "", "ytmusic", "open",
          [FOCUS, "youtube-music", "/usr/bin/youtube-music"]),

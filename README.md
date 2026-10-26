@@ -36,6 +36,13 @@ After it finishes:
 - `~/.gitconfig.local` — your git name and email (kept out of the repo):
   `git config --file ~/.gitconfig.local user.email you@example.com`
 - **Check the per-machine settings** below — GPU driver, monitor scale.
+- Zen Browser is the browser (`SUPER+B`, the dock, "Open YouTube"; Firefox-based,
+  `build/zen.sh` installs it into `~/.local/opt/zen`). Make it the system
+  default with `xdg-settings set default-web-browser zen.desktop`. With Firefox
+  and Zen closed, `zen-import-firefox` copies your Firefox profile into Zen —
+  bookmarks, history, cookies, passwords, extensions — and themes Zen's chrome
+  with the accent. The extensions' native hosts are shared (Zen reads
+  `~/.mozilla/native-messaging-hosts` too).
 - OBS: open it once and pick the screen in each capture prompt (tick "allow
   restore token") — the portal remembers it after that.
 - Wallpapers: `install.sh` downloads them into `~/Pictures/wallpapers` from
