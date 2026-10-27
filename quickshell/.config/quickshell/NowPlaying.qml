@@ -8,7 +8,8 @@
 //     text  classes  tooltip(\n -> \x1e)  pos_us  len_us  player  playing
 //     shuffle(1/0/"")  loop(None/Playlist/Track/"")
 //
-//   pill            click: play/pause · right: media-menu · scroll: ±5 s
+//   pill            click: play/pause · right: the music panel (MediaPopup:
+//                   cover, controls, equalizer, lyrics) · scroll: ±5 s
 //   bottom 11 px    the seek zone: line thickens, knob + time bubble;
 //                   click = jump, drag = seek on release (one request)
 //   ⏮ ⏭            media-skip.sh prev|next <player>
@@ -247,7 +248,7 @@ Row {
                 id: mouse
                 anchors.fill: parent
                 hoverEnabled: true
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
                 readonly property int zone: 11
                 property bool inZone: false
@@ -281,9 +282,18 @@ Row {
                     dragging = false;
                     if (pressInZone) dragFrac = frac(ev.x);
                 }
+                // what each button does: PillClicks "player" (Settings › Pills);
+                // a left press in the seek zone always seeks
+                readonly property var acts: ({
+                    playpause: () => { if (np.player) Theme.exec("playerctl -p " + np.player + " play-pause"); },
+                    panel: () => mediaPop.toggle(),
+                    players: () => BarState.panelRequested("players", ""),
+                    next: () => { if (np.player) Theme.exec(Theme.hypr + "/media-skip.sh next " + np.player); },
+                    prev: () => { if (np.player) Theme.exec(Theme.hypr + "/media-skip.sh prev " + np.player); }
+                })
                 onReleased: ev => {
-                    if (ev.button === Qt.RightButton) {
-                        Theme.exec(Theme.hypr + "/media-menu.sh");
+                    if (ev.button !== Qt.LeftButton) {
+                        if (containsMouse) PillClicks.dispatch("player", ev.button, acts);
                         return;
                     }
                     if (pressInZone && np.seekable) {
@@ -295,7 +305,7 @@ Row {
                         np.now = np.posAt;
                         np.holdUntil = np.posAt + 2000;
                     } else if (np.player && containsMouse) {
-                        Theme.exec("playerctl -p " + np.player + " play-pause");
+                        PillClicks.dispatch("player", Qt.LeftButton, acts);
                     }
                     dragging = false;
                     pressInZone = false;
@@ -306,7 +316,10 @@ Row {
                 onWheel: wheel => {
                     acc += Theme.wheelDelta(wheel);
                     while (Math.abs(acc) >= 120) {
-                        Theme.exec(Theme.hypr + "/media-seek.sh " + (acc > 0 ? "5+" : "5-") + " " + np.player);
+                        // Settings › Pills (default: seek ±5 s)
+                        PillClicks.scroll("player", acc > 0 ? 1 : -1, {
+                            seek: d => Theme.exec(Theme.hypr + "/media-seek.sh " + (d > 0 ? "5+" : "5-") + " " + np.player)
+                        });
                         acc -= acc > 0 ? 120 : -120;
                     }
                 }
@@ -315,7 +328,10 @@ Row {
 
         Tooltip {
             target: body
-            text: np.tipText
+            // the script's own "Click: …" line swapped for what clicks do now
+            text: np.tipText.split("<br>").filter(l => !/^\s*(<[^>]+>\s*)*(left-|right-|middle-)?click\b/i.test(l)).join("<br>")
+                  + "<br><font color='" + Theme.overlay2 + "'>"
+                  + [PillClicks.hint("player"), "Scroll: seek"].filter(x => x).join(" · ") + "</font>"
             shown: mouse.containsMouse && !mouse.inZone && !mouse.dragging
             edge: Edges.Top
         }
@@ -349,6 +365,10 @@ Row {
             }
         }
     }
+
+    MediaPopup { id: mediaPop; pill: body; np: np }
+    // the players deck opens it (clicking this side's column)
+    function openPanel() { if (!hidden) mediaPop.open(); }
 
     SkipButton { id: nextBtn; dir: "next" }
     ModeButton { id: repeatBtn; mode: "repeat" }

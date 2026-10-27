@@ -9,6 +9,8 @@
     focus.py task [TEXT]           what this session is for (empty = none)
     focus.py pick                  ask for it (fuzzel): any task or chore, kept
                                    in `recent` for the menu; idle -> starts
+    focus.py use TEXT…             `pick` without the prompt (the bar's panel
+                                   has its own field)
     focus.py forget TEXT…          drop a typed task from `recent` (and, idle,
                                    from `task` too)
     focus.py lengths WORK BREAK    session / short break length in minutes
@@ -23,7 +25,12 @@ session is written to today's log in ~/notes (tasks.py log), with its task.
 STATE: ~/.local/state/focus/state.json — the bar watches it, so nothing
 polls; the countdown is the bar's own clock against `ends` (epoch seconds).
 Survives bar restarts and reboots (an expired phase moves on at once).
+
+A task from ~/notes/tasks.md that has since been ticked off (or deleted) is
+dropped from `task` whenever the timer is idle — it used to linger as the
+"current task" long after it was done. Typed ones (`recent`) stay.
 """
+import re
 
 import json
 import os
@@ -44,6 +51,33 @@ DEFAULT = {"phase": "idle", "ends": 0, "left": 0, "total": 0, "paused": False, "
 RECENT_MAX = 4
 
 
+TASKS_FILE = os.path.join(os.path.expanduser(os.environ.get("TASKS_NOTES_DIR", "~/notes")), "tasks.md")
+
+
+def open_tasks():
+    """the open tasks' texts in tasks.md ("- [ ] text <!-- … -->"); None if unreadable"""
+    try:
+        with open(TASKS_FILE, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return None
+    out = set()
+    for l in lines:
+        m = re.match(r"^\s*[-*] \[ \]\s+(.*?)\s*(?:<!--.*-->)?\s*$", l)
+        if m and m.group(1):
+            out.add(m.group(1))
+    return out
+
+
+def still_open(st):
+    """is st's task worth keeping: none, a typed one, or still open in tasks.md"""
+    t = st["task"]
+    if not t or t in st["recent"]:
+        return True
+    tasks = open_tasks()
+    return tasks is None or t in tasks
+
+
 def load():
     try:
         with open(STATE) as f:
@@ -53,6 +87,8 @@ def load():
     today = time.strftime("%Y-%m-%d")
     if st["day"] != today:              # the round count starts over each day
         st["day"], st["round"] = today, 0
+    if st["phase"] == "idle" and not still_open(st):
+        st["task"] = ""                 # ticked off since: don't carry it on
     return st
 
 
@@ -165,8 +201,8 @@ def main():
                 st["ends"] += secs
     elif cmd == "task":
         st["task"] = " ".join(args)
-    elif cmd == "pick":
-        text = ask()
+    elif cmd in ("pick", "use"):
+        text = ask() if cmd == "pick" else " ".join(" ".join(args).split())
         if not text:
             return
         st = load()                     # the prompt may have sat open a while

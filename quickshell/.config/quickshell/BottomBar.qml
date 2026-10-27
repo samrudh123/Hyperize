@@ -2,14 +2,15 @@
 //
 // left:   this laptop's player (+ a small spectrum while it plays), the
 //         phone's player, "---" when neither has anything, the Spotify login
-//         prompt, the players menu chevron
+//         prompt, the ⌃ chevron: the players deck (PlayersPopup — SUPER+M)
 // centre: focus timer, weather (slides aside, or hides, when the sides
 //         leave no room)
 // right:  phone (KDE Connect), Tailscale | downloads (only while there are
 //         any), tasks, keep-awake, power profile, wallpaper
 //
 // `qs ipc call bottombar toggle|open|close` (bottom-bar.sh) hides it;
-// `qs ipc call bottombar menu phone|tailscale|focus` opens a pill's menu.
+// `qs ipc call bottombar menu phone|tailscale|focus` opens a pill's menu;
+// `qs ipc call players toggle|open|close` the players deck.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -17,6 +18,59 @@ import Quickshell.Wayland
 
 PanelWindow {
     id: bar
+
+    // popups keep this bar live; presses on it are announced (BarState):
+    // pills report their own (Pill.qml), this catches the empty bar — it is
+    // UNDER everything, so it only ever gets presses nothing else took
+    Component.onCompleted: BarState.addBar(bar)
+    // keyboard navigation between popups (BarState.navPopup / startNav)
+    function navRoot() { return BarState.rootOf(barBg); }
+    readonly property bool isTopBar: false
+    // Esc reaching the bar (pointer over one of its popups): close them
+    Shortcut {
+        sequences: ["Escape"]
+        context: Qt.WindowShortcut
+        onActivated: BarState.escapePressed()
+    }
+    Shortcut {
+        sequences: ["Ctrl+Tab"]
+        context: Qt.WindowShortcut
+        onActivated: BarState.tabPressed(1)
+    }
+    Shortcut {
+        sequences: ["Ctrl+Shift+Tab", "Ctrl+Backtab", "Ctrl+Shift+Backtab"]
+        context: Qt.WindowShortcut
+        onActivated: BarState.tabPressed(-1)
+    }
+    // keyboard navigation inside / between popups (PanelPopup.navKey): only
+    // while a popup is open, so the bar never takes these keys otherwise
+    Repeater {
+        model: [["Tab", Qt.Key_Tab, 0], ["Shift+Tab", Qt.Key_Tab, Qt.ShiftModifier],
+                ["Backtab", Qt.Key_Backtab, 0], ["Shift+Backtab", Qt.Key_Backtab, 0],
+                ["Return", Qt.Key_Return, 0], ["Enter", Qt.Key_Enter, 0], ["Space", Qt.Key_Space, 0],
+                ["Left", Qt.Key_Left, 0], ["Right", Qt.Key_Right, 0], ["Up", Qt.Key_Up, 0], ["Down", Qt.Key_Down, 0],
+                ["Ctrl+Left", Qt.Key_Left, Qt.ControlModifier], ["Ctrl+Right", Qt.Key_Right, Qt.ControlModifier],
+                ["Ctrl+Up", Qt.Key_Up, Qt.ControlModifier], ["Ctrl+Down", Qt.Key_Down, Qt.ControlModifier]]
+        delegate: Item {
+            id: navKeyItem
+            required property var modelData
+            Shortcut {
+                enabled: BarState.activePopup !== null
+                sequences: [navKeyItem.modelData[0]]
+                context: Qt.WindowShortcut
+                onActivated: if (BarState.activePopup) BarState.activePopup.navKey(navKeyItem.modelData[1], navKeyItem.modelData[2])
+            }
+        }
+    }
+    Component.onDestruction: BarState.removeBar(bar)
+    MouseArea {
+        id: barBg
+        anchors.fill: parent
+        z: -1000
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+        onClicked: ev => BarState.barPressed(BarState.rootOf(barBg), ev.x, ev.y)
+        onWheel: ev => ev.accepted = false
+    }
 
     // one per screen (shell.qml), all shown/hidden together; the focused
     // screen's owns the IPC target, the primary's runs the focus timer's
@@ -38,6 +92,32 @@ PanelWindow {
         }
         // the focus timer, for keybinds: toggle | stop | skip
         function focus(cmd: string): void { focusPill.run([cmd || "toggle"]); }
+    }
+
+    // the players deck: laptop | phone columns, each with its own controls
+    PlayersPopup {
+        id: playersPop
+        pill: menuChevron
+        npLocal: local
+        npRemote: remote
+    }
+    function togglePlayers() {
+        if (!BarState.bottomShown) BarState.bottomShown = true;
+        playersPop.toggle();
+    }
+    IpcHandler {
+        target: "players"
+        enabled: bar.active
+        function toggle(): void { bar.togglePlayers(); }
+        function open(): void { BarState.bottomShown = true; playersPop.open(); }
+        function close(): void { playersPop.close(); }
+        // what clicking a column does: that side's music panel (local | remote)
+        function panel(side: string): void { playersPop.openPanel(side === "remote" ? remote : local); }
+    }
+    Connections {
+        target: BarState
+        enabled: bar.active
+        function onPanelRequested(name, arg) { if (name === "players") bar.togglePlayers(); }
     }
 
     visible: shown
@@ -139,7 +219,10 @@ PanelWindow {
             padRight: 12
             marginH: 2
             tipEdge: Edges.Top
-            onLeft: Theme.hypr + "/spotify-remote.py login"
+            pillId: "spotify"
+            onClicked: button => PillClicks.dispatch("spotify", button, {
+                login: () => { Theme.exec(Theme.hypr + "/spotify-remote.py login"); spotifyLogin.poke(); }
+            })
         }
 
         Pill {
@@ -152,9 +235,14 @@ PanelWindow {
             padLeft: 8
             padRight: 8
             marginH: 2
-            tip: "Players & now playing"
+            tip: "Players — laptop & phone  ·  SUPER+M" + PillClicks.hintLine("players")
             tipEdge: Edges.Top
-            onClicked: button => { if (button === Qt.LeftButton) Theme.exec(Theme.hypr + "/media-menu.sh"); }
+            // what each button does on the bars' pills: PillClicks (Settings › Pills)
+            pillId: "players"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("players", button, {
+                deck: () => bar.togglePlayers(),
+                pauseall: () => Theme.exec("playerctl -a pause")
+            })
         }
     }
 
@@ -188,11 +276,15 @@ PanelWindow {
             padRight: 12
             marginH: 2
             tipEdge: Edges.Top
-            // click: fetch now; right-click: choose the place (fuzzel)
-            onClicked: button => {
-                if (button === Qt.LeftButton && !weatherFetch.running) weatherFetch.running = true;
-                else if (button === Qt.RightButton && !weatherPlace.running) weatherPlace.running = true;
-            }
+            // click: the weather panel (WeatherPopup.qml); right-click: choose
+            // the place (fuzzel)
+            pillId: "weather"
+            onClicked: button => PillClicks.dispatch("weather", button, {
+                panel: () => weatherPop.toggle(),
+                place: () => { if (!weatherPlace.running) weatherPlace.running = true; },
+                refresh: () => { if (!weatherFetch.running) weatherFetch.running = true; }
+            })
+            WeatherPopup { id: weatherPop; pill: weather; pillRef: weather }
             Process {
                 id: weatherFetch
                 command: [Theme.hypr + "/weather.py", "refresh"]
@@ -250,12 +342,21 @@ PanelWindow {
                 padRight: 12
                 marginH: 2
                 tipEdge: Edges.Top
-                onLeft: Theme.home + "/.local/bin/dl-popup status"
-                onRight: Theme.home + "/.local/bin/dl-popup bar-toggle"
+                pillId: "downloads"
+                onClicked: button => PillClicks.dispatch("downloads", button, {
+                    menu: () => { Theme.exec(Theme.home + "/.local/bin/dl-popup status"); downloads.poke(); },
+                    pause: () => { Theme.exec(Theme.home + "/.local/bin/dl-popup bar-toggle"); downloads.poke(); }
+                })
             }
             Item { width: 6; height: 1; visible: downloads.shown }
 
+            // Tasks: click = the tasks panel (TasksPopup.qml — the whole
+            // panel: tasks, done, the day's log, history), right-click = the
+            // same with "new task" focused. `qs ipc call tasks toggle|open|add|close`
+            // (SUPER+T and reminders' "Open tasks" go through `tasks.py toggle`,
+            // which calls this; the GTK panel only stands in when the shell is down).
             ScriptPill {
+                id: tasksPill
                 command: [Theme.hypr + "/tasks.py", "watch", "2"]
                 interval: 0
                 pokable: true
@@ -268,8 +369,27 @@ PanelWindow {
                 padRight: 14
                 marginH: 2
                 tipEdge: Edges.Top
-                onLeft: Theme.hypr + "/tasks.py toggle"
-                onRight: Theme.hypr + "/tasks.py quickadd"
+                pillId: "tasks"
+                onClicked: button => PillClicks.dispatch("tasks", button, {
+                    panel: () => tasksPop.toggle(),
+                    add: () => { tasksPop.open(); tasksPop.focusAdd(); }
+                })
+
+                TasksPopup {
+                    id: tasksPop
+                    pill: tasksPill
+                    scriptPill: tasksPill
+                }
+                IpcHandler {
+                    target: "tasks"
+                    enabled: bar.active
+                    function toggle(): void { BarState.bottomShown = true; tasksPop.toggle(); }
+                    function open(): void { BarState.bottomShown = true; tasksPop.open(); }
+                    function add(): void { BarState.bottomShown = true; tasksPop.open(); tasksPop.focusAdd(); }
+                    function close(): void { tasksPop.close(); }
+                    // tasks | done | log | history
+                    function tab(name: string): void { BarState.bottomShown = true; tasksPop.open(); tasksPop.showTab(name); }
+                }
             }
 
             // Keep the screen awake: a Wayland idle inhibitor, which hypridle
@@ -288,9 +408,10 @@ PanelWindow {
                 padLeft: 10
                 padRight: 10
                 marginH: 2
-                tip: on ? "Screen stays awake — click to allow sleep" : "Screen may sleep/lock — click to keep awake"
+                tip: (on ? "Screen stays awake" : "Screen may sleep / lock") + PillClicks.hintLine("awake")
                 tipEdge: Edges.Top
-                onClicked: button => { if (button === Qt.LeftButton) BarState.keepAwake = !on; }
+                pillId: "awake"                    // wheel: Settings › Pills
+                onClicked: button => PillClicks.dispatch("awake", button, { toggle: () => BarState.keepAwake = !on })
 
                 IdleInhibitor {
                     window: bar
@@ -313,7 +434,12 @@ PanelWindow {
                 padRight: 10
                 marginH: 2
                 tipEdge: Edges.Top
-                onLeft: Theme.hypr + "/power-profile.sh next"
+                id: profilePill
+                pillId: "profile"
+                onClicked: button => PillClicks.dispatch("profile", button, {
+                    next: () => { Theme.exec(Theme.hypr + "/power-profile.sh next"); profilePill.poke(); },
+                    battery: () => Theme.exec(Theme.home + "/.local/bin/qs ipc call sysinfo toggle battery")
+                })
             }
 
             ScriptPill {
@@ -329,8 +455,12 @@ PanelWindow {
                 padRight: 10
                 marginH: 2
                 tipEdge: Edges.Top
-                onLeft: Theme.hypr + "/wallpaper-control.sh toggle"
-                onRight: Theme.home + "/.local/bin/qs ipc call wallpicker toggle desktop"
+                id: wallPill
+                pillId: "wallpaper"
+                onClicked: button => PillClicks.dispatch("wallpaper", button, {
+                    toggle: () => { Theme.exec(Theme.hypr + "/wallpaper-control.sh toggle"); wallPill.poke(); },
+                    picker: () => Theme.exec(Theme.home + "/.local/bin/qs ipc call wallpicker toggle desktop")
+                })
             }
         }
     }

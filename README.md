@@ -81,6 +81,7 @@ Files of yours that a copy would overwrite are moved to
 | `quickshell` | top bar, bottom bar, dock, wallpaper / workspace / theme pickers, clipboard and recorder |
 | `yazi` | file manager config, plugins, grid view (`Alt+G`) |
 | `ghostty` `mako` `fuzzel` `tmux` `bat` `btop` `glow` `fastfetch` `zathura` `nvim` | app configs |
+| `pipewire` | `rice-eq.conf`: the music panel's 10-band equalizer (a WirePlumber smart filter, `rice-eq.service`) |
 | `zen` | Zen's live theme + accent (an autoconfig script, `build/zen.sh` installs it) — see `zen/.config/zen-rice/README.md` |
 | `firefox-accent` | the old Firefox-only live-accent extension; no longer installed (Zen has `zen` instead) |
 | `video-fullscreen` | Zen + Brave extension and native host (`hypr/video-fullscreen.py`): only a video put fullscreen with the player's button is drawn opaque, F11 / SUPER+F keep the transparency; YouTube Music via MPRIS (`copy` builds it, installs it into Zen and registers the host; load `chromium/` unpacked in Brave, see its README) |

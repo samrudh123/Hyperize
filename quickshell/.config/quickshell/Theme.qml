@@ -61,8 +61,34 @@ Singleton {
         return /^[0-9a-fA-F]{6}$/.test(hex) ? "#" + hex : blue;
     }
 
-    readonly property string font: "JetBrainsMono Nerd Font"
-    readonly property string uiFont: "IBM Plex Sans"
+    // The default MICROPHONE — never a sink. With Bluetooth headphones on
+    // A2DP (no usable headset mic) WirePlumber can name the HEADPHONES' sink
+    // as default.audio.source (its monitor); muting "the mic" then muted the
+    // headphones. Fall back to no source rather than that.
+    function micSource(d) { return d && !d.isSink ? d : null; }
+
+    // How solid the big panels are (Settings, and the audio / network /
+    // notification / music popups): theme/panel-opacity, a percent written by
+    // Settings › Appearance › Transparency, watched like the accent. Hyprland
+    // blurs what shows through (layerrules qs-settings / qs-bar popups).
+    readonly property real panelOpacity: {
+        const n = parseInt(panelOpacityFile.text().trim());
+        return isNaN(n) ? 1 : Math.max(0.35, Math.min(1, n / 100));
+    }
+    function setPanelOpacity(pct) {
+        panelOpacityFile.setText(Math.round(Math.max(35, Math.min(100, pct))) + "\n");
+    }
+    // a panel surface at that opacity (k scales it for layered surfaces)
+    function panel(c, k) {
+        return alpha(c, Math.min(1, panelOpacity * (k === undefined ? 1 : k)));
+    }
+
+    // AdwaitaMono Nerd Font (Iosevka-based) — Serpantinum's face, used for
+    // everything; build/fonts.sh installs it. Was JetBrainsMono + IBM Plex Sans.
+    // Switchable in Settings › Appearance › Font (hypr/set-font.py writes
+    // theme/font-shell; followed live like the accent).
+    readonly property string font: (fontShellFile.text() || "").trim() || "AdwaitaMono Nerd Font"
+    readonly property string uiFont: font
 
     // Shared motion: one easing for every hover / state change.
     readonly property int fast: 160
@@ -129,6 +155,22 @@ Singleton {
         id: accentFile
         path: root.hypr + "/theme/accent"
         watchChanges: true
+        onFileChanged: reload()
+    }
+
+    FileView {
+        id: panelOpacityFile
+        path: root.hypr + "/theme/panel-opacity"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+    }
+
+    FileView {
+        id: fontShellFile
+        path: root.hypr + "/theme/font-shell"
+        watchChanges: true
+        printErrors: false
         onFileChanged: reload()
     }
 }

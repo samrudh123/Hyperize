@@ -1,0 +1,14 @@
+[Unit]
+Description=Equalizer (PipeWire filter-chain smart filter, ~/.config/pipewire/rice-eq.conf)
+After=pipewire.service wireplumber.service
+BindsTo=pipewire.service
+
+[Service]
+ExecStart=/usr/bin/pipewire -c %h/.config/pipewire/rice-eq.conf
+# the saved bands/preamp/on-off (~/.local/state/eq/state.json)
+ExecStartPost=-/usr/bin/python3 %h/.config/hypr/eq.py apply --wait
+Restart=on-failure
+Slice=session.slice
+
+[Install]
+WantedBy=pipewire.service

@@ -77,7 +77,7 @@
 
   /* same corner radius as Hyprland's windows (decoration:rounding = 10) */
   --window-radius: 10px;
-  --monospace-font-family: "JetBrainsMono Nerd Font";
+  --monospace-font-family: "CaskaydiaCove Nerd Font";
 }
 
 /* The same colours under the pre-1.6 names, for GTK4 apps that read those. */

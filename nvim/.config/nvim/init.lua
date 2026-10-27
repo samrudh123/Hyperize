@@ -72,6 +72,10 @@ if vim.uv.fs_stat(theme_dir) then
   end)
 end
 
+-- Keymaps moved in the desktop's Settings › Keybindings › Neovim
+-- (keymap-overrides.json; lua/keymap-overrides.lua).
+require("keymap-overrides").setup()
+
 -- ─── Statusline: accent mode pill · file · position ────────────────────────
 local modes = {
   n = "NORMAL", i = "INSERT", v = "VISUAL", V = "V-LINE", ["\22"] = "V-BLOCK",

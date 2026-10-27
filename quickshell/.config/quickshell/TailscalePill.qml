@@ -1,7 +1,8 @@
 // Tailscale: up/down and who is online on the tailnet.
 //
-//   click: menu (each machine: SSH in · send files with Taildrop · copy IP;
-//          exit node; connect / disconnect) · middle-click: connect/disconnect
+//   click: the Tailscale panel (TailscalePopup: connect switch, each machine
+//          with SSH in · send files with Taildrop · copy IP; exit node) ·
+//          middle-click: connect/disconnect
 //
 // Read from `tailscale status --json` every 5 s. The local user is the
 // tailscale operator, so up/down need no sudo.
@@ -64,7 +65,7 @@ Pill {
         const dim = s => "<font color='" + Theme.overlay2 + "'>" + s + "</font>";
         if (!running)
             return "Tailscale " + (backend === "NeedsLogin" ? "needs login" : backend.toLowerCase())
-                 + "<br>" + dim("Click: menu · Middle-click: connect");
+                 + "<br>" + dim(PillClicks.hint("tailscale"));
         let t = "<b>Tailscale</b>&nbsp;&nbsp;" + dim(((st.CurrentTailnet || {}).Name || "")) + "<br>"
               + "This machine&nbsp;&nbsp;" + ip(self);
         if (exitNode) t += "<br>\u{f01e7} exit node: " + shortName(exitNode);
@@ -72,14 +73,18 @@ Pill {
         for (const p of peers)
             t += "<br>" + (p.Online ? "<font color='" + Theme.green + "'>●</font>" : dim("○")) + " "
                + osGlyph(p) + " " + shortName(p) + "&nbsp;&nbsp;" + dim(ip(p) + " · " + seen(p));
-        return t + "<br><br>" + dim("Click: menu · Middle-click: disconnect");
+        return t + "<br><br>" + dim(PillClicks.hint("tailscale"));
     }
 
-    function toggleMenu() { menu.isOpen ? menu.close() : menu.open(ts); }
+    function toggleMenu() { menu.toggle(); }
 
+    pillId: "tailscale"                    // wheel: Settings › Pills
     onClicked: button => {
-        if (button === Qt.MiddleButton) toggle();
-        else menu.isOpen ? menu.close() : menu.open(ts);
+        PillClicks.dispatch("tailscale", button, {
+            panel: () => menu.toggle(),
+            connect: () => toggle(),
+            settings: () => BarState.panelRequested("settings", "tailscale")
+        });
     }
 
     Process {
@@ -99,86 +104,10 @@ Pill {
     // re-read soon after an action (up/down take a moment)
     Timer { id: poke; interval: 1500; onTriggered: if (!proc.running) proc.running = true }
 
-    MenuPopup {
+    // the panel (TailscalePopup.qml) — was a MenuPopup
+    TailscalePopup {
         id: menu
-        edge: Edges.Top
-        minWidth: 270
-
-        MenuRow {
-            header: true
-            text: "TAILSCALE  ·  " + (ts.running ? ts.online + " online" : ts.backend.toUpperCase())
-        }
-        MenuRow {
-            text: ts.running ? "Disconnect" : ts.backend === "NeedsLogin" ? "Log in…" : "Connect"
-            glyph: ts.running ? "\u{f0319}" : "\u{f0318}"      // md-lan_disconnect / connect
-            danger: ts.running
-            onActivated: { menu.close(); ts.toggle(); }
-        }
-
-        // one submenu-like block per machine, online first
-        Repeater {
-            model: ts.running ? ts.peers : []
-            // (an Item around the Column: MenuPopup sizes itself from its
-            // children's implicitWidth, which a Column would derive from its
-            // own width)
-            delegate: Item {
-                required property var modelData
-                readonly property var p: modelData
-                width: parent ? parent.width : 260
-                implicitWidth: 260
-                implicitHeight: rows.implicitHeight
-                height: implicitHeight
-                Column {
-                    id: rows
-                    width: parent.width
-                    MenuRow { separator: true }
-                    MenuRow {
-                        header: true
-                        text: (p.Online ? "● " : "○ ") + ts.shortName(p) + "  ·  " + ts.seen(p)
-                    }
-                    MenuRow {
-                        visible: p.OS !== "android" && p.OS !== "iOS"
-                        enabled: p.Online
-                        text: "SSH in"
-                        glyph: "\u{f018d}"                  // md-console
-                        onActivated: {
-                            menu.close();
-                            Theme.exec("ghostty --gtk-single-instance=false --title=ssh-" + ts.shortName(p)
-                                       + " -e ssh " + ts.host(p));
-                        }
-                    }
-                    MenuRow {
-                        enabled: p.Online
-                        text: "Send files…"
-                        glyph: "\u{f022a}"                  // md-file_send
-                        onActivated: { menu.close(); Theme.exec(Theme.hypr + "/tailscale-send.sh " + ts.host(p)); }
-                    }
-                    MenuRow {
-                        text: "Copy IP  " + ts.ip(p)
-                        glyph: "\u{f018f}"                  // md-content_copy
-                        onActivated: { menu.close(); Theme.exec("wl-copy " + ts.ip(p)); }
-                    }
-                }
-            }
-        }
-
-        MenuRow { separator: true; visible: ts.running && ts.exitOptions.length > 0 }
-        MenuRow { header: true; visible: ts.running && ts.exitOptions.length > 0; text: "EXIT NODE" }
-        MenuRow {
-            visible: ts.running && ts.exitOptions.length > 0
-            text: "None"
-            check: ts.exitNode ? 0 : 1
-            onActivated: { menu.close(); ts.run("tailscale set --exit-node="); }
-        }
-        Repeater {
-            model: ts.running ? ts.exitOptions : []
-            MenuRow {
-                required property var modelData
-                text: ts.shortName(modelData)
-                check: modelData.ExitNode ? 1 : 0
-                enabled: modelData.Online
-                onActivated: { menu.close(); ts.run("tailscale set --exit-node=" + ts.ip(modelData)); }
-            }
-        }
+        pill: ts
+        tsp: ts
     }
 }

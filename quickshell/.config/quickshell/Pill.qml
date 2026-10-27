@@ -36,8 +36,16 @@ Item {
     default property alias content: inner.data
 
     readonly property bool hovered: mouse.containsMouse
+    // keyboard navigation is on this pill's popup: look hovered
+    readonly property bool navHot: BarState.kbMode && !!BarState.activePopup && BarState.activePopup.isOpen
+                                   && BarState.activePopup.pill === pill
     readonly property alias pressed: mouse.pressed
     readonly property alias labelItem: text
+
+    // set -> the wheel does what Settings › Pills says (PillClicks.scroll);
+    // scrollTable: this pill's own scroll actions (id -> function(dir))
+    property string pillId: ""
+    property var scrollTable: ({})
 
     signal clicked(int button)
     signal scrolled(int dir)
@@ -52,7 +60,7 @@ Item {
         height: 32
         width: Math.max(text.visible ? text.implicitWidth : 0, inner.childrenRect.width) + pill.padLeft + pill.padRight
         radius: 8
-        color: pill.interactive && mouse.containsMouse ? pill.hoverBg : pill.bg
+        color: pill.interactive && (mouse.containsMouse || pill.navHot) ? pill.hoverBg : pill.bg
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Easing.OutQuint } }
         Behavior on width { NumberAnimation { duration: Theme.normal; easing.type: Easing.OutCubic } }
 
@@ -63,7 +71,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: pill.label
             textFormat: Text.StyledText
-            color: pill.interactive && mouse.containsMouse ? pill.hoverFg : pill.fg
+            color: pill.interactive && (mouse.containsMouse || pill.navHot) ? pill.hoverFg : pill.fg
             font.family: Theme.font
             font.pixelSize: pill.fontSize
             font.weight: pill.fontWeight
@@ -101,13 +109,23 @@ Item {
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         cursorShape: pill.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
-        onClicked: ev => pill.clicked(ev.button)
+        // tell open popups (BarState.barPressed): one not anchored here
+        // closes, then this pill's own action runs (and may open its popup).
+        // On the CLICK, not the press: closing a popup drops its focus grab,
+        // and Hyprland then re-enters the bar — which cancelled a held press,
+        // so the click (and the new popup) never came.
+        onClicked: ev => {
+            const p = mapToItem(null, ev.x, ev.y);
+            BarState.barPressed(BarState.rootOf(pill), p.x, p.y);
+            pill.clicked(ev.button);
+        }
         // One step per wheel notch; a touchpad's many small deltas add up.
         property real acc: 0
         onWheel: wheel => {
             acc += Theme.wheelDelta(wheel);
             while (Math.abs(acc) >= 120) {
-                pill.scrolled(acc > 0 ? 1 : -1);
+                if (pill.pillId) PillClicks.scroll(pill.pillId, acc > 0 ? 1 : -1, pill.scrollTable);
+                else pill.scrolled(acc > 0 ? 1 : -1);
                 acc -= acc > 0 ? 120 : -120;
             }
         }

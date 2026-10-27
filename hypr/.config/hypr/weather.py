@@ -6,6 +6,8 @@
     weather.py refresh      fetch now (left-click)
     weather.py locate       pick the place: fuzzel prompt → Open-Meteo geocoding
                             → choose among the matches (right-click)
+    weather.py json         everything, structured, for the bar's weather panel
+                            (WeatherPopup.qml); fetches like `status`
 
 The place lives in ~/.config/hypr/weather-location (JSON: name, lat, lon),
 kept out of the dotfiles repo. IP geolocation is not used: it put this
@@ -79,7 +81,7 @@ def fetch(loc):
         "latitude": loc["lat"], "longitude": loc["lon"], "timezone": "auto", "forecast_days": 4,
         "current": "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day,"
                    "wind_speed_10m,precipitation",
-        "hourly": "precipitation_probability,weather_code",
+        "hourly": "precipitation_probability,weather_code,temperature_2m,is_day",
         "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
                  "sunrise,sunset,uv_index_max",
     })
@@ -142,7 +144,7 @@ def render(d, stale=False):
     age = int((time.time() - d.get("_fetched", 0)) / 60)
     lines.append("")
     lines.append(dim(("Stale — couldn't update · " if stale else "") + f"updated {age} min ago · Open-Meteo"))
-    lines.append(dim("Click: refresh · Right-click: change place"))
+    lines.append(dim("Click: details · Right-click: change place"))
     classes = ["stale"] if stale else []
     classes.append("day" if is_day else "night")
     if c["weather_code"] in WET or soon:
@@ -150,6 +152,58 @@ def render(d, stale=False):
     elif c["weather_code"] in (0, 1) and is_day:
         classes.append("sunny")
     return {"text": f"{glyph}  {temp}°", "tooltip": "\n".join(lines), "class": classes}
+
+
+def to_json(d, stale=False):
+    c, day, h = d["current"], d["daily"], d.get("hourly", {})
+    is_day = bool(c.get("is_day", 1))
+    desc, glyph = code_info(c["weather_code"], is_day)
+    times = h.get("time", [])
+    now = c["time"][:13]
+    i = next((k for k, t in enumerate(times) if t[:13] >= now), len(times))
+    hours = []
+    for k in range(i, min(i + 12, len(times))):
+        temps = h.get("temperature_2m") or []
+        days_ = h.get("is_day") or []
+        hours.append({"time": "Now" if k == i else times[k][11:16],
+                      "glyph": code_info(h["weather_code"][k], bool(days_[k]) if k < len(days_) else True)[1],
+                      "temp": round(temps[k]) if k < len(temps) and temps[k] is not None else None,
+                      "rain": (h.get("precipitation_probability") or [0] * len(times))[k] or 0})
+    days = []
+    for k, date in enumerate(day["time"]):
+        ddesc, dglyph = code_info(day["weather_code"][k])
+        days.append({"name": "Today" if k == 0 else dt.date.fromisoformat(date).strftime("%a"),
+                     "glyph": dglyph, "desc": ddesc,
+                     "max": round(day["temperature_2m_max"][k]), "min": round(day["temperature_2m_min"][k]),
+                     "rain": day["precipitation_probability_max"][k] or 0})
+    uv = day.get("uv_index_max") or [None]
+    return {"ok": True, "place": d.get("_place") or "", "desc": desc, "glyph": glyph, "day": is_day,
+            "temp": round(c["temperature_2m"]), "feels": round(c["apparent_temperature"]),
+            "humidity": c["relative_humidity_2m"], "wind": round(c["wind_speed_10m"]),
+            "uv": round(uv[0]) if uv[0] is not None else None, "soon": rain_soon(d),
+            "sunrise": day["sunrise"][0][11:16], "sunset": day["sunset"][0][11:16],
+            "hours": hours, "days": days, "wet": c["weather_code"] in WET,
+            "age": int((time.time() - d.get("_fetched", 0)) / 60), "stale": stale}
+
+
+def cmd_json():
+    loc = read_location()
+    if loc is None:
+        print(json.dumps({"ok": False, "why": "unset"}))
+        return
+    d = read_cache()
+    fresh = (d and d.get("_place") == loc.get("name", "")
+             and time.time() - d.get("_fetched", 0) < MAX_AGE)
+    stale = False
+    if not fresh:
+        try:
+            d = fetch(loc)
+        except Exception:
+            stale = True
+            if not d:
+                print(json.dumps({"ok": False, "why": "offline"}))
+                return
+    print(json.dumps(to_json(d, stale), ensure_ascii=False))
 
 
 def cmd_status(force=False):
@@ -221,5 +275,7 @@ if __name__ == "__main__":
         cmd_status(force=True)
     elif cmd == "locate":
         cmd_locate()
+    elif cmd == "json":
+        cmd_json()
     else:
         sys.exit(__doc__)

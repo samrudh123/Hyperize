@@ -37,12 +37,16 @@ Pill {
             t += "<br>" + (m.main ? "\u{f0322}" : "\u{f0379}") + " " + m.name + "&nbsp;&nbsp;"
                + dim((m.model ? m.model + " · " : "") + m.res + (m.hz ? "@" + m.hz : "")
                      + (m.mirrored ? " · mirroring" : m.disabled ? " · off" : ""));
-        return t + "<br><br>" + dim("Click: menu · Middle-click: " + (mirror ? "extend" : "duplicate"));
+        return t + "<br><br>" + dim(PillClicks.hint("display"));
     }
 
+    pillId: "display"                    // wheel: Settings › Pills
     onClicked: button => {
-        if (button === Qt.MiddleButton) Displays.toggle();
-        else if (button === Qt.LeftButton) toggleMenu();
+        PillClicks.dispatch("display", button, {
+            menu: () => toggleMenu(),
+            toggle: () => Displays.toggle(),
+            settings: () => BarState.panelRequested("settings", "display")
+        });
     }
 
     IpcHandler {

@@ -20,13 +20,29 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 |---|---|
 | `SUPER + Return` | Terminal (Ghostty) |
 | `SUPER + D` | App grid — icons, search, right-click to pin (nwg-drawer) |
-| `SUPER + B` | Brave |
+| `SUPER + B` | Zen (default browser) |
+| `SUPER + SHIFT + B` | Firefox |
 | `SUPER + SHIFT + C` | VS Code |
 | `SUPER + SHIFT + M` | Spotify (focus if open, else launch) |
 | `SUPER + SHIFT + D` | Discord via Vesktop (focus if open, else launch) |
 | `SUPER + O` | OBS Studio (focus if open, else launch) |
 | `SUPER + SHIFT + O` | Kdenlive (focus if open, else launch) |
-| `SUPER + M` | Media — players menu: now playing + Spotify / YouTube launchers |
+| `SUPER + M` | Players deck (also the ⌃ on the bottom bar) — two columns, **this laptop** and **phone**, each with its own play / skip / seek / pause-all, the side's other players, and Spotify / YouTube / YT Music launchers. Sits bottom-left; click a column (not a button) for that side's music panel (equalizer, lyrics) |
+| `SUPER + I` | **Settings** (Appearance › Font: pick the shell font and the apps & system font separately) — keybindings (Hyprland + Neovim, click ✎ and press the new combo), display, appearance, sound, network, KDE Connect, Tailscale, notifications, power, about |
+| `SUPER + N` | Notifications panel (System / Phone, DND, clear) |
+| ⤷ pill clicks | every pill's left / right / middle click and scroll is set in **Settings › Pills** (SUPER+I); the rows below are the defaults |
+| ⤷ top-bar pills | audio click = audio panel (the mixer is a button in it), right-click = mute · network / Bluetooth click = Wi-Fi / Bluetooth panel · bell = notifications |
+| ⤷ CPU / RAM / temp pills | click: panel — per-core bars + top processes by CPU · programs by memory (PSS, grouped) · every sensor, hottest outlined. Right-click: btop |
+| ⤷ battery pill | click: panel — charge, time left, draw, health, cycles, power mode |
+| `SUPER + .` | Keyboard mode: opens the sound panel with its first control focused (again: close). In any panel: Tab / Shift+Tab move, Enter / Space press, arrows change sliders and switches, Ctrl+← / Ctrl+→ the neighbouring pill's panel, Ctrl+↑ / Ctrl+↓ the other bar, Esc close |
+| ⤷ any panel with tabs | `Ctrl + Tab` / `Ctrl + Shift + Tab` steps through its tabs (tasks, sound, notifications, Wi-Fi, music, Tailscale, clipboard) |
+| ⤷ brightness pill | click: brightness panel — orb (scroll ±5 %), slider, 10–100 % picks, night light switch + 4500 / 3500 / 2700 K + Kelvin slider. Right-click: night light on/off · middle: warmer/cooler · scroll: ±5 % |
+| ⤷ ⏻ power pill / `SUPER + SHIFT + X` | power panel: Lock · Suspend · Log out · Restart · Power off (the last three: click twice) |
+| ⤷ clipboard pill | panel: search, All / Text / Images (Tab), Enter copies, Del removes, Clear all (click twice) |
+| ⤷ camera pill | click: capture panel (right-click: region screenshot · middle: start / stop recording) — screenshot region / window / screen, record screen / region / window (+ OBS), sound source |
+| ⤷ weather (bottom) | click: panel — now, 12 hours, 4 days, sunrise / sunset; right-click: change place |
+| ⤷ timer (bottom) | click: focus panel (right-click: start / pause / resume · middle: stop) — ring countdown, start / pause / +5 / stop, 25·50·90 lengths, pick the task (finished tasks drop off) |
+| ⤷ bottom player | **right-click** = music panel: cover, controls, **Equalizer** and synced **Lyrics** |
 | `SUPER + ALT + D` | Downloads menu — aria2 queue: pause / resume / remove / open, open JDownloader |
 | `SUPER + E` | File manager (yazi) — press `q` to quit into that folder |
 | `SUPER + ALT + E` | Files (Nautilus) |
@@ -39,25 +55,25 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | ⤷ in the picker | `←/→` or wheel move (mouse wheel up / two-finger down = next) · `Enter` set · `Tab` next filter · `a` all · `v` videos · `1`–`8` colours · `c` accent follows wallpaper on/off · `/` search · `Esc` close |
 | ⤷ `t` in the picker | **transition** for wallpaper changes — `←/→` pick (it plays a preview on the real wallpaper behind the picker), `p` replay, `Enter` done. Circle zoom · From cursor · Iris · Fade · Wipe · Wave · Slide · Zoom · Dissolve · Pixelate · Diamond · Random · Instant |
 | `SUPER + SHIFT + W` | Pick a lock screen image — the same carousel and colour filters, plus a "Live screen" card (blur whatever is on screen). Accent-follows starts off here (`c`) |
-| Tasks icon (bottom bar, centre) | Tasks panel: **Remaining**, **Done today**, **Log**, and a **History** tab of past days. Shows how many tasks are left |
+| Tasks icon (bottom bar) | Click: the tasks panel — **Tasks** (Due soon on top, then Remaining with `sort:` manual ↑↓ › deadline › priority), **Done**, **Log** (today's updates), **History** (past days); tick, priority badge (click to cycle), hover to move / edit (double-click too) / delete, **Undo** in the header; add field takes `!!`, `@fri 5pm`, `@every mon`. Right-click: same, add field focused |
 | ⤷ in the panel | Enter adds · tick to finish · double-click or ✎ to edit · ↑↓ reorder · 🗑 delete · `Ctrl+Z` undo · `Ctrl+N` new task · `Ctrl+L` log an update · `Esc` close |
 | ⤷ right-click it | quick-add a task without opening the panel |
 | ⤷ deadlines | end a task with `@fri 5pm`, `@tomorrow`, `@20/10 9:30am`, `@2h`… (a bare day = end of it, 23:59:59), or the 󰃳 calendar button on a row / next to Add (time: wheel up / touchpad fingers up = +, down = − — 2 hours / 10 minutes per notch, Shift+scroll = 1; +/−, ↑↓ or typing = 1; End of day is the default). Overdue + next 2 days sit in **Due soon** on top; `sort:` on the Remaining header cycles manual › deadline › priority. The pill turns yellow (due within a day) / red (overdue) |
 | ⤷ repeating | `@daily` `@weekdays` `@weekly` `@monthly` `@every mon,wed 17:00` `@every 3d` (or Repeat in the calendar picker): ticking one off brings back the next |
 | ⤷ priority | `!` `!!` `!!!` as a word in the text, or click the `!` in front of a task (cycles) |
 | ⤷ reminders | 1 day, 6 h, 3 h, 1 h, 5 min before and when due (last three stay up, even in do-not-disturb). Left-click one: Open tasks · Mark done · Remind in 15 min / 1 hour · Tomorrow 9:00 · `Esc` (anywhere) dismisses them |
-| ⤷ clock calendar | deadline dots on their days (colour = priority, red = overdue) and the month's deadlines listed under it |
+| ⤷ clock calendar | click the clock (right-click: time ↔ date): month grid with deadline dots (colour = priority, red = overdue); ‹ › / Today / scroll to page; click a day for its deadlines and to add a task due that day |
 | `SUPER + T` | Open / close the tasks panel |
 | Timer (bottom bar, centre) | **Focus timer** — click starts 25 min of focus (notifications muted), then a 5 min break (15 after every 4th). Click again pauses / resumes, middle-click stops |
 | ⤷ right-click it | pick the task you're on (picking one while idle starts on it), +5 min, finish early, and the length: 25/5, 50/10 or 90/15. Finished sessions go into today's log in `~/notes/daily` |
 | Weather (bottom bar, centre) | temperature + sky; hover for feels-like, humidity, wind, UV, rain in the next hours, sunrise/sunset and 4 days. Click refreshes, right-click changes the place |
-| Tailscale icon (bottom bar, right) | how many of your machines are online; hover for each one's IP and link. Click: per machine **SSH in**, **Send files…** (Taildrop), **Copy IP**; connect / disconnect; exit node if you have one. Middle-click connects / disconnects |
+| Tailscale icon (bottom bar, right) | how many of your machines are online; hover for each one's IP and link. Click: Tailscale panel — Connected switch (or hold the orb 1 s to disconnect), a card per machine with **SSH in**, **Send files…** (Taildrop), **Copy IP**; Exit node tab if one is offered. Middle-click connects / disconnects |
+| Phone icon (bottom bar, right) | Click: phone panel — battery orb, Ring · Ping · Clipboard · Send files · Browse · Notifications tiles, the phone's latest notifications. Middle-click rings |
 | Spectrum next to the player | a small visualizer of what the speakers play, shown while a player on this laptop is playing |
 | ⤷ the files | `~/notes/tasks.md` (open tasks) and `~/notes/daily/YYYY-MM-DD.md` (one per day). Check-ins pop up at 09:00 / 14:00 / 21:00; click one to open the panel |
-| Wi-Fi icon (top bar) | Network panel — **Available** to scan/join/disconnect, **Saved** to connect, forget or edit stored ones |
-| ⤷ right-click it | the old connection editor on its own |
-| ⤷ in the panel | `F5` rescan · `Escape`/`q` close. Enterprise networks (eduroam etc.) open the editor — they need more than a password |
-| `SUPER + I` | Settings (GNOME Settings) — also the cog in the top bar |
+| Wi-Fi pill (top bar) | Wi-Fi panel — networks to join / disconnect / forget; hold the big circle 1 s to disconnect. Enterprise networks (eduroam etc.): **Hidden / enterprise** opens the editor |
+| Bluetooth pill (top bar) | Bluetooth panel (its own popup) — paired devices, pairing, battery; **Bluetooth settings** in it opens Blueman |
+| Panel transparency | Settings (`SUPER + I`) › Appearance › Transparency |
 | `SUPER + X` | Lock screen |
 | `SUPER + SHIFT + X` | Power menu — Lock / Suspend / Log out / Restart / Power off |
 | ⤷ also | the power button, top-right of the bar. Press again or `Escape` to close |

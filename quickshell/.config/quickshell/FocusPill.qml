@@ -1,10 +1,11 @@
 // Focus timer (pomodoro, hypr/focus.py), tied to the tasks in ~/notes.
 //
-//   idle      click: start a session (do not disturb on) · right-click: menu
+//   click: the panel (FocusPopup.qml: ring, controls, length, task, today)
+//   idle      right-click: start a session (do not disturb on)
 //             (task: one from ~/notes/tasks.md, or "Something else…" to type any;
 //             typed ones stay listed until their trash button is clicked)
-//   running   time left, the task, a line that drains; click pauses / resumes,
-//             middle-click stops, right-click: +5 min, skip, task, lengths
+//   running   time left, the task, a line that drains; right-click pauses /
+//             resumes, middle-click stops; +5 min, skip, task, lengths: the panel
 //   break     green, counts down the break; notifications are back
 //
 // The state is focus.py's JSON file, watched; the countdown is this pill's
@@ -29,8 +30,13 @@ Pill {
     readonly property bool paused: st.paused === true
     readonly property int workMin: st.work || 25
     readonly property int brkMin: st.brk || 5
-    readonly property string task: st.task || ""
-    readonly property var recent: (st.recent || []).filter(t => fp.tasks.slice(0, 8).indexOf(t) < 0)
+    // the session's task — unless it has been ticked off in tasks.md since
+    // (focus.py also drops it while idle); typed ones (`recent`) always count
+    readonly property string task: {
+        const t = st.task || "";
+        return !t || tasks.includes(t) || (st.recent || []).includes(t) || (tasksFile.text() || "") === "" ? t : "";
+    }
+    readonly property var recent: (st.recent || []).filter(t => fp.tasks.slice(0, 10).indexOf(t) < 0)
 
     property real now: Date.now() / 1000
     readonly property real remain: idle ? 0 : paused ? st.left : Math.max(0, st.ends - now)
@@ -80,20 +86,23 @@ Pill {
             return "<b>Focus timer</b>" + (today ? "&nbsp;&nbsp;" + today : "")
                  + "<br>" + workMin + " min focus (do not disturb), then a " + brkMin + " min break"
                  + (task ? "<br>Task: " + esc(task) : "")
-                 + "<br>" + dim("Click: start · Right-click: task & length");
+                 + "<br>" + dim(PillClicks.hint("focus"));
         const what = phase === "break" ? "Break" : "Focus" + (task ? ": " + esc(task) : "");
         return "<b>" + what + "</b>" + (paused ? " — paused" : "")
              + "<br>" + clock(remain) + " left of " + Math.round(st.total / 60) + " min"
              + (today ? "<br>" + today : "")
-             + "<br>" + dim("Click: " + (paused ? "resume" : "pause") + " · Middle-click: stop · Right-click: more");
+             + "<br>" + dim(PillClicks.hint("focus"));
     }
 
-    function toggleMenu() { menu.isOpen ? menu.close() : menu.open(fp); }
+    function toggleMenu() { panel.toggle(); }
 
+    pillId: "focus"                    // wheel: Settings › Pills
     onClicked: button => {
-        if (button === Qt.RightButton) { menu.isOpen ? menu.close() : menu.open(fp); return; }
-        if (button === Qt.MiddleButton) { if (!idle) run(["stop"]); return; }
-        run(["toggle"]);
+        PillClicks.dispatch("focus", button, {
+            panel: () => panel.toggle(),
+            toggle: () => run(["toggle"]),          // start / pause / resume
+            stop: () => { if (!idle) run(["stop"]); }
+        });
     }
 
     Timer {
@@ -127,110 +136,11 @@ Pill {
         onFileChanged: reload()
     }
 
-    MenuPopup {
-        id: menu
-        edge: Edges.Top
-        minWidth: 250
-
-        MenuRow {
-            header: true
-            text: "FOCUS" + (fp.st.round ? "  ·  " + fp.st.round + " TODAY" : "")
-        }
-        MenuRow {
-            visible: fp.idle
-            text: "Start " + fp.workMin + " min focus"
-            glyph: "\u{f051b}"
-            glyphColor: Theme.red
-            onActivated: { menu.close(); fp.run(["start"]); }
-        }
-        MenuRow {
-            visible: !fp.idle
-            text: fp.paused ? "Resume" : "Pause"
-            glyph: fp.paused ? "\u{f040a}" : "\u{f03e4}"
-            onActivated: { menu.close(); fp.run(["toggle"]); }
-        }
-        MenuRow {
-            visible: !fp.idle
-            text: "+5 min"
-            glyph: "\u{f0415}"                          // md-plus
-            onActivated: { menu.close(); fp.run(["add", "5"]); }
-        }
-        MenuRow {
-            visible: !fp.idle
-            text: fp.phase === "break" ? "End break" : "Finish now — take the break"
-            glyph: "\u{f04ad}"                          // md-skip_next
-            onActivated: { menu.close(); fp.run(["skip"]); }
-        }
-        MenuRow {
-            visible: !fp.idle
-            danger: true
-            text: "Stop"
-            glyph: "\u{f04db}"
-            onActivated: { menu.close(); fp.run(["stop"]); }
-        }
-
-        MenuRow { separator: true }
-        MenuRow { header: true; text: "TASK" }
-        MenuRow {
-            text: "No particular task"
-            check: fp.task === "" ? 1 : 0
-            onActivated: { menu.close(); fp.run(["task"]); }
-        }
-        Repeater {
-            model: fp.tasks.slice(0, 8)
-            MenuRow {
-                required property var modelData
-                text: modelData
-                check: fp.task === modelData ? 1 : 0
-                // picking a task while idle starts the session on it
-                onActivated: {
-                    menu.close();
-                    fp.run(fp.idle ? ["start", String(fp.workMin), modelData] : ["task", modelData]);
-                }
-            }
-        }
-        // tasks typed via "Something else…" (focus.py keeps the last 4), unless
-        // they are in the list above anyway; the trash button forgets one
-        Repeater {
-            model: fp.recent
-            MenuRow {
-                required property var modelData
-                text: modelData
-                check: fp.task === modelData ? 1 : 0
-                removable: true
-                onRemoved: fp.run(["forget", modelData])
-                onActivated: {
-                    menu.close();
-                    fp.run(fp.idle ? ["start", String(fp.workMin), modelData] : ["task", modelData]);
-                }
-            }
-        }
-        MenuRow {
-            // set some other way (focus.py task TEXT): still show what it is
-            visible: fp.task !== "" && fp.tasks.slice(0, 8).indexOf(fp.task) < 0
-                     && fp.recent.indexOf(fp.task) < 0
-            text: fp.task
-            check: 1
-            onActivated: menu.close()
-        }
-        MenuRow {
-            // any other task or chore, typed into a fuzzel prompt (focus.py
-            // pick); while idle it starts the session on it
-            text: "Something else…"
-            glyph: "\u{f03eb}"                          // md-pencil
-            onActivated: { menu.close(); fp.run(["pick"]); }
-        }
-
-        MenuRow { separator: true }
-        MenuRow { header: true; text: "LENGTH" }
-        Repeater {
-            model: [[25, 5], [50, 10], [90, 15]]
-            MenuRow {
-                required property var modelData
-                text: modelData[0] + " min focus  ·  " + modelData[1] + " min break"
-                check: fp.workMin === modelData[0] && fp.brkMin === modelData[1] ? 1 : 0
-                onActivated: fp.run(["lengths", String(modelData[0]), String(modelData[1])])
-            }
-        }
+    // the cards' / panel's `x: fp` would bind to their own `fp` property
+    readonly property var selfRef: fp
+    FocusPopup {
+        id: panel
+        pill: selfRef
+        fp: selfRef
     }
 }

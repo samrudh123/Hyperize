@@ -13,6 +13,59 @@ import Quickshell.Services.UPower
 PanelWindow {
     id: bar
 
+    // popups keep this bar live; presses on it are announced (BarState):
+    // pills report their own (Pill.qml), this catches the empty bar — it is
+    // UNDER everything, so it only ever gets presses nothing else took
+    Component.onCompleted: BarState.addBar(bar)
+    // keyboard navigation between popups (BarState.navPopup / startNav)
+    function navRoot() { return BarState.rootOf(barBg); }
+    readonly property bool isTopBar: true
+    // Esc reaching the bar (pointer over one of its popups): close them
+    Shortcut {
+        sequences: ["Escape"]
+        context: Qt.WindowShortcut
+        onActivated: BarState.escapePressed()
+    }
+    Shortcut {
+        sequences: ["Ctrl+Tab"]
+        context: Qt.WindowShortcut
+        onActivated: BarState.tabPressed(1)
+    }
+    Shortcut {
+        sequences: ["Ctrl+Shift+Tab", "Ctrl+Backtab", "Ctrl+Shift+Backtab"]
+        context: Qt.WindowShortcut
+        onActivated: BarState.tabPressed(-1)
+    }
+    // keyboard navigation inside / between popups (PanelPopup.navKey): only
+    // while a popup is open, so the bar never takes these keys otherwise
+    Repeater {
+        model: [["Tab", Qt.Key_Tab, 0], ["Shift+Tab", Qt.Key_Tab, Qt.ShiftModifier],
+                ["Backtab", Qt.Key_Backtab, 0], ["Shift+Backtab", Qt.Key_Backtab, 0],
+                ["Return", Qt.Key_Return, 0], ["Enter", Qt.Key_Enter, 0], ["Space", Qt.Key_Space, 0],
+                ["Left", Qt.Key_Left, 0], ["Right", Qt.Key_Right, 0], ["Up", Qt.Key_Up, 0], ["Down", Qt.Key_Down, 0],
+                ["Ctrl+Left", Qt.Key_Left, Qt.ControlModifier], ["Ctrl+Right", Qt.Key_Right, Qt.ControlModifier],
+                ["Ctrl+Up", Qt.Key_Up, Qt.ControlModifier], ["Ctrl+Down", Qt.Key_Down, Qt.ControlModifier]]
+        delegate: Item {
+            id: navKeyItem
+            required property var modelData
+            Shortcut {
+                enabled: BarState.activePopup !== null
+                sequences: [navKeyItem.modelData[0]]
+                context: Qt.WindowShortcut
+                onActivated: if (BarState.activePopup) BarState.activePopup.navKey(navKeyItem.modelData[1], navKeyItem.modelData[2])
+            }
+        }
+    }
+    Component.onDestruction: BarState.removeBar(bar)
+    MouseArea {
+        id: barBg
+        anchors.fill: parent
+        z: -1000
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+        onClicked: ev => BarState.barPressed(BarState.rootOf(barBg), ev.x, ev.y)
+        onWheel: ev => ev.accepted = false
+    }
+
     // one per screen (shell.qml); the focused screen's owns the IPC targets
     readonly property bool active: screen && screen.name === BarState.active
 
@@ -54,11 +107,13 @@ PanelWindow {
             padLeft: 10
             padRight: 11
             marginH: 2
-            tip: "Apps  ·  right-click: run by name"
-            onClicked: button => {
-                if (button === Qt.LeftButton) Theme.exec(Theme.hypr + "/app-grid.sh");
-                else if (button === Qt.RightButton) Theme.exec("fuzzel");
-            }
+            tip: "Apps" + PillClicks.hintLine("apps")
+            // what each button does: PillClicks (Settings › Pills)
+            pillId: "apps"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("apps", button, {
+                grid: () => Theme.exec(Theme.hypr + "/app-grid.sh"),
+                run: () => Theme.exec("fuzzel")
+            })
         }
 
         Item { width: 4; height: 1 }
@@ -74,13 +129,14 @@ PanelWindow {
         Pill {
             id: clipPill
             label: "\u{f0a38}"                     // md-clipboard_text_outline
-            fg: Theme.peach
+            fg: Theme.accent                        // follows SUPER+ALT+C (was peach)
             fontSize: 15
             padLeft: 9
             fillHover: true
             padRight: 10
-            tip: clipboard.isOpen ? "" : "Clipboard history"
-            onClicked: button => { if (button === Qt.LeftButton) clipboard.toggle(); }
+            tip: clipboard.isOpen ? "" : "Clipboard history" + PillClicks.hintLine("clipboard")
+            pillId: "clipboard"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("clipboard", button, { panel: () => clipboard.toggle() })
         }
 
         Pill {
@@ -102,7 +158,10 @@ PanelWindow {
         }
 
         Island {
+        // CPU / memory / temperature: click = their panel (SysPopup.qml),
+        // right-click = btop
         Pill {
+            id: cpuPill
             label: "\u{f0ee0} " + Stats.cpu + "%"
             fg: Theme.green
             fillHover: true
@@ -113,31 +172,48 @@ PanelWindow {
                 for (let i = 0; i < c.length; i += 4)
                     rows.push(c.slice(i, i + 4).map((v, j) => String(i + j).padStart(2) + " " + String(v).padStart(3) + "%").join("   "));
                 return "<b>CPU " + Stats.cpu + "%</b>  ·  load " + Stats.load
-                     + "<br><font color='" + Theme.overlay2 + "'><pre>" + rows.join("<br>") + "</pre></font>";
+                     + "<br><font color='" + Theme.overlay2 + "'><pre>" + rows.join("<br>") + "</pre></font>"
+                     + "<font color='" + Theme.overlay2 + "'>" + PillClicks.hint("cpu") + "</font>";
             }
-            onClicked: button => { if (button === Qt.LeftButton) Theme.exec("ghostty -e btop"); }
+            pillId: "cpu"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("cpu", button, {
+                panel: () => bar.openSys("cpu"),
+                btop: () => Theme.exec("ghostty -e btop"),
+                resources: () => Theme.exec("resources --open-tab-id cpu")
+            })
         }
 
         Pill {
+            id: memPill
             label: "\u{f035b} " + Stats.memPct + "%"
             fg: Theme.teal
             fillHover: true
             tip: Stats.memUsedGiB.toFixed(1) + " GiB / " + Stats.memTotalGiB.toFixed(1) + " GiB"
-            onClicked: button => { if (button === Qt.LeftButton) Theme.exec("ghostty -e btop"); }
+                 + PillClicks.hintLine("mem")
+            pillId: "mem"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("mem", button, {
+                panel: () => bar.openSys("mem"),
+                btop: () => Theme.exec("ghostty -e btop"),
+                resources: () => Theme.exec("resources --open-tab-id memory")
+            })
         }
 
         Pill {
+            id: tempPill
             readonly property bool critical: Stats.tempC >= Stats.tempCritical
             label: (Stats.tempC < 50 ? "\u{f10c3}" : Stats.tempC < 75 ? "\u{f050f}" : "\u{f10c2}") + " " + Stats.tempC + "°"
-            fg: critical ? Theme.crust : Theme.sapphire
+            // the panel's heat scale: sapphire · yellow ≥60 · peach ≥70 · red (filled) ≥82
+            fg: critical ? Theme.crust : Stats.tempColor(Stats.tempC)
             bg: critical ? Theme.red : "transparent"
             fillHover: true
             tip: "CPU temperature " + Stats.tempC + " °C"
-                 + "<br><font color='" + Theme.overlay2 + "'>Click: Resources (CPU, with its temperature graph) · Right-click: btop</font>"
-            onClicked: button => {
-                if (button === Qt.LeftButton) Theme.exec("resources --open-tab-id cpu");
-                else if (button === Qt.RightButton) Theme.exec("ghostty -e btop");
-            }
+                 + PillClicks.hintLine("temp")
+            pillId: "temp"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("temp", button, {
+                panel: () => bar.openSys("temp"),
+                btop: () => Theme.exec("ghostty -e btop"),
+                resources: () => Theme.exec("resources --open-tab-id cpu")
+            })
         }
         }
     }
@@ -200,19 +276,20 @@ PanelWindow {
             padLeft: 7
             padRight: 7
             tip: (fs >= 2 ? "Fullscreen" : fs === 1 ? "Maximised" : floating ? "Floating" : "Tiled") + (pinned ? " · pinned" : "")
-                 + "<br><font color='" + Theme.overlay2 + "'>Click: " + (floating ? "tile" : "float")
-                 + " · Right-click: " + (pinned ? "unpin" : "pin") + " · Middle-click: fullscreen</font>"
+                 + PillClicks.hintLine("window")
+            pillId: "window"                    // wheel: Settings › Pills
             onClicked: button => {
                 if (!title.valid) return;
-                if (button === Qt.LeftButton) {
-                    Hyprland.dispatch("togglefloating " + addr);
-                } else if (button === Qt.RightButton) {
-                    if (!floating) Hyprland.dispatch("setfloating " + addr);
-                    Hyprland.dispatch("pin " + addr);
-                } else if (button === Qt.MiddleButton) {
-                    Hyprland.dispatch("focuswindow " + addr);
-                    Hyprland.dispatch("fullscreen 0");
-                }
+                PillClicks.dispatch("window", button, {
+                    float: () => Hyprland.dispatch("togglefloating " + addr),
+                    pin: () => {
+                        if (!floating) Hyprland.dispatch("setfloating " + addr);
+                        Hyprland.dispatch("pin " + addr);
+                    },
+                    fullscreen: () => { Hyprland.dispatch("focuswindow " + addr); Hyprland.dispatch("fullscreen 0"); },
+                    maximise: () => { Hyprland.dispatch("focuswindow " + addr); Hyprland.dispatch("fullscreen 1"); },
+                    close: () => Hyprland.dispatch("closewindow " + addr)
+                });
             }
         }
 
@@ -258,15 +335,17 @@ PanelWindow {
         Island {
         Tray {}
 
-        // Audio: the default sink. Click mutes, right-click pavucontrol,
-        // scroll ±5 %.
+        // Audio: the default sink. Click opens the audio panel (AudioPopup),
+        // right-click mutes, scroll ±5 %.
         Pill {
             id: audio
             readonly property var sink: Pipewire.defaultAudioSink
             readonly property bool ok: sink !== null && sink.audio !== null
             readonly property int pct: ok ? Math.round(sink.audio.volume * 100) : 0
             readonly property bool muted: ok && sink.audio.muted
-            readonly property bool bt: sink !== null && (sink.name || "").startsWith("bluez")
+            // the headphones — also bt-follow.py's silent stand-in for them
+            // while the phone has them (node bt-follow-hold)
+            readonly property bool bt: sink !== null && ((sink.name || "").startsWith("bluez") || sink.name === "bt-follow-hold")
 
             PwObjectTracker { objects: [audio.sink] }
 
@@ -275,17 +354,17 @@ PanelWindow {
             fg: muted ? Theme.overlay0 : Theme.pink
             fillHover: true
             tip: ok ? (sink.description || sink.name) + "  ·  " + (muted ? "muted" : pct + "%")
-                      + "<br><font color='" + Theme.overlay2 + "'>Click: mute · Right-click: mixer · Scroll: volume</font>" : ""
-            onClicked: button => {
-                if (button === Qt.LeftButton && ok) sink.audio.muted = !sink.audio.muted;
-                else if (button === Qt.RightButton) Theme.exec("pavucontrol");
-            }
-            onScrolled: dir => {
-                if (ok) sink.audio.volume = Math.max(0, Math.min(1, Math.round(sink.audio.volume * 20 + dir) / 20));
-            }
+                      + "<br><font color='" + Theme.overlay2 + "'>" + [PillClicks.hint("audio"), "Scroll: volume"].filter(x => x).join(" · ") + "</font>" : ""
+            pillId: "audio"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("audio", button, {
+                panel: () => audioPop.toggle(),
+                mute: () => { if (ok) sink.audio.muted = !sink.audio.muted; },
+                mixer: () => Theme.exec("pavucontrol")
+            })
+            // scroll: Settings › Pills (default: volume ±5 %)
         }
 
-        MicPill {}
+        MicPill { id: micPill }
 
         // Brightness, and the night light (night-light.sh): right-click
         // toggles it, middle-click cycles 4500 / 3500 / 2700 K. While it is
@@ -297,16 +376,16 @@ PanelWindow {
             label: (nightOn ? "\u{f0594} " : "\u{f06e8} ") + Stats.brightness + "%"
             fg: nightOn ? Theme.peach : Theme.yellow
             fillHover: true
-            tip: "Screen brightness " + Stats.brightness + "%  ·  scroll to change, click for 50%<br>"
-                 + (nightOn ? "\u{f0594} Night light on, " + night[1] + " K  ·  right-click off, middle-click warmer/cooler"
-                            : "Right-click: night light")
-            onClicked: button => {
-                if (button === Qt.RightButton) Theme.exec(Theme.hypr + "/night-light.sh toggle");
-                else if (button === Qt.MiddleButton) Theme.exec(Theme.hypr + "/night-light.sh cycle");
-                if (button !== Qt.LeftButton) return;
-                Theme.exec(Theme.hypr + "/brightness.sh set 50");
-                Stats.refreshBacklight();
-            }
+            tip: "Screen brightness " + Stats.brightness + "%"
+                 + (nightOn ? "<br>\u{f0594} Night light on, " + night[1] + " K" : "")
+                 + "<br><font color='" + Theme.overlay2 + "'>" + [PillClicks.hint("brightness"), "Scroll: ±5 %"].filter(x => x).join(" · ") + "</font>"
+            pillId: "brightness"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("brightness", button, {
+                panel: () => brightPop.toggle(),
+                night: () => Theme.exec(Theme.hypr + "/night-light.sh toggle"),
+                nightcycle: () => Theme.exec(Theme.hypr + "/night-light.sh cycle"),
+                half: () => { Theme.exec(Theme.hypr + "/brightness.sh set 50"); Stats.refreshBacklight(); }
+            })
 
             FileView {
                 id: nightFile
@@ -315,38 +394,52 @@ PanelWindow {
                 printErrors: false
                 onFileChanged: reload()
             }
-            onScrolled: dir => {
-                Theme.exec(Theme.hypr + "/brightness.sh " + (dir > 0 ? "up" : "down") + " 5");
-                Stats.refreshBacklight();
-            }
+            // scroll: Settings › Pills (default: brightness ±5 %)
         }
 
         // duplicate / extend: only while an external monitor is connected
         DisplayPill { active: bar.active }
 
         Pill {
+            id: netPill
             readonly property string kind: Stats.netKind === "wifi" && !Stats.ipaddr ? "linked" : Stats.netKind
             label: kind === "wifi" ? "\u{f0928} " + Stats.signal + "%"
                  : kind === "wired" ? "\u{f0200} wired"
                  : kind === "linked" ? "\u{f092b} no IP" : "\u{f092d} offline"
-            fg: kind === "offline" ? Theme.red : Theme.blue
+            fg: kind === "offline" ? Theme.red : Theme.accent
             fillHover: true
-            tip: kind === "wifi" ? Stats.essid + "  ·  " + Stats.ipaddr + "<br>\u{f01da} " + Stats.bits(Stats.rxBps) + "   \u{f0552} " + Stats.bits(Stats.txBps)
+            tip: (kind === "wifi" ? Stats.essid + "  ·  " + Stats.ipaddr + "<br>\u{f01da} " + Stats.bits(Stats.rxBps) + "   \u{f0552} " + Stats.bits(Stats.txBps)
                : kind === "wired" ? Stats.ifname + "  ·  " + Stats.ipaddr
-               : kind === "linked" ? Stats.essid + "  ·  no address yet" : "Offline"
-            onClicked: button => {
-                if (button === Qt.LeftButton) Theme.exec(Theme.hypr + "/network-panel.py");
-                else if (button === Qt.RightButton) Theme.exec("nm-connection-editor");
-            }
+               : kind === "linked" ? Stats.essid + "  ·  no address yet" : "Offline")
+               + PillClicks.hintLine("network")
+            pillId: "network"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("network", button, {
+                panel: () => bar.openNet("wifi"),
+                editor: () => Theme.exec("nm-connection-editor"),
+                settings: () => BarState.panelRequested("settings", "network")
+            })
         }
 
-        Battery {}
+        // Bluetooth: adapter state + connected devices; click = the
+        // Bluetooth panel (its own popup).
+        BluetoothPill {
+            id: btPill
+            pillId: "bluetooth"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("bluetooth", button, {
+                panel: () => bar.openNet("bluetooth"),
+                blueman: () => Theme.exec("blueman-manager"),
+                power: () => { if (btPill.adapter) btPill.adapter.enabled = !btPill.adapter.enabled; }
+            })
+        }
+
+        Battery { id: batPill }
         }
 
         Island {
         Clock {}
 
         ScriptPill {
+            id: bellPill
             command: ["/usr/bin/python3", Theme.hypr + "/notif-center.py", "bar"]
             interval: 0
             defaultFg: Theme.subtext0
@@ -356,8 +449,12 @@ PanelWindow {
             // the bell's ink overflows its advance box to the right
             padLeft: 8
             padRight: classes.includes("unread") ? 9 : 10
-            onLeft: "/usr/bin/python3 " + Theme.hypr + "/notif-center.py"
-            onRight: "/usr/bin/python3 " + Theme.hypr + "/notif-center.py dnd"
+            pillId: "bell"
+            onClicked: button => PillClicks.dispatch("bell", button, {
+                panel: () => notifPop.openTab("system"),
+                dnd: () => { Theme.exec("/usr/bin/python3 " + Theme.hypr + "/notif-center.py dnd"); bellPill.poke(); },
+                phone: () => notifPop.openTab("phone")
+            })
         }
 
         Pill {
@@ -367,13 +464,18 @@ PanelWindow {
             fontSize: 15
             padLeft: 8
             padRight: 11
-            tip: "Settings"
-            onClicked: button => { if (button === Qt.LeftButton) Theme.exec("gtk-launch org.gnome.Settings"); }
+            tip: "Settings" + PillClicks.hintLine("settings")
+            pillId: "settings"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("settings", button, {
+                settings: () => BarState.panelRequested("settings", ""),
+                gnome: () => Theme.exec("gtk-launch org.gnome.Settings")
+            })
         }
 
         Item { width: 4; height: 1 }
 
         Pill {
+            id: powerPill
             label: "\u{f011}"
             fg: Theme.red
             bg: Theme.alpha(Theme.surface0, 0.7)
@@ -384,15 +486,88 @@ PanelWindow {
             padLeft: 8
             padRight: 12
             marginH: 2
-            tip: "Lock · Suspend · Log out · Restart · Power off"
-            onClicked: button => { if (button === Qt.LeftButton) Theme.exec("nwg-bar"); }
+            tip: powerPop.isOpen ? "" : "Lock · Suspend · Log out · Restart · Power off" + PillClicks.hintLine("power")
+            // the power panel (PowerPopup.qml; was nwg-bar)
+            pillId: "power"                    // wheel: Settings › Pills
+            onClicked: button => PillClicks.dispatch("power", button, {
+                panel: () => powerPop.toggle(),
+                lock: () => Theme.exec("hyprlock")
+            })
         }
         }
     }
 
+    PowerPopup { id: powerPop; pill: powerPill }
+
     ClipboardPopup {
         id: clipboard
         pill: clipPill
+    }
+
+    AudioPopup { id: audioPop; pill: audio; navName: "audio" }
+    AudioPopup { id: micPop; pill: micPill; mode: "mic" }
+    BrightnessPopup { id: brightPop; pill: brightnessPill }
+    // system panels: CPU / memory / temperature (one file, three instances)
+    // and the battery (inside Battery.qml)
+    SysPopup { id: cpuPop; pill: cpuPill; kind: "cpu" }
+    SysPopup { id: memPop; pill: memPill; kind: "mem" }
+    SysPopup { id: tempPop; pill: tempPill; kind: "temp" }
+    function openSys(which) {
+        const p = { cpu: cpuPop, mem: memPop, temp: tempPop }[which];
+        for (const q of [cpuPop, memPop, tempPop]) if (q !== p) q.close();
+        if (which === "battery") batPill.toggleMenu();
+        else if (p) p.toggle();
+    }
+    IpcHandler {
+        target: "sysinfo"
+        enabled: bar.active
+        // cpu | mem | temp | battery
+        function toggle(which: string): void { bar.openSys(which); }
+    }
+    // Wi-Fi and Bluetooth: two popups, one under each pill
+    NetworkPopup { id: netPop; pill: netPill; mode: "wifi" }
+    NetworkPopup { id: btPop; pill: btPill; mode: "bluetooth" }
+    function openNet(which) {
+        const p = which === "bluetooth" ? btPop : netPop;
+        (p === btPop ? netPop : btPop).close();
+        p.openTab(which === "bluetooth" ? "bluetooth" : (which || "wifi"));
+    }
+    NotifPopup { id: notifPop; pill: bellPill }
+
+    // panels asked for from elsewhere (keybinds, the bottom bar, IPC)
+    Connections {
+        target: BarState
+        enabled: bar.active
+        function onPanelRequested(name, arg) {
+            if (name === "audio") audioPop.toggle();
+            else if (name === "mic") micPop.toggle();
+            else if (name === "brightness") brightPop.toggle();
+            else if (name === "network") bar.openNet(arg || "wifi");
+            else if (name === "notifications") notifPop.openTab(arg || "system");
+        }
+    }
+    IpcHandler {
+        target: "panels"
+        enabled: bar.active
+        // audio | network [wifi|bluetooth] | notifications [system|phone] | settings [TAB]
+        function toggle(name: string, arg: string): void { BarState.panelRequested(name, arg); }
+        // what Ctrl+Tab / Ctrl+Shift+Tab do in an open panel (1 / -1)
+        function tab(dir: int): void { BarState.tabPressed(dir); }
+        // keyboard navigation, for keybinds and testing:
+        //   start            open the sound panel (or close the open one)
+        //   left|right|up|down   the neighbouring panel (as Ctrl+arrows)
+        //   next|prev|enter|space|inc|dec   inside the open panel (Tab, Shift+Tab,
+        //                    Enter, Space, → / ←)
+        function nav(dir: string): void {
+            if (dir === "start") { BarState.startNav(); return; }
+            const p = BarState.activePopup;
+            if (!p) return;
+            const k = { next: [Qt.Key_Tab, 0], prev: [Qt.Key_Backtab, 0], enter: [Qt.Key_Return, 0],
+                        space: [Qt.Key_Space, 0], inc: [Qt.Key_Right, 0], dec: [Qt.Key_Left, 0],
+                        left: [Qt.Key_Left, Qt.ControlModifier], right: [Qt.Key_Right, Qt.ControlModifier],
+                        up: [Qt.Key_Up, Qt.ControlModifier], down: [Qt.Key_Down, Qt.ControlModifier] }[dir];
+            if (k) p.navKey(k[0], k[1]);
+        }
     }
 
     IpcHandler {

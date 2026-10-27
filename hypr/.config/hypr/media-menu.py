@@ -26,6 +26,10 @@ A small GTK window can colour the text itself. It keeps fuzzel's feel: type to
 filter, ↑/↓ + Enter, click a row, Escape (or clicking elsewhere) closes, and
 it sits bottom-left above the bar (windowrule `media-menu` in hyprland.conf).
 
+`media-menu.py --json` prints the same players (players_now) as JSON for the
+Quickshell players deck (PlayersPopup.qml), which SUPER+M and the bar's
+chevron open now; this GTK menu is SUPER+M's fallback when the shell is down.
+
 Deliberately a normal toplevel window, like network-panel.py and tasks.py:
 layer surfaces on this setup have cost real time. app_id from set_prgname().
 """
@@ -258,9 +262,11 @@ def hidden_firefox(inst, url, players):
             and any(p.startswith(f"{b}.tab_") for p in players))
 
 
-def entries():
-    """[(name, detail, colour, state, action argv)] — state picks the icon."""
-    rows, any_playing = [], False
+def players_now():
+    """(every player worth showing as a dict, playerctl's player list).
+    Shared by the GTK menu (entries) and `--json` (the Quickshell players
+    deck, PlayersPopup.qml), so both hide the same mirrors / duplicates."""
+    found = []
     players = run("playerctl", "-l").splitlines()
     current = set()                         # each browser's "this tab"
     for b in GECKO:
@@ -283,21 +289,36 @@ def entries():
         if hidden_firefox(inst, url, players):
             continue
         state = {"Playing": "playing", "Paused": "paused"}.get(status, "stopped")
-        any_playing |= state == "playing"
         name, colour = describe(inst, url)
-        now = title or "—"
-        if artist:
-            now += f" · {artist}"
+        tab = bool(gecko(inst)) and ".tab_" in inst
+        if tab:
+            name += " · this tab" if inst in current else " · tab"
+        found.append({"inst": inst, "name": name, "colour": colour, "state": state,
+                      "title": title, "artist": artist, "tab": tab,
+                      "scope": "remote" if inst.startswith("kdeconnect.") else "local",
+                      "device": identity(inst).partition(" - ")[2] if inst.startswith("kdeconnect.") else ""})
+    return found, players
+
+
+def entries():
+    """[(name, detail, colour, state, action argv)] — state picks the icon."""
+    rows = []
+    found, players = players_now()
+    any_playing = any(f["state"] == "playing" for f in found)
+    for f in found:
+        inst = f["inst"]
+        now = f["title"] or "—"
+        if f["artist"]:
+            now += f" · {f['artist']}"
         if len(now) > 52:
             now = now[:51] + "…"
         action = ["playerctl", "-p", inst, "play-pause"]
-        if gecko(inst) and ".tab_" in inst:
+        if f["tab"]:
             # A Firefox / Zen tab: picking it switches the browser to that
             # tab (MPRIS Raise -> host.py), which makes it the one the bar shows.
-            name += " · this tab" if inst in current else " · tab"
             action = ["busctl", "--user", "call", "org.mpris.MediaPlayer2." + inst,
                       "/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2", "Raise"]
-        rows.append((name, now, colour, state, action))
+        rows.append((f["name"], now, f["colour"], f["state"], action))
     if not rows:
         rows.append(("Nothing playing", "", "muted", "stopped", None))
     last = last_played_row(players)
@@ -445,7 +466,24 @@ class MediaMenu(Gtk.Window):
         return False
 
 
+def dump_json():
+    """`media-menu.py --json`: the players and the Spotify "Last played"
+    offer, for the Quickshell players deck (PlayersPopup.qml)."""
+    found, players = players_now()
+    last = None
+    if last_played_row(players):
+        with open(LAST_PLAYED) as f:
+            lp = json.load(f)
+        last = {"title": lp.get("title", ""), "artists": lp.get("artists") or [],
+                "scope": "remote" if lp.get("kind") == "phone" else "local",
+                "where": {"laptop": "Laptop", "phone": "Phone"}.get(lp.get("kind"), lp.get("device") or "Spotify")}
+    print(json.dumps({"players": found, "last": last}))
+
+
 def main():
+    if "--json" in sys.argv[1:]:
+        dump_json()
+        return
     if toggle_or_claim():
         return
     provider = Gtk.CssProvider()

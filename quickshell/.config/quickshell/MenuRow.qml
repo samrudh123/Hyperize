@@ -21,6 +21,13 @@ Item {
     signal activated()
     signal removed()
 
+    // keyboard: Tab / ↓ ↑ to it (MenuPopup), Enter / Space picks it
+    activeFocusOnTab: !separator && !header && enabled && visible
+    function kbActivate() { if (enabled && !separator && !header) activated(); }
+    Keys.onPressed: ev => {
+        if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
+    }
+
     width: parent ? parent.width : 200
     implicitWidth: (separator ? 0 : label.implicitWidth) + 30 + 28 + (submenu ? 18 : 0)
     implicitHeight: separator ? 9 : header ? 30 : 32
@@ -131,4 +138,5 @@ Item {
             }
         }
     }
+    FocusRing { radius: 8 }
 }

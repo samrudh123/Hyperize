@@ -68,6 +68,9 @@ Singleton {
     // ── temperature (5 s): thermal_zone0, as waybar's default ───────────────
     property int tempC: 0
     readonly property int tempCritical: 82
+    // one heat scale for the temperature pill and its panel (SysPopup)
+    // sapphire · yellow ≥60 · peach ≥70 · red ≥ tempCritical
+    function tempColor(c) { return c >= tempCritical ? Theme.red : c >= 70 ? Theme.peach : c >= 60 ? Theme.yellow : Theme.sapphire; }
 
     function _readTemp() {
         tempFile.reload();

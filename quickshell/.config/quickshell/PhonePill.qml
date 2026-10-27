@@ -2,9 +2,10 @@
 // hover: battery / charging / signal, and how many notifications are
 // waiting on it (accent; only while there are some).
 //
-//   phone:          click: menu (ring · send clipboard · send files · browse
-//                   files · the phone's notifications) · middle-click: ring
-//   notifications:  click: the notification centre's Phone tab · right: menu
+//   phone:          click: the phone panel (PhonePopup: battery orb, ring ·
+//                   ping · clipboard · send / browse files, the phone's
+//                   notifications) · middle-click: ring
+//   notifications:  click: the notification centre's Phone tab · right: panel
 //
 // Dim icon only while the phone is paired but out of reach; hidden when
 // kdeconnectd isn't running or nothing is paired.
@@ -55,14 +56,18 @@ Row {
             let t = "<b>" + st.name + "</b>";
             if (batt >= 0) t += "<br>" + battGlyph() + " " + batt + "%" + (st.charging ? ", charging" : "");
             if (st.signal >= 0) t += "<br>\u{f08be} " + (st.network || "Signal") + " " + "▂▄▆█".slice(0, Math.max(1, st.signal)) ;
-            return t + "<br>" + dim("Click: menu · Middle-click: ring");
+            return t + "<br>" + dim(PillClicks.hint("phone"));
         }
 
-        function toggleMenu() { menu.isOpen ? menu.close() : menu.open(phone); }
+        function toggleMenu() { menu.toggle(); }
 
+        pillId: "phone"                    // wheel: Settings › Pills
         onClicked: button => {
-            if (button === Qt.MiddleButton && up) run("ring");
-            else if (button !== Qt.MiddleButton) menu.isOpen ? menu.close() : menu.open(phone);
+            PillClicks.dispatch("phone", button, {
+                panel: () => menu.toggle(),
+                ring: () => { if (up) run("ring"); },
+                notifs: () => BarState.panelRequested("notifications", "phone")
+            });
         }
 
         Process {
@@ -76,57 +81,11 @@ Row {
         }
         Timer { id: again; interval: 5000; onTriggered: watcher.running = true }
 
-        MenuPopup {
+        // the panel (PhonePopup.qml) — was a MenuPopup
+        PhonePopup {
             id: menu
-            edge: Edges.Top
-            minWidth: 250
-
-            MenuRow {
-                header: true
-                text: (phone.st.name || "PHONE").toUpperCase()
-                      + (phone.up && phone.batt >= 0 ? "  ·  " + phone.batt + "%" + (phone.st.charging ? " ⚡" : "") : phone.up ? "" : "  ·  OFFLINE")
-            }
-            MenuRow {
-                text: "Ring phone"
-                glyph: "\u{f11ab}"                          // md-phone_ring
-                enabled: phone.up
-                onActivated: { menu.close(); phone.run("ring"); }
-            }
-            MenuRow {
-                text: "Send clipboard"
-                glyph: "\u{f0cf9}"                          // md-clipboard_arrow_right
-                enabled: phone.up
-                onActivated: { menu.close(); phone.run("clip"); }
-            }
-            MenuRow {
-                text: "Send files…"
-                glyph: "\u{f022a}"                          // md-file_send
-                enabled: phone.up
-                onActivated: { menu.close(); phone.run("send"); }
-            }
-            MenuRow {
-                text: "Browse phone files"
-                glyph: "\u{f0770}"                          // md-folder_open
-                enabled: phone.up
-                onActivated: { menu.close(); phone.run("browse"); }
-            }
-
-            MenuRow { separator: true; visible: phone.notifs.length > 0 }
-            MenuRow {
-                header: true
-                visible: phone.notifs.length > 0
-                text: "NOTIFICATIONS  ·  " + phone.notifs.length
-            }
-            Repeater {
-                model: phone.notifs.slice(0, 6)
-                MenuRow {
-                    required property var modelData
-                    text: modelData.app + "  ·  " + modelData.title
-                    glyph: "\u{f036a}"                      // md-message_text_outline
-                    // the notification centre's Phone tab: reply, dismiss
-                    onActivated: { menu.close(); Theme.exec("/usr/bin/python3 " + Theme.hypr + "/notif-center.py phone"); }
-                }
-            }
+            pill: phone
+            ph: phone
         }
     }
 
@@ -148,11 +107,14 @@ Row {
             for (const n of notifs.slice(0, 5))
                 t += "<br>" + dim(n.app) + "&nbsp;&nbsp;" + n.title.replace(/</g, "&lt;");
             if (notifs.length > 5) t += "<br>" + dim("… " + (notifs.length - 5) + " more");
-            return t + "<br>" + dim("Click: open them · Right-click: phone menu");
+            return t + "<br>" + dim(PillClicks.hint("phonenotifs"));
         }
+        pillId: "phonenotifs"                    // wheel: Settings › Pills
         onClicked: button => {
-            if (button === Qt.LeftButton) Theme.exec("/usr/bin/python3 " + Theme.hypr + "/notif-center.py phone");
-            else if (button === Qt.RightButton) phone.toggleMenu();
+            PillClicks.dispatch("phonenotifs", button, {
+                notifs: () => BarState.panelRequested("notifications", "phone"),
+                panel: () => phone.toggleMenu()
+            });
         }
     }
 }

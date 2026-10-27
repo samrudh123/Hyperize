@@ -1,6 +1,8 @@
 // Battery (UPower's display device). Same thresholds as waybar: warning at
 // 25 % (peach), critical at 12 % (red pill, pulsing). Charging always wins
 // over the low-battery colours — the alarm is for draining batteries only.
+// Click: the battery panel (BatteryPopup.qml — health, cycles, power mode,
+// brightness); `qs ipc call sysinfo toggle battery`.
 import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
@@ -36,8 +38,18 @@ Pill {
         const t = charging ? hm(dev.timeToFull) : hm(dev.timeToEmpty);
         const what = charging ? (t ? t + " until full" : "Charging")
                    : plugged ? "Plugged in" : (t ? t + " left" : "On battery");
-        return what + "  ·  " + Math.abs(dev.changeRate).toFixed(1) + " W";
+        return what + "  ·  " + Math.abs(dev.changeRate).toFixed(1) + " W"
+             + PillClicks.hintLine("battery");
     }
+
+    function toggleMenu() { batPop.toggle(); }
+    pillId: "battery"                    // wheel: Settings › Pills
+    onClicked: button => PillClicks.dispatch("battery", button, {
+        panel: () => batPop.toggle(),
+        profile: () => Theme.exec(Theme.hypr + "/power-profile.sh next"),
+        settings: () => BarState.panelRequested("settings", "power")
+    })
+    BatteryPopup { id: batPop; pill: bat }
 
     // the critical pulse: a soft breathe rather than waybar's hard blink
     SequentialAnimation on opacity {

@@ -10,7 +10,9 @@
 //                                     wallpicker: toggle desktop|lock — SUPER+W;
 //                                     themepicker: toggle — SUPER+SHIFT+T;
 //                                     clipboard: toggle — the clipboard pill;
-//                                     display: toggle, menu, set mirror|extend|DIR)
+//                                     display: toggle, menu, set mirror|extend|DIR;
+//                                     panels: toggle audio|network|notifications [arg];
+//                                     settings: toggle|open [TAB], close)
 //   logs:     qs log
 //
 // Saving any file here hot-reloads the shell.
@@ -38,4 +40,5 @@ ShellRoot {
     WorkspacePicker {}
     WallpaperPicker {}
     ThemePicker {}
+    SettingsPanel {}
 }

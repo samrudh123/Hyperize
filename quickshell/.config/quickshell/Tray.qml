@@ -5,6 +5,10 @@
 //
 // Hover, like the bar's pills: the icon's square fills in the accent and the
 // icon is tinted dark (icons have no text colour of their own).
+//
+// nm-applet and blueman's icons are hidden: the network / Bluetooth pills and
+// their panels do that job. The applets keep running for what they do
+// behind the scenes (Wi-Fi password and Bluetooth pairing prompts).
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -14,9 +18,11 @@ import Quickshell.Services.SystemTray
 Item {
     id: tray
 
+    readonly property var hidden: ["nm-applet", "blueman"]
+
     implicitWidth: row.width > 0 ? row.width + 16 : 0
     implicitHeight: 32
-    visible: rep.count > 0
+    visible: SystemTray.items.values.some(i => !hidden.includes(i.id))
 
     Row {
         id: row
@@ -31,6 +37,7 @@ Item {
             Item {
                 id: icon
                 required property SystemTrayItem modelData
+                visible: !tray.hidden.includes(modelData.id)
                 width: 22
                 height: 32
 

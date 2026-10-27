@@ -6,6 +6,8 @@
                                 bar's phone-notifications pill)
     notif-center.py bar         long-running JSON for waybar's custom/notifications
     notif-center.py dnd [on|off|toggle]   do not disturb (bar right-click)
+    notif-center.py serve       backend of the Quickshell panel (NotifPopup.qml):
+                                JSON snapshots out, commands in — see serve()
 
 Two tabs:
 
@@ -169,6 +171,201 @@ def bar():
                 print(line, flush=True)
                 last_line = line
         time.sleep(1)
+
+
+# ── Quickshell panel backend ───────────────────────────────────────────────
+# NotifPopup.qml (the bell's panel since 2026-10-27) runs `serve` while it is
+# open: one JSON snapshot per change on stdout, commands on stdin. Opening
+# does what the GTK panel did — marks everything read, hides mako's popups
+# (mode panel-open) — and closing (stdin EOF / SIGTERM) undoes the mode and
+# marks what arrived meanwhile read too.
+#
+#   stdin:  remove KEY · clear system|phone · invoke ID ACTION · dnd on|off
+#           phone-dismiss PATH · phone-action PATH NAME · phone-reply PATH TEXT
+#           refresh
+KDEC = "org.kde.kdeconnect"
+N_IFACE = "org.kde.kdeconnect.device.notifications"
+ALLOWED_TAGS = re.compile(r"<(/?)(b|i|u|a)(\s[^>]*)?>", re.I)
+
+
+def styled(body):
+    """Notification body markup -> Qt StyledText: keep b/i/u/a, escape the
+    rest (bodies are often plain text with a stray < or &), \n -> <br>."""
+    import html
+    out, pos = [], 0
+    for m in ALLOWED_TAGS.finditer(body or ""):
+        out.append(html.escape(html.unescape(re.sub(r"<[^>]+>", "", body[pos:m.start()])), quote=False))
+        out.append(m.group(0) if m.group(2).lower() != "a" or m.group(1) else
+                   "<a%s>" % (m.group(3) or ""))
+        pos = m.end()
+    out.append(html.escape(html.unescape(re.sub(r"<[^>]+>", "", (body or "")[pos:])), quote=False))
+    return "".join(out).strip().replace("\n", "<br>")
+
+
+class Kdec:
+    def __init__(self):
+        from gi.repository import Gio, GLib
+        self.Gio, self.GLib = Gio, GLib
+        self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+
+    def call(self, path, iface, method, args=None):
+        try:
+            r = self.bus.call_sync(KDEC, path, iface, method, args, None,
+                                   self.Gio.DBusCallFlags.NO_AUTO_START, 800, None)
+            return r.unpack() if r else ()
+        except self.GLib.Error:
+            return None
+
+    def devices(self):
+        r = self.call("/modules/kdeconnect", "org.kde.kdeconnect.daemon", "devices",
+                      self.GLib.Variant("(bb)", (False, True)))
+        out = []
+        for dev in (r[0] if r else []):
+            props = self.call(f"/modules/kdeconnect/devices/{dev}", "org.freedesktop.DBus.Properties",
+                              "GetAll", self.GLib.Variant("(s)", ("org.kde.kdeconnect.device",)))
+            props = props[0] if props else {}
+            out.append({"id": dev, "name": props.get("name", "Phone"),
+                        "reachable": bool(props.get("isReachable"))})
+        return out
+
+    def notes(self, dev):
+        base = f"/modules/kdeconnect/devices/{dev}/notifications"
+        r = self.call(base, N_IFACE, "activeNotifications")
+        out = []
+        for nid in (r[0] if r else []):
+            path = f"{base}/{nid}"
+            props = self.call(path, "org.freedesktop.DBus.Properties", "GetAll",
+                              self.GLib.Variant("(s)", (N_IFACE + ".notification",)))
+            if not props:
+                continue
+            p = props[0]
+            out.append({"path": path, "app": p.get("appName", "Phone"),
+                        "summary": p.get("title", "") or p.get("ticker", ""),
+                        "body": styled(p.get("text", "")), "raw": p.get("text", ""),
+                        "icon": p.get("iconPath", "") if p.get("hasIcon") else "",
+                        "actions": list(p.get("actions", []) or []),
+                        "replyable": bool(p.get("replyId")),
+                        "dismissable": bool(p.get("dismissable", True))})
+        return out
+
+    def note_call(self, path, method, arg=None):
+        self.call(path, N_IFACE + ".notification", method,
+                  self.GLib.Variant("(s)", (arg,)) if arg is not None else None)
+
+
+def entry_json(e, seen_before):
+    hints = e.get("hints") or {}
+    acts = e.get("actions") or []
+    live = bool(e.get("live") and e.get("id"))
+    app = (hints.get("x-kde-display-appname") or e.get("app")
+           or str(hints.get("desktop-entry", "")).split(".")[-1] or "Notification")
+    return {"key": e["key"], "id": e.get("id"), "live": live, "app": app,
+            "icon": e.get("icon") or "", "image": str(hints.get("image-path", "") or ""),
+            "desktop": str(hints.get("desktop-entry", "") or ""),
+            "summary": e.get("summary", ""), "body": styled(e.get("body", "")),
+            "time": e.get("time", 0), "critical": e.get("urgency") == 2,
+            "unread": e.get("time", 0) > seen_before,
+            "actions": [[k, l] for k, l in acts if k != "default"] if live else [],
+            "hasDefault": live and any(k == "default" for k, _ in acts)}
+
+
+def serve():
+    import threading
+    import ctypes
+    ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)   # PR_SET_PDEATHSIG
+    seen_before = load()["seen"]
+
+    def mark_read():
+        with Locked() as h:
+            h.data["seen"] = time.time()
+            h.dirty = True
+
+    def finish(*_):
+        set_mode("panel-open", False)
+        mark_read()
+        os._exit(0)
+
+    signal.signal(signal.SIGTERM, finish)
+    mark_read()
+    set_mode("panel-open", True)
+    kd = Kdec()
+    poke = threading.Event()
+
+    def run(*argv):
+        subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+
+    def command(line):
+        parts = line.rstrip("\n").split(" ", 2)
+        cmd, a = parts[0], parts[1:]
+        if cmd == "remove" and a:
+            with Locked() as h:
+                gone = [e for e in h.data["entries"] if str(e["key"]) == a[0]]
+                h.data["entries"] = [e for e in h.data["entries"] if str(e["key"]) != a[0]]
+                h.dirty = True
+            for e in gone:
+                if e.get("live") and e.get("id"):
+                    run("makoctl", "dismiss", "-n", str(e["id"]))
+        elif cmd == "clear" and a:
+            phone_tab = a[0] == "phone"
+            with Locked() as h:
+                gone = [e for e in h.data["entries"] if is_phone(e) == phone_tab]
+                h.data["entries"] = [e for e in h.data["entries"] if is_phone(e) != phone_tab]
+                h.dirty = True
+            for e in gone:
+                if e.get("live") and e.get("id"):
+                    run("makoctl", "dismiss", "-n", str(e["id"]))
+        elif cmd == "invoke" and len(a) == 2:
+            run("makoctl", "invoke", "-n", a[0], a[1])
+        elif cmd == "dnd" and a:
+            set_dnd(a[0] == "on")
+        elif cmd == "phone-dismiss" and a:
+            kd.note_call(a[0], "dismiss")
+        elif cmd == "phone-action" and len(a) == 2:
+            kd.note_call(a[0], "sendAction", a[1])
+        elif cmd == "phone-reply" and len(a) == 2:
+            kd.note_call(a[0], "sendReply", a[1])
+        poke.set()
+
+    def reader():
+        for line in sys.stdin:
+            try:
+                command(line)
+            except Exception as ex:         # noqa: BLE001 — keep serving
+                print(f"notif-center serve: {line!r}: {ex}", file=sys.stderr)
+        finish()
+
+    threading.Thread(target=reader, daemon=True).start()
+
+    last, phone_every = None, 0
+    devices, phone = [], []
+    while True:
+        if phone_every <= 0 or poke.is_set():
+            devices = kd.devices()
+            phone = [dict(d, notes=kd.notes(d["id"]) if d["reachable"] else []) for d in devices]
+            phone_every = 2                     # KDE Connect: every 2 s (D-Bus calls)
+        phone_every -= 1
+        poke.clear()
+        data = load()
+        live_texts = [(n["summary"], n["raw"]) for d in phone for n in d["notes"]]
+
+        def on_phone_now(e):
+            s_, b_ = e.get("summary", ""), e.get("body", "")
+            return any(t and x and t in s_ + b_ and x in s_ + b_ for t, x in live_texts)
+
+        entries = list(reversed(data["entries"]))
+        snap = {
+            "dnd": dnd_on(), "seenBefore": seen_before,
+            "system": [entry_json(e, seen_before) for e in entries if not is_phone(e)],
+            "earlier": [entry_json(e, seen_before) for e in entries
+                        if is_phone(e) and not on_phone_now(e)],
+            "phone": phone,
+        }
+        line = json.dumps(snap, ensure_ascii=False)
+        if line != last:
+            print(line, flush=True)
+            last = line
+        poke.wait(0.5)
 
 
 # ── panel ──────────────────────────────────────────────────────────────────
@@ -696,6 +893,11 @@ def main():
             bar()
         except (KeyboardInterrupt, BrokenPipeError):
             pass
+    elif cmd == "serve":
+        try:
+            serve()
+        except (KeyboardInterrupt, BrokenPipeError):
+            set_mode("panel-open", False)
     elif cmd == "dnd":
         arg = sys.argv[2] if len(sys.argv) > 2 else "toggle"
         set_dnd({"on": True, "off": False}.get(arg, not dnd_on()))

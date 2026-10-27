@@ -1,7 +1,8 @@
 // Screenshots and screen recording (hypr/screen-record.py).
 //
-//   idle       click: region screenshot · middle: start recording · right: menu
-//   recording  red, with the running time; click (or middle) stops it
+//   click: the capture panel (RecordPopup.qml; `qs ipc call capture toggle`)
+//   right-click: region screenshot · middle: start / stop recording
+//   recording  red, with the running time (stop: middle-click, or the panel)
 //
 // Recording goes through OBS when OBS is open (its scenes, folder and format;
 // "OBS" shows in the pill) and through wf-recorder otherwise (screen, region
@@ -38,16 +39,20 @@ Pill {
     padRight: recording ? 10 : 10
     tip: recording
         ? "Recording" + (st.backend === "obs" ? " in OBS" : "") + " · " + clock(st.elapsed)
-          + "<br><font color='" + Theme.overlay2 + "'>Click: stop · Right-click: menu</font>"
+          + PillClicks.hintLine("capture")
         : "Screenshot & screen recording"
-          + "<br><font color='" + Theme.overlay2 + "'>Click: region screenshot · Middle-click: record "
-          + (st.obs ? "in OBS" : "screen") + " · Right-click: more</font>"
+          + PillClicks.hintLine("capture")
 
+    pillId: "capture"                    // wheel: Settings › Pills
     onClicked: button => {
-        if (button === Qt.RightButton) { menu.isOpen ? menu.close() : menu.open(rec); return; }
-        if (recording) { run("stop"); return; }
-        if (button === Qt.LeftButton) shot("region");
-        else if (button === Qt.MiddleButton) run("toggle");
+        // what each button does: PillClicks (Settings › Pills)
+        PillClicks.dispatch("capture", button, {
+            panel: () => panel.toggle(),
+            region: () => shot("region"),
+            window: () => shot("window"),
+            screen: () => shot("screen"),
+            record: () => run(recording ? "stop" : "toggle")
+        });
     }
 
     Process {
@@ -67,96 +72,18 @@ Pill {
         onTriggered: watcher.running = true
     }
 
-    MenuPopup {
-        id: menu
-        minWidth: 230
-
-        MenuRow {
-            visible: rec.recording
-            danger: true
-            text: "Stop recording  ·  " + rec.clock(rec.st.elapsed)
-            glyph: "\u{f04db}"                          // md-stop
-            onActivated: { rec.run("stop"); menu.close(); }
-        }
-        MenuRow { separator: true; visible: rec.recording }
-
-        MenuRow { header: true; text: "SCREENSHOT" }
-        MenuRow {
-            text: "Region"
-            glyph: "\u{f019f}"                          // md-crop_free
-            onActivated: { menu.close(); rec.shot("region"); }
-        }
-        MenuRow {
-            text: "Window"
-            glyph: "\u{f05b2}"                          // md-window_restore
-            onActivated: { menu.close(); rec.shot("window"); }
-        }
-        MenuRow {
-            text: "Screen"
-            glyph: "\u{f0379}"                          // md-monitor
-            onActivated: { menu.close(); rec.shot("screen"); }
-        }
-
-        MenuRow { separator: true; visible: !rec.recording }
-        MenuRow { header: true; visible: !rec.recording; text: "RECORD" }
-        MenuRow {
-            visible: !rec.recording && rec.st.obs
-            text: "Record in OBS"
-            glyph: "\u{f0bdc}"                          // md-video_outline
-            glyphColor: Theme.red
-            enabled: rec.st.obsReachable === true
-            onActivated: { menu.close(); rec.run("obs start"); }
-        }
-        MenuRow {
-            visible: !rec.recording
-            enabled: rec.st.wf
-            text: "Record screen"
-            glyph: "\u{f0379}"
-            onActivated: { menu.close(); rec.run("start screen"); }
-        }
-        MenuRow {
-            visible: !rec.recording
-            enabled: rec.st.wf
-            text: "Record region"
-            glyph: "\u{f019f}"
-            onActivated: { menu.close(); rec.run("start region"); }
-        }
-        MenuRow {
-            visible: !rec.recording
-            enabled: rec.st.wf
-            text: "Record window"
-            glyph: "\u{f05b2}"
-            onActivated: { menu.close(); rec.run("start window"); }
-        }
-
-        MenuRow { separator: true; visible: !rec.recording }
-        MenuRow { header: true; visible: !rec.recording; text: "SOUND" }       // wf-recorder only; OBS uses its own mixer
-        Repeater {
-            model: [["desktop", "Desktop sound"], ["mic", "Microphone"], ["none", "No sound"]]
-            MenuRow {
-                required property var modelData
-                visible: !rec.recording
-                text: modelData[1]
-                check: rec.st.audio === modelData[0] ? 1 : 0
-                onActivated: {
-                    rec.st = Object.assign({}, rec.st, { audio: modelData[0] });
-                    rec.run("audio " + modelData[0]);
-                }
-            }
-        }
-
-        MenuRow { separator: true }
-        MenuRow {
-            visible: !rec.st.obs
-            text: "Open OBS"
-            glyph: "\u{f0bdc}"
-            onActivated: { menu.close(); Theme.exec(Theme.hypr + "/focus-or-launch.sh obsproject /usr/bin/obs"); }
-        }
-        MenuRow {
-            text: "Open recordings folder"
-            glyph: "\u{f19fb}"                          // md-folder_play_outline
-            // yazi in grid view (thumbnails); q there gives the yazi list
-            onActivated: { menu.close(); Theme.exec(Theme.home + "/.config/yazi/grid-open.sh " + Theme.home + "/Videos/Recordings"); }
-        }
+    // `rec: rec` inside the panel would bind to its own `rec` property
+    readonly property var selfRef: rec
+    RecordPopup {
+        id: panel
+        pill: selfRef
+        rec: selfRef
+    }
+    IpcHandler {
+        target: "capture"
+        enabled: !!panel.anchor.window && !!panel.anchor.window.screen && panel.anchor.window.screen.name === BarState.active
+        function toggle(): void { panel.toggle(); }
+        function open(): void { panel.open(); }
+        function close(): void { panel.close(); }
     }
 }

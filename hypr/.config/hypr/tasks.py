@@ -15,6 +15,19 @@
     tasks.py remind          deadline reminders due now (tasks-deadlines.timer,
                              every minute)
     tasks.py deadlines       open tasks with a deadline, as JSON
+    tasks.py json            open tasks + today's done ones, as JSON (the
+                             Quickshell tasks popup, TasksPopup.qml)
+    tasks.py op ACTION ...   one change, answered with {"ok", "msg"} JSON:
+                             add TEXT · done|undone|delete I TEXT ·
+                             prio I TEXT N · rename I TEXT NEW · due I TEXT SPEC
+                             move I TEXT J TEXT2 (swap two, manual order) ·
+                             sort manual|deadline|priority · log TEXT ·
+                             logedit N TEXT · logdel N · undo
+                             (I = index from `json`, TEXT = the task's text, a
+                             check that it is still the same task; SPEC = what
+                             follows an @, "" clears the deadline; N = the log
+                             line's index). Every change can be undone (30).
+    tasks.py day DATE        one day file's Done / Still open / Log, as JSON
 
 THE FILES ARE THE DATABASE
 
@@ -700,7 +713,7 @@ def cmd_status():
             lines.append(f"  … {len(done) - 8} more")
     if not lines:
         lines.append("No tasks yet")
-    lines.append("\nClick: open tasks · Right-click: quick add")
+    lines.append("\nClick: tasks · Right-click: new task")
     if pending:
         levels = {due_level(t.due) for t in pending if t.due}
         text = f"{GLYPH_OPEN}  {len(pending)}"
@@ -715,7 +728,22 @@ def panel_pids():
     return [int(p) for p in out.stdout.split() if int(p) != os.getpid()]
 
 
+QS = os.path.expanduser("~/.local/bin/qs")
+
+
+def popup(how="toggle"):
+    """the Quickshell tasks popup (TasksPopup.qml) — the panel now; False if
+    the shell isn't there (then the GTK panel stands in)"""
+    try:
+        r = subprocess.run([QS, "ipc", "call", "tasks", how], capture_output=True, text=True, timeout=5)
+        return r.returncode == 0 and not r.stderr.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def cmd_toggle():
+    if popup("toggle"):
+        return
     pids = panel_pids()
     if pids:
         for pid in pids:
@@ -756,6 +784,204 @@ def cmd_deadlines():
                        "label": due_label(t.due), "level": due_level(t.due)}
                       for t in sorted((t for t in load() if t.due and not t.done), key=lambda t: due_at(t.due))],
                      ensure_ascii=False))
+
+
+def task_json(i, t):
+    return {"i": i, "text": t.text, "done": t.done, "doneAt": t.done_at[11:16] if t.done else "",
+            "due": t.due, "dueDay": t.due[:10], "dueTime": t.due[11:16], "every": t.every,
+            "rule": rule_label(t.every) if t.every else "", "prio": t.prio,
+            "label": due_label(t.due) if t.due else "", "long": due_long(t.due) if t.due else "",
+            "level": due_level(t.due) if t.due else "", "age": t.age_days(), "added": t.added}
+
+
+POP_SORTS = ("manual", "deadline", "priority")
+POP_STATE = os.path.join(os.path.dirname(REMIND_STATE), "panel.json")     # the GTK panel's too
+# (a test run's notes dir keeps its own, so testing can't undo into the real list)
+UNDO_FILE = os.path.join(NOTES, ".undo.json") if os.environ.get("TASKS_NOTES_DIR") \
+    else os.path.join(os.path.dirname(REMIND_STATE), "undo.json")
+
+
+def pop_sort():
+    try:
+        s_ = json.loads(read_text(POP_STATE) or "{}").get("sort", "manual")
+    except ValueError:
+        s_ = "manual"
+    return s_ if s_ in POP_SORTS else "manual"
+
+
+def past_days():
+    try:
+        days = sorted((f[:-3] for f in os.listdir(DAILY_DIR)
+                       if f.endswith(".md") and DATE_RE.fullmatch(f[:-3])), reverse=True)
+    except OSError:
+        days = []
+    return [{"day": d, "label": dt.date.fromisoformat(d).strftime("%a %-d %b"),
+             "done": len(read_day(d)["done"])} for d in days[:60]]
+
+
+def undo_stack():
+    try:
+        st = json.loads(read_text(UNDO_FILE) or "[]")
+        return st if isinstance(st, list) else []
+    except ValueError:
+        return []
+
+
+def snapshot():
+    """before a change: tasks.md + today's day file, for `op undo`"""
+    st = undo_stack()
+    day = today()
+    st.append({"day": day, "tasks": read_text(TASKS_FILE), "dayfile": read_text(day_path(day))})
+    os.makedirs(os.path.dirname(UNDO_FILE), exist_ok=True)
+    atomic_write(UNDO_FILE, json.dumps(st[-30:]))
+
+
+def cmd_json():
+    day = today()
+    tasks = load()
+    log = [{"i": n, "stamp": split_log(l)[0], "text": split_log(l)[1]} for n, l in enumerate(read_day(day)["log"])]
+    print(json.dumps({"today": day, "sort": pop_sort(), "undo": len(undo_stack()), "log": log,
+                      "days": past_days(),
+                      "tasks": [task_json(i, t) for i, t in enumerate(tasks)
+                                if not t.done or t.done_day == day]}, ensure_ascii=False))
+
+
+def cmd_day(day):
+    if not DATE_RE.fullmatch(day or ""):
+        return print(json.dumps({}))
+    sec = read_day(day)
+    strip = lambda l: re.sub(r"^- \[[ xX]\] ", "", l)
+    print(json.dumps({"day": day, "title": dt.date.fromisoformat(day).strftime("%A, %-d %B %Y"),
+                      "done": [strip(l) for l in sec["done"]], "open": [strip(l) for l in sec["open"]],
+                      "log": [{"stamp": split_log(l)[0], "text": split_log(l)[1]} for l in sec["log"]],
+                      "path": day_path(day)}, ensure_ascii=False))
+
+
+def cmd_op(args):
+    """One change from the Quickshell popup; prints {"ok": bool, "msg": str}."""
+    def reply(ok, msg):
+        print(json.dumps({"ok": ok, "msg": msg}, ensure_ascii=False))
+    bad_date = "{} is not a date I know: try @fri, @tomorrow 5pm, @20/10, @2h, @every mon"
+    action = args[0] if args else ""
+    if action == "undo":
+        st = undo_stack()
+        if not st:
+            return reply(False, "Nothing to undo")
+        last = st.pop()
+        atomic_write(TASKS_FILE, last["tasks"])
+        if last.get("dayfile"):
+            atomic_write(day_path(last["day"]), last["dayfile"])
+        elif os.path.exists(day_path(last["day"])):
+            os.remove(day_path(last["day"]))
+        atomic_write(UNDO_FILE, json.dumps(st))
+        return reply(True, "Undone")
+    if action == "sort":
+        mode = args[1] if len(args) > 1 else ""
+        if mode not in POP_SORTS:
+            return reply(False, "sort: manual, deadline or priority")
+        os.makedirs(os.path.dirname(POP_STATE), exist_ok=True)
+        try:
+            st = json.loads(read_text(POP_STATE) or "{}")
+        except ValueError:
+            st = {}
+        st["sort"] = mode
+        atomic_write(POP_STATE, json.dumps(st))
+        return reply(True, f"Sorted by {mode}")
+    if action in ("log", "logedit", "logdel"):
+        day = today()
+        sec = read_day(day)
+        if action == "log":
+            text = " ".join(" ".join(args[1:]).split())
+            if not text:
+                return reply(False, "Type an update first")
+            snapshot()
+            add_log(text)
+            return reply(True, "Logged to today's file")
+        if len(args) < 2 or not args[1].isdigit() or int(args[1]) >= len(sec["log"]):
+            return reply(False, "That log line changed meanwhile")
+        n = int(args[1])
+        snapshot()
+        if action == "logdel":
+            del sec["log"][n]
+            msg = "Deleted log entry"
+        else:
+            text = " ".join(" ".join(args[2:]).split())
+            if not text:
+                return reply(False, "A log entry needs some text")
+            stamp, _ = split_log(sec["log"][n])
+            sec["log"][n] = f"- {stamp} {text}" if stamp else f"- {text}"
+            msg = "Edited log entry"
+        write_day(day, sec)
+        return reply(True, msg)
+    if action == "add":
+        text, due, every, prio, bad = split_spec(" ".join(" ".join(args[1:]).split()))
+        if bad:
+            return reply(False, bad_date.format(bad))
+        if not text:
+            return reply(False, "Type a task first")
+        tasks = load()
+        snapshot()
+        tasks.append(Task(text, added=today(), due=due, every=every, prio=prio or 0))
+        commit(tasks)
+        return reply(True, f"Added “{text}”" + (f" · due {due_long(due)}" if due else ""))
+    if len(args) < 3 or not args[1].lstrip("-").isdigit():
+        return reply(False, "usage: op ACTION INDEX TEXT [ARG]")
+    tasks = load()
+    i, text = int(args[1]), args[2]
+    t = tasks[i] if 0 <= i < len(tasks) and tasks[i].text == text else \
+        next((x for x in tasks if x.text == text), None)
+    if not t:
+        return reply(False, "That task changed meanwhile — have another look")
+    arg = args[3] if len(args) > 3 else ""
+    snapshot()
+    if action == "move":
+        j, jtext = (int(args[3]) if len(args) > 3 and args[3].lstrip("-").isdigit() else -1), \
+            (args[4] if len(args) > 4 else "")
+        u = tasks[j] if 0 <= j < len(tasks) and tasks[j].text == jtext else \
+            next((x for x in tasks if x.text == jtext and not x.done), None)
+        if not u:
+            return reply(False, "That task changed meanwhile — have another look")
+        a, b = tasks.index(t), tasks.index(u)
+        tasks[a], tasks[b] = tasks[b], tasks[a]
+        commit(tasks)
+        return reply(True, "")
+    if action in ("done", "undone"):
+        nxt = set_task_done(tasks, t, action == "done")
+        msg = (f"Done: “{t.text}”" + (f" · next one due {due_long(nxt.due)}" if nxt else "")
+               if action == "done" else f"Back on the list: “{t.text}”")
+    elif action == "delete":
+        tasks.remove(t)
+        msg = f"Deleted “{t.text}”"
+    elif action == "prio":
+        t.prio = int(arg) % 4 if arg.isdigit() else (t.prio + 1) % 4
+        msg = ("No priority" if not t.prio else "!" * t.prio) + f": “{t.text}”"
+    elif action == "rename":
+        new, due, every, prio, bad = split_spec(" ".join(arg.split()))
+        if bad:
+            return reply(False, bad_date.format(bad))
+        if not new:
+            return reply(False, "A task needs some text")
+        t.text = new
+        if due:
+            t.due, t.every = due, every
+        if prio is not None:
+            t.prio = prio
+        msg = "Edited"
+    elif action == "due":
+        spec = arg.strip().lstrip("@")
+        if not spec:
+            t.due, t.every = "", ""
+            msg = f"No deadline: “{t.text}”"
+        else:
+            got = parse_spec(spec)
+            if not got:
+                return reply(False, bad_date.format("@" + spec))
+            t.due, t.every = got
+            msg = f"Due {due_long(t.due)}" + (f", {rule_label(t.every)}" if t.every else "")
+    else:
+        return reply(False, "unknown action " + action)
+    commit(tasks)
+    reply(True, msg)
 
 
 def cmd_list():
@@ -804,7 +1030,7 @@ def cmd_checkin(kind=None):
 
 
 def open_panel():
-    if panel_pids():
+    if popup("open") or panel_pids():
         return
     # Through Hyprland, not Popen: a child of a oneshot service would be
     # killed with the service's cgroup the moment the service returns.
@@ -2034,6 +2260,12 @@ def main():
         cmd_remind()
     elif cmd == "deadlines":
         cmd_deadlines()
+    elif cmd == "json":
+        cmd_json()
+    elif cmd == "op":
+        cmd_op(args[1:])
+    elif cmd == "day":
+        cmd_day(args[1] if len(args) > 1 else "")
     elif cmd == "notify-due" and len(args) == 2:
         cmd_notify_due(args[1])
     else:

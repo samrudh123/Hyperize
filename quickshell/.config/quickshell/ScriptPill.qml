@@ -11,6 +11,10 @@
 //   colors    class -> text colour; bgs: class -> fill; first match wins,
 //             in the order the script lists its classes
 //   onLeft / onRight / onMiddle   shell commands (run via Hyprland exec)
+//   pillId    set it and the clicks are the bar's (PillClicks, Settings ›
+//             Pills: the instance's onClicked dispatches, onLeft… are
+//             ignored); the script's own "Click: …" tooltip lines are swapped
+//             for PillClicks' hint, so the tooltip says what clicks do now
 //
 // A click polls again straight away (waybar's exec-on-event), so the pill
 // reflects what the click did without waiting a full interval.
@@ -31,6 +35,22 @@ Pill {
     property string onLeft
     property string onRight
     property string onMiddle
+    // pillId: inherited from Pill (the wheel follows it too)
+    property string scriptTip: ""
+    // re-poll shortly after a click did something
+    function poke() { again.restart(); }
+    // drop the script's "Click: …" lines / "— click to …" tails
+    function stripHints(t) {
+        return t.split("\n").filter(l => !/^\s*(<[^>]+>\s*)*(left-|right-|middle-)?click\b/i.test(l))
+                .map(l => l.replace(/\s*[—–-]\s*click to .*$/i, "")).join("\n").trim();
+    }
+    tip: {
+        if (!pillId) return Theme.pango(scriptTip);
+        const body = stripHints(scriptTip);
+        const h = PillClicks.hint(pillId);
+        return (body ? Theme.pango(body) : "")
+             + (h ? (body ? "<br>" : "") + "<font color='" + Theme.overlay2 + "'>" + h + "</font>" : "");
+    }
     property int maxChars: 0
     property var textFilter: t => t
 
@@ -53,7 +73,7 @@ Pill {
             json = d;
             rawText = d.text || "";
             classes = Array.isArray(d["class"]) ? d["class"] : (d["class"] ? [d["class"]] : []);
-            tip = Theme.pango(d.tooltip || "");
+            scriptTip = d.tooltip || "";
         } catch (e) {
             console.warn(command[0], "bad JSON:", line);
         }
@@ -71,6 +91,7 @@ Pill {
     bg: pick(bgs, defaultBg)
 
     onClicked: button => {
+        if (pillId) return;                       // the instance dispatches (PillClicks)
         const cmd = button === Qt.RightButton ? onRight : button === Qt.MiddleButton ? onMiddle : onLeft;
         if (!cmd) return;
         Theme.exec(cmd);

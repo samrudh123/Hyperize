@@ -22,7 +22,7 @@ BACKUP="$HOME/.dotfiles-backup/$(date +%Y-%m-%d_%H-%M-%S)"
 # the config packages: each mirrors $HOME (hypr/.config/hypr/… -> ~/.config/hypr/…)
 PACKAGES=(hypr quickshell yazi ghostty mako fuzzel nwg waybar portals bat btop glow fastfetch tmux
           zsh bash git dl-popup aria2 systemd environment applications bin gtk vscode zathura
-          vscode-pdf-zathura nvim video-fullscreen zen)
+          vscode-pdf-zathura nvim video-fullscreen zen pipewire)
 
 say() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
@@ -154,6 +154,7 @@ do_system() {
     systemctl --user enable --now aria2.service || warn "aria2.service did not start"
     systemctl --user enable --now tasks-checkin.timer || true
     systemctl --user enable --now tasks-deadlines.timer || true
+    systemctl --user enable --now rice-eq.service || warn "rice-eq.service (equalizer) did not start"
     if [ "$(getent passwd "$USER" | cut -d: -f7)" != "$(command -v zsh)" ]; then
         say "making zsh the login shell"
         chsh -s "$(command -v zsh)" || warn "chsh failed; run: chsh -s $(command -v zsh)"

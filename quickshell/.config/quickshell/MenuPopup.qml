@@ -37,10 +37,29 @@ PopupWindow {
     implicitWidth: Math.max(minWidth, column.naturalWidth) + 2 * 5
     implicitHeight: column.implicitHeight + 2 * 5
 
+    // bars included: see PanelPopup.qml
     HyprlandFocusGrab {
         active: menu.isOpen
-        windows: [menu]
+        windows: [menu].concat(BarState.bars)
         onCleared: menu.close()
+    }
+    Connections {
+        target: BarState
+        enabled: menu.isOpen
+        function onEscapePressed() { menu.close(); }
+    }
+    Shortcut {
+        enabled: menu.isOpen
+        sequences: ["Escape"]
+        context: Qt.WindowShortcut
+        onActivated: menu.close()
+    }
+    Connections {
+        target: BarState
+        enabled: menu.isOpen
+        function onBarPressed(root, x, y) {
+            if (!BarState.pressedOn(menu.anchor.item, root, x, y)) menu.close();
+        }
     }
 
     Rectangle {
@@ -57,6 +76,18 @@ PopupWindow {
 
         focus: true
         Keys.onEscapePressed: menu.close()
+        // keyboard: Tab / ↓ next row, Shift+Tab / ↑ previous (MenuRow: Enter picks)
+        Keys.onPressed: ev => {
+            const fwd = ev.key === Qt.Key_Down || (ev.key === Qt.Key_Tab && !(ev.modifiers & Qt.ShiftModifier));
+            const back = ev.key === Qt.Key_Up || ev.key === Qt.Key_Backtab || (ev.key === Qt.Key_Tab && (ev.modifiers & Qt.ShiftModifier));
+            if (!fwd && !back) return;
+            let it = Window.activeFocusItem || card;
+            for (let n = 0; n < 200; n++) {
+                it = it.nextItemInFocusChain(fwd);
+                if (it && it !== card && it.visible) { it.forceActiveFocus(); break; }
+            }
+            ev.accepted = true;
+        }
 
         Column {
             id: column

@@ -14,7 +14,7 @@ import Quickshell.Services.Pipewire
 Pill {
     id: mic
 
-    readonly property var src: Pipewire.defaultAudioSource
+    readonly property var src: Theme.micSource(Pipewire.defaultAudioSource)   // never a sink
     readonly property bool ok: src !== null && src.audio !== null
     readonly property int pct: ok ? Math.round(src.audio.volume * 100) : 0
     readonly property bool muted: ok && src.audio.muted
@@ -47,7 +47,7 @@ Pill {
     readonly property bool live: usage.mic.length > 0
 
     shown: ok
-    label: (muted ? "\u{f036d}" : "\u{f036c}")
+    label: (muted ? "\u{f036d} muted" : "\u{f036c} " + pct + "%")
          + (usage.camera.length > 0 ? " \u{f05a0}" : "")       // md-webcam
          + (usage.screen.length > 0 ? " \u{f1483}" : "")       // md-monitor_share
     fg: live && !muted ? Theme.crust : muted ? (live ? Theme.red : Theme.overlay0) : Theme.flamingo
@@ -61,14 +61,16 @@ Pill {
         if (usage.mic.length) t += "<br>\u{f036c} " + (muted ? "muted for " : "in use by ") + usage.mic.join(", ");
         if (usage.camera.length) t += "<br>\u{f05a0} camera in use by " + usage.camera.join(", ");
         if (usage.screen.length) t += "<br>\u{f1483} screen captured by " + usage.screen.join(", ");
-        return t + "<br>" + dim("Click: mute · Right-click: mixer · Scroll: level");
+        return t + "<br>" + dim([PillClicks.hint("mic"), "Scroll: level"].filter(x => x).join(" · "));
     }
 
+    pillId: "mic"                    // wheel: Settings › Pills
     onClicked: button => {
-        if (button === Qt.LeftButton && ok) src.audio.muted = !src.audio.muted;
-        else if (button === Qt.RightButton) Theme.exec("pavucontrol -t 4");
+        PillClicks.dispatch("mic", button, {
+            mute: () => { if (ok) src.audio.muted = !src.audio.muted; },
+            mixer: () => Theme.exec("pavucontrol -t 4"),
+            panel: () => BarState.panelRequested("mic", "")
+        });
     }
-    onScrolled: dir => {
-        if (ok) src.audio.volume = Math.max(0, Math.min(1, Math.round(src.audio.volume * 20 + dir) / 20));
-    }
+    // scroll: Settings › Pills (default: mic level ±5 %)
 }

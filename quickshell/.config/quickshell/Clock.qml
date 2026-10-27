@@ -1,14 +1,16 @@
-// The accent clock pill. Click toggles time / date (waybar's format-alt);
-// hovering opens a month calendar card, and scrolling over the clock pages
-// it by month (waybar's shift_up / shift_down). Today is red, as before.
+// The accent clock pill. Click opens the calendar (CalendarPopup.qml:
+// today, the month with task deadlines, the picked day's agenda);
+// right-click toggles time / date (waybar's format-alt); scrolling over the
+// clock pages the open calendar by month. (Was a hover card, CalendarCard.qml
+// — kept, unused.)
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 Pill {
     id: clock
 
     property bool showDate: false
-    property int monthOffset: 0
 
     SystemClock {
         id: sys
@@ -21,45 +23,31 @@ Pill {
     bg: Theme.accent
     hoverBg: Qt.lighter(Theme.accent, 1.08)
     fontWeight: Font.Bold
+    tip: Qt.formatDate(sys.date, "dddd d MMMM yyyy")
+         + PillClicks.hintLine("clock")
 
-    onClicked: button => { if (button === Qt.LeftButton) showDate = !showDate; }
-    onScrolled: dir => monthOffset -= dir
-    onHoveredChanged: if (!hovered) resetTimer.restart()
+    pillId: "clock"                    // wheel: Settings › Pills
+    onClicked: button => PillClicks.dispatch("clock", button, {
+        calendar: () => cal.toggle(),
+        date: () => { showDate = !showDate; },
+        tasks: () => Quickshell.execDetached(["/usr/bin/python3", Theme.hypr + "/tasks.py", "toggle"])
+    })
+    // scroll: Settings › Pills (default: page the calendar while it is open)
+    scrollTable: ({ month: dir => { if (cal.isOpen) cal.page(-dir); } })
 
-    Timer {
-        id: resetTimer
-        interval: 1500
-        onTriggered: if (!clock.hovered) clock.monthOffset = 0
+    CalendarPopup {
+        id: cal
+        pill: clock
     }
 
-    PopupWindow {
-        id: card
-
-        property bool open: false
-        visible: open
-        color: "transparent"
-        anchor.item: clock
-        anchor.rect.x: clock.width - 1
-        anchor.rect.y: clock.height + 6
-        anchor.gravity: Edges.Bottom | Edges.Left
-        implicitWidth: calCard.implicitWidth
-        implicitHeight: calCard.implicitHeight
-
-        Timer {
-            interval: 350
-            running: clock.hovered
-            onTriggered: card.open = true
-        }
-        Connections {
-            target: clock
-            function onHoveredChanged() { if (!clock.hovered) card.open = false; }
-        }
-
-        CalendarCard {
-            id: calCard
-            anchors.fill: parent
-            today: sys.date
-            monthOffset: clock.monthOffset
-        }
+    // keybind / testing hook, on the focused screen's bar only
+    readonly property bool onActiveScreen: !!cal.anchor.window && !!cal.anchor.window.screen
+                                           && cal.anchor.window.screen.name === BarState.active
+    IpcHandler {
+        target: "calendar"
+        enabled: clock.onActiveScreen
+        function toggle(): void { cal.toggle(); }
+        function open(): void { cal.open(); }
+        function close(): void { cal.close(); }
     }
 }

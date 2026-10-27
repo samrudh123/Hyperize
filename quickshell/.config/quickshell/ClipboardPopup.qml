@@ -1,43 +1,51 @@
-// Clipboard history (cliphist) under the top bar's clipboard pill.
+// Clipboard history (cliphist) under the top bar's clipboard pill —
+// Serpantinum-style (PanelPopup: focus grab, Esc, intro).
 //
-//   type          filter            ↑ ↓   move          Enter  copy
-//   click         copy              right-click / ×  remove   Esc  close
+//   header   clipboard orb · count · [Clear all] (click twice)
+//   search   type to filter · ↑ ↓ move · Enter copy · Del remove · Tab kind
+//   tabs     All · Text · Images
+//   cards    text (two lines) or the image's thumbnail; click copies,
+//            right-click / × removes
 //
 // The list comes from hypr/clip-list.py (newest 150; images decoded once
 // into ~/.cache/cliphist-thumbs). Copying is `cliphist decode | wl-copy`, so
 // images go back on the clipboard as images. SUPER+SHIFT+V opens it too
-// (`qs ipc call clipboard toggle`; it used to be a fuzzel picker).
+// (`qs ipc call clipboard toggle`).
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Hyprland
 
-PopupWindow {
+PanelPopup {
     id: pop
+    tabBar: menuTabs                          // Ctrl+Tab / Ctrl+Shift+Tab cycle it
+    TabFade { id: tabFx; key: pop.kind; active: pop.isOpen }   // soft tab swap
+    initialFocus: search                    // keyboard-opened: start typing here
 
-    property Item pill: null
-    property bool isOpen: false
+    edge: Edges.Bottom
+    panelWidth: 480
+    pad: 16
+
     property var entries: []
     property string query: ""
     property int sel: 0
+    property int kind: 0                      // 0 all, 1 text, 2 images
 
     readonly property var shown: {
         const q = query.trim().toLowerCase();
-        if (!q) return entries;
-        return entries.filter(e => e.text.toLowerCase().includes(q));
+        return entries.filter(e => (kind === 0 || (kind === 1) === (e.image === ""))
+                                   && (!q || e.text.toLowerCase().includes(q)));
     }
+    readonly property int nImages: entries.filter(e => e.image !== "").length
     onShownChanged: sel = Math.max(0, Math.min(sel, shown.length - 1))
 
-    function open() {
+    onOpened: {
         query = "";
         search.text = "";
         sel = 0;
+        clear.armed = false;
         lister.running = true;
-        isOpen = true;
         search.forceActiveFocus();
     }
-    function close() { isOpen = false; }
-    function toggle() { if (isOpen) close(); else open(); }
 
     function copy(e) {
         if (!e) return;
@@ -49,20 +57,9 @@ PopupWindow {
         entries = entries.filter(x => x.id !== e.id);      // at once; the file follows
         Theme.exec("/usr/bin/python3 " + Theme.hypr + "/clip-list.py delete " + e.id);
     }
-
-    visible: isOpen
-    color: "transparent"
-    anchor.item: pill
-    anchor.rect.x: pill ? pill.width / 2 : 0
-    anchor.rect.y: pill ? pill.height + 6 : 0
-    anchor.gravity: Edges.Bottom
-    implicitWidth: 440
-    implicitHeight: card.height
-
-    HyprlandFocusGrab {
-        active: pop.isOpen
-        windows: [pop]
-        onCleared: pop.close()
+    function move(d) {
+        sel = Math.max(0, Math.min(sel + d, shown.length - 1));
+        list.positionViewAtIndex(sel, ListView.Contain);
     }
 
     Process {
@@ -75,84 +72,152 @@ PopupWindow {
         }
     }
 
-    Rectangle {
-        id: card
+    function stage(k) { return Math.max(0, Math.min(1, (pop.intro - k * 0.12) / (1 - k * 0.12))); }
+
+    Column {
         width: parent.width
-        height: col.height + 16
-        radius: 14
-        color: Theme.alpha(Theme.mantle, 0.97)
-        border.width: 1
-        border.color: Theme.surface1
-        opacity: pop.isOpen ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 120 } }
+        spacing: 12
 
-        Column {
-            id: col
-            x: 8
-            y: 8
-            width: parent.width - 16
-            spacing: 6
-
-            // search
-            Rectangle {
-                width: parent.width
-                height: 34
-                radius: 9
-                color: Theme.alpha(Theme.surface0, 0.8)
-                border.width: search.activeFocus ? 1 : 0
-                border.color: Theme.alpha(Theme.accent, 0.6)
-
-                Text {
-                    id: lens
-                    x: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "\u{f0349}"                  // md-magnify
-                    color: Theme.overlay1
-                    font.family: Theme.font
-                    font.pixelSize: 15
-                }
-                TextInput {
-                    id: search
-                    anchors { left: lens.right; leftMargin: 8; right: count.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
-                    color: Theme.text
-                    selectionColor: Theme.alpha(Theme.accent, 0.4)
-                    font.family: Theme.uiFont
-                    font.pixelSize: 13
-                    clip: true
-                    onTextChanged: { pop.query = text; pop.sel = 0; list.positionViewAtBeginning(); }
-                    Keys.onEscapePressed: pop.close()
-                    Keys.onReturnPressed: pop.copy(pop.shown[pop.sel])
-                    Keys.onEnterPressed: pop.copy(pop.shown[pop.sel])
-                    Keys.onDownPressed: { pop.sel = Math.min(pop.sel + 1, pop.shown.length - 1); list.positionViewAtIndex(pop.sel, ListView.Contain); }
-                    Keys.onUpPressed: { pop.sel = Math.max(pop.sel - 1, 0); list.positionViewAtIndex(pop.sel, ListView.Contain); }
-                    Keys.onDeletePressed: event => {
-                        if (search.text === "" || event.modifiers & Qt.ShiftModifier) pop.remove(pop.shown[pop.sel]);
-                        else event.accepted = false;
-                    }
-
+        // ── header ──────────────────────────────────────────────────────────
+        Item {
+            width: parent.width
+            height: 42
+            opacity: pop.stage(0)
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 12
+                Rectangle {
+                    width: 42
+                    height: 42
+                    radius: 13
+                    color: Theme.alpha(Theme.accent, 0.18)
                     Text {
-                        visible: search.text === ""
-                        text: "Search clipboard"
-                        color: Theme.overlay0
-                        font: search.font
+                        anchors.centerIn: parent
+                        text: "\u{f0a38}"
+                        color: Theme.accent
+                        font.family: Theme.font
+                        font.pixelSize: 21
                     }
                 }
-                Text {
-                    id: count
-                    anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
-                    text: pop.shown.length + (pop.query ? " / " + pop.entries.length : "")
-                    color: Theme.overlay0
-                    font.family: Theme.font
-                    font.pixelSize: 11
+                Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    Text {
+                        text: "Clipboard"
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: 18
+                        font.weight: Font.Bold
+                    }
+                    Text {
+                        text: lister.running && pop.entries.length === 0 ? "loading…"
+                            : pop.entries.length + " item" + (pop.entries.length === 1 ? "" : "s")
+                              + (pop.nImages ? "  ·  " + pop.nImages + " image" + (pop.nImages === 1 ? "" : "s") : "")
+                        color: Theme.overlay1
+                        font.family: Theme.font
+                        font.pixelSize: 11
+                        font.weight: Font.DemiBold
+                    }
                 }
             }
+            IconBtn {
+                id: clear
+                property bool armed: false
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                visible: pop.entries.length > 0
+                size: 30
+                icon: "\u{f05e9}"
+                text: armed ? "Click again to clear all" : "Clear all"
+                fg: Theme.red
+                active: armed
+                activeFg: Theme.red
+                onClicked: {
+                    if (!armed) { armed = true; disarm.restart(); return; }
+                    armed = false;
+                    pop.entries = [];
+                    Theme.exec("/usr/bin/python3 " + Theme.hypr + "/clip-list.py wipe");
+                }
+                Timer { id: disarm; interval: 3000; onTriggered: clear.armed = false }
+            }
+        }
+
+        // ── search ──────────────────────────────────────────────────────────
+        Rectangle {
+            width: parent.width
+            height: 36
+            radius: 10
+            opacity: pop.stage(1)
+            color: Theme.alpha(Theme.surface0, 0.8)
+            border.width: 1
+            border.color: search.activeFocus ? Theme.alpha(Theme.accent, 0.7) : Theme.alpha(Theme.surface1, 0.8)
+            Text {
+                id: lens
+                x: 11
+                anchors.verticalCenter: parent.verticalCenter
+                text: "\u{f0349}"
+                color: search.activeFocus ? Theme.accent : Theme.overlay1
+                font.family: Theme.font
+                font.pixelSize: 15
+            }
+            TextInput {
+                id: search
+                anchors { left: lens.right; leftMargin: 9; right: count.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                color: Theme.text
+                selectionColor: Theme.alpha(Theme.accent, 0.4)
+                font.family: Theme.font
+                font.pixelSize: 13
+                clip: true
+                onTextChanged: { pop.query = text; pop.sel = 0; list.positionViewAtBeginning(); }
+                Keys.onEscapePressed: pop.close()
+                Keys.onReturnPressed: pop.copy(pop.shown[pop.sel])
+                Keys.onEnterPressed: pop.copy(pop.shown[pop.sel])
+                Keys.onDownPressed: pop.move(1)
+                Keys.onUpPressed: pop.move(-1)
+                Keys.onTabPressed: pop.kind = (pop.kind + 1) % 3
+                Keys.onDeletePressed: event => {
+                    if (search.text === "" || event.modifiers & Qt.ShiftModifier) pop.remove(pop.shown[pop.sel]);
+                    else event.accepted = false;
+                }
+                Text {
+                    visible: search.text === ""
+                    text: "Search clipboard"
+                    color: Theme.overlay0
+                    font: search.font
+                }
+            }
+            Text {
+                id: count
+                anchors { right: parent.right; rightMargin: 11; verticalCenter: parent.verticalCenter }
+                text: pop.shown.length + (pop.query || pop.kind ? " / " + pop.entries.length : "")
+                color: Theme.overlay0
+                font.family: Theme.font
+                font.pixelSize: 11
+            }
+        }
+
+        Segmented {
+            id: menuTabs
+            width: parent.width
+            height: 30
+            opacity: pop.stage(1)
+            options: ["\u{f0a38}  All", "\u{f09aa}  Text", "\u{f0976}  Images · " + pop.nImages]
+            currentIndex: pop.kind
+            onSelected: i => { pop.kind = i; search.forceActiveFocus(); }
+        }
+
+        // ── the list ────────────────────────────────────────────────────────
+        Item {
+            width: parent.width
+            height: pop.shown.length ? Math.min(list.contentHeight, 430) : 70
+            Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            opacity: pop.stage(2) * tabFx.value
+            transform: Translate { y: 12 * (1 - pop.stage(2)) + 8 * (1 - tabFx.value) }
 
             ListView {
                 id: list
-                width: parent.width
-                height: Math.min(contentHeight, 470)
+                anchors.fill: parent
                 clip: true
-                spacing: 2
+                spacing: 6
                 boundsBehavior: Flickable.StopAtBounds
                 model: pop.shown
 
@@ -164,41 +229,68 @@ PopupWindow {
                     readonly property bool current: index === pop.sel
 
                     width: ListView.view.width
-                    height: isImage ? 74 : 38
-                    radius: 8
-                    color: current ? Theme.alpha(Theme.surface0, 0.95)
-                         : mouse.containsMouse ? Theme.alpha(Theme.surface0, 0.6) : "transparent"
-                    border.width: current ? 1 : 0
-                    border.color: Theme.alpha(Theme.accent, 0.35)
+                    height: isImage ? 86 : Math.max(46, txt.implicitHeight + 22)
+                    radius: 12
+                    color: current ? Theme.alpha(Theme.accent, 0.14)
+                         : mouse.containsMouse ? Theme.alpha(Theme.surface1, 0.5) : Theme.alpha(Theme.surface0, 0.55)
+                    border.width: 1
+                    border.color: current ? Theme.alpha(Theme.accent, 0.6) : Theme.alpha(Theme.surface1, 0.35)
+                    Behavior on color { ColorAnimation { duration: Theme.fast } }
 
-                    Image {
-                        id: thumb
-                        visible: row.isImage
-                        x: 8
+                    Rectangle {
+                        id: kindDot
+                        x: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        height: 62
-                        width: Math.min(220, implicitWidth > 0 ? implicitWidth * height / Math.max(1, implicitHeight) : 110)
-                        sourceSize.height: 124
-                        fillMode: Image.PreserveAspectFit
-                        horizontalAlignment: Image.AlignLeft
-                        asynchronous: true
-                        source: row.isImage ? "file://" + row.modelData.image : ""
+                        visible: !row.isImage
+                        width: 26
+                        height: 26
+                        radius: 8
+                        color: Theme.alpha(row.current ? Theme.accent : Theme.overlay0, 0.16)
+                        Text {
+                            anchors.centerIn: parent
+                            text: /^https?:\/\//.test(row.modelData.text.trim()) ? "\u{f0337}" : "\u{f09aa}"
+                            color: row.current ? Theme.accent : Theme.overlay1
+                            font.family: Theme.font
+                            font.pixelSize: 13
+                        }
+                    }
+                    Rectangle {
+                        id: thumbBox
+                        visible: row.isImage
+                        x: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.min(240, thumb.paintedWidth > 0 ? thumb.paintedWidth : 120)
+                        height: 70
+                        radius: 8
+                        clip: true
+                        color: Theme.alpha(Theme.crust, 0.6)
+                        Image {
+                            id: thumb
+                            anchors.fill: parent
+                            sourceSize.height: 140
+                            fillMode: Image.PreserveAspectFit
+                            horizontalAlignment: Image.AlignLeft
+                            asynchronous: true
+                            source: row.isImage ? "file://" + row.modelData.image : ""
+                        }
                     }
 
                     Text {
+                        id: txt
                         anchors {
-                            left: row.isImage ? thumb.right : parent.left
-                            leftMargin: row.isImage ? 10 : 10
-                            right: del.left; rightMargin: 6
+                            left: row.isImage ? thumbBox.right : kindDot.right
+                            leftMargin: 10
+                            right: del.left; rightMargin: 8
                             verticalCenter: parent.verticalCenter
                         }
                         text: row.modelData.text.replace(/\s+/g, " ").trim()
                         textFormat: Text.PlainText
+                        wrapMode: Text.Wrap
                         elide: Text.ElideRight
-                        maximumLineCount: 1
+                        maximumLineCount: row.isImage ? 3 : 2
                         color: row.isImage ? Theme.subtext0 : Theme.text
-                        font.family: Theme.uiFont
-                        font.pixelSize: 13
+                        font.family: Theme.font
+                        font.pixelSize: 12
                     }
 
                     MouseArea {
@@ -214,87 +306,49 @@ PopupWindow {
                         }
                     }
 
-                    // remove, on hover
-                    Text {
+                    IconBtn {
                         id: del
                         anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
-                        opacity: mouse.containsMouse || delMouse.containsMouse ? 1 : 0
-                        text: "\u{f0156}"              // md-close
-                        color: delMouse.containsMouse ? Theme.red : Theme.overlay1
-                        font.family: Theme.font
-                        font.pixelSize: 14
-                        MouseArea {
-                            id: delMouse
-                            anchors.fill: parent
-                            anchors.margins: -5
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: pop.remove(row.modelData)
-                        }
+                        opacity: mouse.containsMouse || hovered ? 1 : 0
+                        size: 26
+                        iconSize: 12
+                        icon: "\u{f0156}"
+                        fg: Theme.red
+                        tip: "Remove (right-click, Del)"
+                        onClicked: pop.remove(row.modelData)
                     }
                 }
             }
 
-            Text {
+            Column {
                 visible: pop.shown.length === 0
-                width: parent.width
-                height: 60
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                text: lister.running && pop.entries.length === 0 ? "Loading…"
-                    : pop.query ? "No matches" : "Clipboard history is empty"
-                color: Theme.overlay0
-                font.family: Theme.uiFont
-                font.pixelSize: 13
-            }
-
-            // footer: hints · clear all
-            Item {
-                width: parent.width
-                height: 28
-
+                anchors.centerIn: parent
+                spacing: 4
                 Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    x: 4
-                    text: "↵ copy   ↑↓ move   Del remove   Esc close"
-                    color: Theme.overlay0
-                    font.family: Theme.uiFont
-                    font.pixelSize: 11
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "\u{f0a38}"
+                    color: Theme.alpha(Theme.overlay0, 0.8)
+                    font.family: Theme.font
+                    font.pixelSize: 28
                 }
-
-                Rectangle {
-                    id: clear
-                    property bool armed: false
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: clearText.implicitWidth + 20
-                    height: 26
-                    radius: 7
-                    color: clearMouse.containsMouse || armed ? Theme.alpha(Theme.red, armed ? 0.9 : 0.18) : "transparent"
-                    Text {
-                        id: clearText
-                        anchors.centerIn: parent
-                        // two clicks: the first arms it
-                        text: clear.armed ? "\u{f05e9}  Click again to clear all" : "\u{f05e9}  Clear all"
-                        color: clear.armed ? Theme.crust : Theme.red
-                        font.family: Theme.font
-                        font.pixelSize: 12
-                    }
-                    MouseArea {
-                        id: clearMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (!clear.armed) { clear.armed = true; disarm.restart(); return; }
-                            clear.armed = false;
-                            pop.entries = [];
-                            Theme.exec("/usr/bin/python3 " + Theme.hypr + "/clip-list.py wipe");
-                        }
-                    }
-                    Timer { id: disarm; interval: 3000; onTriggered: clear.armed = false }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: lister.running && pop.entries.length === 0 ? "Loading…"
+                        : pop.query || pop.kind ? "No matches" : "Clipboard history is empty"
+                    color: Theme.subtext0
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
                 }
             }
+        }
+
+        Text {
+            opacity: pop.stage(3)
+            text: "↵ copy   ↑↓ move   Tab kind   Del remove   Esc close"
+            color: Theme.overlay0
+            font.family: Theme.font
+            font.pixelSize: 10
         }
     }
 }
