@@ -130,6 +130,28 @@ Scope {
                         if (vis.length) root.tab = vis[(i + d + vis.length) % vis.length].id;
                         ev.accepted = true;
                     }
+                    // arrows etc. a focused control didn't take scroll the page
+                    else if (!(ev.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) && pageLoader.item
+                             && typeof pageLoader.item.scrollBy === "function") {
+                        const pg = pageLoader.item;
+                        const k = ev.key;
+                        if (k === Qt.Key_Down) pg.scrollBy(pg.keyStep);
+                        else if (k === Qt.Key_Up) pg.scrollBy(-pg.keyStep);
+                        else if (k === Qt.Key_PageDown) pg.scrollBy(pg.height * 0.85);
+                        else if (k === Qt.Key_PageUp) pg.scrollBy(-pg.height * 0.85);
+                        else if (k === Qt.Key_Home) pg.scrollTo(0);
+                        else if (k === Qt.Key_End) pg.scrollTo(pg.contentHeight);
+                        else return;
+                        ev.accepted = true;
+                    }
+                }
+                // Tab onto a control below / above the fold scrolls it into view
+                readonly property Item winFocus: Window.activeFocusItem
+                onWinFocusChanged: {
+                    const pg = pageLoader.item;
+                    if (!winFocus || !pg || typeof pg.reveal !== "function") return;
+                    for (let x = winFocus.parent; x; x = x.parent)
+                        if (x === pg) { pg.reveal(winFocus); return; }
                 }
 
                 // ── sidebar ─────────────────────────────────────────────
@@ -332,7 +354,8 @@ Scope {
                         anchors.bottom: parent.bottom
                         anchors.bottomMargin: 16
                         x: 22
-                        text: "Ctrl+F search · Ctrl+Tab next · Esc close"
+                        text: "↑↓ PgUp PgDn scroll · Ctrl+F search\nCtrl+Tab next tab · Esc close"
+                        lineHeight: 1.3
                         color: Theme.overlay0
                         font.family: Theme.font
                         font.pixelSize: 10

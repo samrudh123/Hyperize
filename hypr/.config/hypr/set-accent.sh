@@ -34,8 +34,8 @@
 # the `#`, the `rgba(...)`, the `ee`/`ff` alpha suffix — survives untouched
 # and one token covers all four formats.
 #
-# Note hyprland.conf's border is a GRADIENT, all three stops the accent at
-# falling alpha (a bevel), and the focused window's shadow is the accent too.
+# Note hyprland.conf's border is a GRADIENT, both stops the accent at
+# falling alpha (the shadow is neutral — Serpantinum, like the popups).
 #
 # DELIBERATELY NOT THEMED
 # `bat/themes/Catppuccin Mocha.tmTheme` and its identical twin
@@ -212,11 +212,11 @@ reload_live() {
     local hex="$1"
     # Window borders: set directly, so hyprland.conf stays untouched until
     # the choice is committed.
-    # The 3D look is the bevel border AND the accent shadow (hyprland.conf,
-    # general / decoration:shadow) — keep these in step with it.
+    # Serpantinum look: a thin accent line round the focused window, the
+    # shadow neutral (hyprland.conf general / decoration:shadow) — keep this
+    # in step with it.
     hyprctl keyword general:col.active_border \
-        "rgba(${hex}ff) rgba(${hex}cc) rgba(${hex}33) 135deg" >/dev/null 2>&1
-    hyprctl keyword decoration:shadow:color "rgba(${hex}77)" >/dev/null 2>&1
+        "rgba(${hex}ff) rgba(${hex}aa) 135deg" >/dev/null 2>&1
     # Both bars repaint by themselves: they set "reload_style_on_change", so
     # waybar re-reads style.css (bottom.css @imports it) the moment render()
     # moves the new file into place. No signal is sent on purpose — SIGUSR2

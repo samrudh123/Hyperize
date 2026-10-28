@@ -40,6 +40,25 @@ Flickable {
     }
     NumberAnimation { id: glide; target: page; property: "contentY"; duration: 200; easing.type: Easing.OutCubic }
 
+    // Keyboard scrolling (SettingsPanel's keys: ↑ ↓ a step, PgUp / PgDn a
+    // screen, Home / End the ends) — the same glide as a wheel notch.
+    property real keyStep: 90
+    function scrollTo(y) {
+        const max = Math.max(0, page.contentHeight - page.height);
+        page.targetY = Math.max(0, Math.min(max, y));
+        glide.to = page.targetY;
+        glide.restart();
+    }
+    function scrollBy(dy) { scrollTo((glide.running ? page.targetY : page.contentY) + dy); }
+    // keep a control Tab landed on in view
+    function reveal(it) {
+        const y = it.mapToItem(page.contentItem, 0, 0).y;
+        const top = glide.running ? page.targetY : page.contentY;
+        const m = 28;
+        if (y < top + m) scrollTo(y - m);
+        else if (y + it.height > top + page.height - m) scrollTo(Math.min(y - m, y + it.height - page.height + m));
+    }
+
     Column {
         id: head
         x: 28

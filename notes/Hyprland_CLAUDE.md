@@ -706,6 +706,13 @@ One process, `~/.local/bin/qs` (exec-once), config in `~/.config/quickshell/`:
   + accent shadow (range 12, offset 3 2, `rgba(<accent>77)`) = lifted 3D
   look. Both are templated (@@ACCENT@@) and set live in set-accent.sh
   reload_live(). Backups *.pre-wspicker, set-accent.sh.pre-shadow (archived in ~/.dotfiles-backup/pre-backups-2026-10-17.tar.gz).
+- Window look → Serpantinum, like the popups (2026-10-28): 2px border
+  (focused accent ff→aa 135deg, others surface1 e6), rounding 18 (=
+  PanelPopup card) + rounding_power 2.4, neutral crust drop shadow (range 18,
+  offset 0 5), windowsIn popin 94% on an overshoot bezier (popOut ≈ the
+  popups' OutBack 1.1), windowsOut/fadeOut popIn (InCubic). Only the active
+  border is accent now — reload_live() sets just that. Backups
+  hyprland.conf / theme/templates/hyprland.conf / set-accent.sh .pre-serpwin.
 - IPC: `qs ipc call dock toggle|open|close` (SUPER+A via dock-toggle.sh),
   `qs ipc call bottombar …` (bottom-bar.sh). `qs log` for errors.
 - Rebuild after any Ubuntu Qt update (private Qt API):
