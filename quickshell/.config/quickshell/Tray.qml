@@ -6,6 +6,10 @@
 // Hover, like the bar's pills: the icon's square fills in the accent and the
 // icon is tinted dark (icons have no text colour of their own).
 //
+// Vesktop's icon has a panel of its own (VesktopPopup.qml): left click opens
+// it (and it is in the Ctrl+← / → round), middle click shows Vesktop, right
+// click is still its menu.
+//
 // nm-applet and blueman's icons are hidden: the network / Bluetooth pills and
 // their panels do that job. The applets keep running for what they do
 // behind the scenes (Wi-Fi password and Bluetooth pairing prompts).
@@ -38,6 +42,17 @@ Item {
                 id: icon
                 required property SystemTrayItem modelData
                 visible: !tray.hidden.includes(modelData.id)
+                readonly property bool isVesktop: /vesktop/i.test(modelData.id)
+                readonly property var panel: panelLoader.item
+                // its panel is open from the keyboard: look hovered (Pill.navHot)
+                readonly property bool hot: mouse.containsMouse
+                    || (!!panel && panel.isOpen && BarState.kbMode && BarState.activePopup === panel)
+
+                LazyLoader {
+                    id: panelLoader
+                    active: icon.isVesktop
+                    VesktopPopup { pill: icon; item: icon.modelData }
+                }
                 width: 22
                 height: 32
 
@@ -46,7 +61,7 @@ Item {
                     width: 26
                     height: 26
                     radius: 7
-                    color: mouse.containsMouse ? Theme.accent : Theme.alpha(Theme.accent, 0)
+                    color: icon.hot ? Theme.accent : Theme.alpha(Theme.accent, 0)
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
                 }
 
@@ -55,8 +70,8 @@ Item {
                     implicitSize: 15
                     source: icon.modelData.icon
                     // Passive items are dimmed (waybar: -gtk-icon-effect: dim)
-                    opacity: icon.modelData.status === Status.Passive && !mouse.containsMouse ? 0.55 : 1
-                    layer.enabled: mouse.containsMouse
+                    opacity: icon.modelData.status === Status.Passive && !icon.hot ? 0.55 : 1
+                    layer.enabled: icon.hot
                     layer.effect: MultiEffect {
                         colorization: 1
                         colorizationColor: Theme.crust
@@ -72,7 +87,9 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: ev => {
                         const item = icon.modelData;
-                        if (ev.button === Qt.MiddleButton) item.secondaryActivate();
+                        if (icon.panel && ev.button === Qt.LeftButton) icon.panel.toggle();
+                        else if (icon.panel && ev.button === Qt.MiddleButton) item.activate();
+                        else if (ev.button === Qt.MiddleButton) item.secondaryActivate();
                         else if (ev.button === Qt.RightButton || item.onlyMenu) {
                             if (item.hasMenu) menu.openFor(icon, item.menu);
                         } else item.activate();
@@ -83,7 +100,7 @@ Item {
                 Tooltip {
                     target: icon
                     text: icon.modelData.tooltipTitle || icon.modelData.title || icon.modelData.id
-                    shown: mouse.containsMouse && !menu.isOpen
+                    shown: mouse.containsMouse && !menu.isOpen && !(icon.panel && icon.panel.isOpen)
                 }
             }
         }

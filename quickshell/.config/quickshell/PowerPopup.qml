@@ -2,7 +2,8 @@
 // nwg-bar. Five tiles in Settings › Power's colours (SettingsPower.qml):
 // Lock accent · Suspend blue · Log out yellow · Restart peach · Power off red.
 // Log out / Restart / Power off ask for a second click (3 s); Esc or a click
-// outside cancels. Same commands as nwg-bar (~/.config/nwg-bar/bar.json).
+// outside cancels. Tab / Shift+Tab (or ← →) walk the tiles, Enter / Space
+// press one. Same commands as nwg-bar (~/.config/nwg-bar/bar.json).
 //
 //   `qs ipc call power toggle|open|close`  (SUPER+SHIFT+X)
 import QtQuick
@@ -129,12 +130,23 @@ PanelPopup {
                     readonly property color col: Theme[modelData.col]
                     readonly property bool armed: pop.armed === modelData.id
                     readonly property real t: pop.stage(1 + index * 0.35)
+                    // keyboard: Tab / Shift+Tab (or arrows) to it, Enter / Space
+                    // press it — same two-step confirm as a click (PanelPopup.navKey)
+                    readonly property bool lit: tma.containsMouse || activeFocus || BarState.kbItem === tile
+                    activeFocusOnTab: visible
+                    function kbActivate() { pop.act(modelData); }
+                    Keys.onPressed: ev => {
+                        if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) {
+                            kbActivate();
+                            ev.accepted = true;
+                        }
+                    }
                     width: (tiles.width - 4 * tiles.spacing) / 5
                     height: 104
                     radius: 16
-                    color: armed ? col : tma.containsMouse ? Theme.alpha(col, 0.22) : Theme.alpha(Theme.surface1, 0.45)
+                    color: armed ? col : lit ? Theme.alpha(col, 0.22) : Theme.alpha(Theme.surface1, 0.45)
                     border.width: 1
-                    border.color: Theme.alpha(col, armed ? 0 : tma.containsMouse ? 0.6 : 0.2)
+                    border.color: Theme.alpha(col, armed ? 0 : lit ? 0.6 : 0.2)
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
                     scale: tma.pressed ? 0.95 : 1
                     Behavior on scale { NumberAnimation { duration: 120 } }
@@ -197,6 +209,7 @@ PanelPopup {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: pop.act(tile.modelData)
                     }
+                    FocusRing {}
                 }
             }
         }

@@ -228,6 +228,7 @@ PanelPopup {
                 font.letterSpacing: 1.2
             }
             Flickable {
+                id: taskFlick
                 width: parent.width
                 height: Math.min(taskCol.height, 190)
                 contentHeight: taskCol.height
@@ -246,10 +247,23 @@ PanelPopup {
                             id: trow
                             required property var modelData
                             readonly property bool cur: pop.fp && pop.fp.task === modelData.t
+                            readonly property bool kb: activeFocus || BarState.kbItem === trow || forget.activeFocus || BarState.kbItem === forget
+                            readonly property bool lit: tma.containsMouse || kb
+                            activeFocusOnTab: true
+                            function kbActivate() { pop.pick(modelData.t); }
+                            Keys.onPressed: ev => {
+                                if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
+                            }
+                            // keep the keyboard's row in the list's view
+                            onKbChanged: if (kb) {
+                                const f = taskFlick, y = trow.y;
+                                if (y < f.contentY) f.contentY = y;
+                                else if (y + height > f.contentY + f.height) f.contentY = y + height - f.height;
+                            }
                             width: taskCol.width
                             height: 34
                             radius: 9
-                            color: cur ? Theme.alpha(pop.tint, 0.18) : tma.containsMouse ? Theme.alpha(Theme.surface1, 0.6) : Theme.alpha(Theme.surface0, 0.45)
+                            color: cur ? Theme.alpha(pop.tint, 0.18) : lit ? Theme.alpha(Theme.surface1, 0.6) : Theme.alpha(Theme.surface0, 0.45)
                             border.width: cur ? 1 : 0
                             border.color: Theme.alpha(pop.tint, 0.6)
                             MouseArea {
@@ -273,7 +287,7 @@ PanelPopup {
                             }
                             IconBtn {
                                 id: forget
-                                visible: trow.modelData.typed && tma.containsMouse
+                                visible: trow.modelData.typed && trow.lit
                                 anchors.right: parent.right
                                 anchors.rightMargin: 6
                                 anchors.verticalCenter: parent.verticalCenter
@@ -284,6 +298,7 @@ PanelPopup {
                                 tipEdge: Edges.Top
                                 onClicked: pop.run(["forget", trow.modelData.t])
                             }
+                            FocusRing {}
                         }
                     }
                 }

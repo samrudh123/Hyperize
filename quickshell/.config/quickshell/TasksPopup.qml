@@ -424,7 +424,8 @@ PanelPopup {
                                 anchors.rightMargin: 10
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 4
-                                opacity: logMa.containsMouse || pop.delArmed === logRow.k ? 1 : 0
+                                readonly property bool kbIn: { for (let x = BarState.kbItem; x; x = x.parent) if (x === logBtns) return true; return false; }
+                                opacity: logMa.containsMouse || pop.delArmed === logRow.k || kbIn ? 1 : 0
                                 IconBtn {
                                     size: 26
                                     iconSize: 13

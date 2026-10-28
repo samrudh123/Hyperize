@@ -35,12 +35,18 @@ PanelPopup {
         property color tint: Theme.flamingo
         property bool enabled_: true
         signal activated()
+        readonly property bool lit: enabled_ && (tma.containsMouse || activeFocus || BarState.kbItem === tile)
+        activeFocusOnTab: enabled_ && visible
+        function kbActivate() { if (enabled_) activated(); }
+        Keys.onPressed: ev => {
+            if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
+        }
         height: 74
         radius: 14
         opacity: enabled_ ? 1 : 0.4
-        color: tma.containsMouse && enabled_ ? Theme.alpha(tint, 0.2) : Theme.alpha(Theme.surface1, 0.45)
+        color: lit ? Theme.alpha(tint, 0.2) : Theme.alpha(Theme.surface1, 0.45)
         border.width: 1
-        border.color: Theme.alpha(tint, tma.containsMouse && enabled_ ? 0.6 : 0.15)
+        border.color: Theme.alpha(tint, lit ? 0.6 : 0.15)
         Behavior on color { ColorAnimation { duration: Theme.fast } }
         scale: tma.pressed ? 0.95 : 1
         Behavior on scale { NumberAnimation { duration: 110 } }
@@ -58,6 +64,7 @@ PanelPopup {
             cursorShape: Qt.PointingHandCursor
             onClicked: tile.activated()
         }
+        FocusRing {}
     }
 
     Column {
@@ -114,20 +121,27 @@ PanelPopup {
 
         // ── recording: stop ─────────────────────────────────────────────────
         Rectangle {
+            id: stopCard
             visible: pop.recording
             width: parent.width
             height: 64
             radius: 16
-            color: sma.containsMouse ? pop.tint : Theme.alpha(pop.tint, 0.22)
+            readonly property bool lit: sma.containsMouse || activeFocus || BarState.kbItem === stopCard
+            activeFocusOnTab: visible
+            function kbActivate() { pop.record("stop"); }
+            Keys.onPressed: ev => {
+                if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
+            }
+            color: lit ? pop.tint : Theme.alpha(pop.tint, 0.22)
             Behavior on color { ColorAnimation { duration: Theme.fast } }
             Row {
                 anchors.centerIn: parent
                 spacing: 12
-                Text { anchors.verticalCenter: parent.verticalCenter; text: "\u{f04db}"; color: sma.containsMouse ? Theme.crust : pop.tint; font.family: Theme.font; font.pixelSize: 24 }
+                Text { anchors.verticalCenter: parent.verticalCenter; text: "\u{f04db}"; color: stopCard.lit ? Theme.crust : pop.tint; font.family: Theme.font; font.pixelSize: 24 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Stop recording  ·  " + (pop.rec ? pop.rec.clock(pop.st.elapsed || 0) : "")
-                    color: sma.containsMouse ? Theme.crust : Theme.text
+                    color: stopCard.lit ? Theme.crust : Theme.text
                     font.family: Theme.font
                     font.pixelSize: 14
                     font.weight: Font.Bold
@@ -140,6 +154,7 @@ PanelPopup {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: pop.record("stop")
             }
+            FocusRing {}
         }
 
         // ── screenshot ──────────────────────────────────────────────────────

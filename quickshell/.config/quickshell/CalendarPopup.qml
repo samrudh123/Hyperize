@@ -265,6 +265,21 @@ PanelPopup {
 
                 Grid {
                     id: grid
+                    // keyboard: one Tab stop; ← → a day, ↑ ↓ a week (pages the
+                    // month when it leaves it), Enter → the add field below
+                    readonly property bool kb: activeFocus || BarState.kbItem === grid
+                    activeFocusOnTab: true
+                    function kbStep(d, key) {
+                        const n = (key === Qt.Key_Up || key === Qt.Key_Down ? 7 : 1) * d;
+                        pop.pick(new Date(pop.picked.getFullYear(), pop.picked.getMonth(), pop.picked.getDate() + n));
+                    }
+                    function kbActivate() { pop.move(1); }
+                    Keys.onPressed: ev => {
+                        const k = ev.key;
+                        const d = k === Qt.Key_Left || k === Qt.Key_Up ? -1 : k === Qt.Key_Right || k === Qt.Key_Down ? 1 : 0;
+                        if (d && !(ev.modifiers & Qt.ControlModifier)) { kbStep(d, k); ev.accepted = true; }
+                        else if (k === Qt.Key_Return || k === Qt.Key_Enter) { kbActivate(); ev.accepted = true; }
+                    }
                     readonly property int lead: (pop.shown.getDay() + 6) % 7
                     readonly property int days: new Date(pop.shown.getFullYear(), pop.shown.getMonth() + 1, 0).getDate()
                     readonly property int cells: Math.ceil((lead + days) / 7) * 7
@@ -289,10 +304,12 @@ PanelPopup {
                                 height: 34
                                 radius: 11
                                 color: cell.isToday ? Theme.accent
-                                     : dayMa.containsMouse ? Theme.alpha(Theme.surface1, 0.8)
+                                     : dayMa.containsMouse || cell.isPicked && grid.kb ? Theme.alpha(Theme.surface1, 0.8)
                                      : cell.due.length && cell.inMonth ? Theme.alpha(pop.dotColor(cell.due[0]), 0.1) : "transparent"
-                                border.width: cell.isPicked && !cell.isToday ? 2 : 0
-                                border.color: Theme.accent
+                                // picked = accent ring; the keyboard cursor (grid
+                                // focused) = a thicker one, crust on today's fill
+                                border.width: cell.isPicked && (!cell.isToday || grid.kb) ? (grid.kb ? 3 : 2) : 0
+                                border.color: cell.isToday ? Theme.crust : Theme.accent
                                 Behavior on color { ColorAnimation { duration: Theme.fast } }
                             }
                             Text {

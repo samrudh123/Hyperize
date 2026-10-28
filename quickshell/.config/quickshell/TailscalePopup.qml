@@ -312,10 +312,15 @@ PanelPopup {
                     readonly property bool none: modelData === null
                     readonly property bool cur: none ? !pop.tsp.exitNode : modelData.ExitNode === true
                     readonly property bool ok: none || modelData.Online === true
+                    activeFocusOnTab: ok && visible
+                    function kbActivate() { if (ok && !cur) pop.tsp.run("tailscale set --exit-node=" + (none ? "" : pop.tsp.ip(modelData))); }
+                    Keys.onPressed: ev => {
+                        if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
+                    }
                     width: parent.width
                     height: 44
                     radius: 11
-                    color: cur ? Theme.alpha(pop.tint, 0.18) : exma.containsMouse && ok ? Theme.alpha(Theme.surface1, 0.55) : Theme.alpha(Theme.surface0, 0.5)
+                    color: cur ? Theme.alpha(pop.tint, 0.18) : ok && (exma.containsMouse || activeFocus || BarState.kbItem === ex) ? Theme.alpha(Theme.surface1, 0.55) : Theme.alpha(Theme.surface0, 0.5)
                     border.width: cur ? 1 : 0
                     border.color: Theme.alpha(pop.tint, 0.6)
                     opacity: ok ? 1 : 0.45
@@ -335,8 +340,9 @@ PanelPopup {
                         hoverEnabled: true
                         enabled: ex.ok && !ex.cur
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: pop.tsp.run("tailscale set --exit-node=" + (ex.none ? "" : pop.tsp.ip(ex.modelData)))
+                        onClicked: ex.kbActivate()
                     }
+                    FocusRing {}
                 }
             }
         }

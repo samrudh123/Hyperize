@@ -149,12 +149,20 @@ PanelPopup {
                     required property var modelData
                     readonly property bool isNotif: modelData.cmd === ""
                     readonly property bool ok: pop.up
+                    readonly property bool lit: ok && (tma.containsMouse || activeFocus || BarState.kbItem === tile)
+                    activeFocusOnTab: ok
+                    function kbActivate() { if (!ok) return;
+                        if (isNotif) { pop.close(); BarState.panelRequested("notifications", "phone"); }
+                        else pop.act(modelData.cmd); }
+                    Keys.onPressed: ev => {
+                        if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
+                    }
                     width: tiles.tileW
                     height: 66
                     radius: 13
-                    color: tma.containsMouse && ok ? Theme.alpha(pop.tint, 0.2) : Theme.alpha(Theme.surface0, 0.55)
+                    color: lit ? Theme.alpha(pop.tint, 0.2) : Theme.alpha(Theme.surface0, 0.55)
                     border.width: 1
-                    border.color: tma.containsMouse && ok ? Theme.alpha(pop.tint, 0.6) : Theme.alpha(Theme.surface1, 0.5)
+                    border.color: lit ? Theme.alpha(pop.tint, 0.6) : Theme.alpha(Theme.surface1, 0.5)
                     opacity: ok ? 1 : 0.4
                     scale: tma.pressed && ok ? 0.96 : 1
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
@@ -166,7 +174,7 @@ PanelPopup {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: tile.modelData.icon
-                            color: tma.containsMouse && tile.ok ? pop.tint : Theme.subtext1
+                            color: tile.lit ? pop.tint : Theme.subtext1
                             font.family: Theme.font
                             font.pixelSize: 20
                         }
@@ -185,12 +193,10 @@ PanelPopup {
                         hoverEnabled: true
                         enabled: tile.ok
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (tile.isNotif) { pop.close(); BarState.panelRequested("notifications", "phone"); }
-                            else pop.act(tile.modelData.cmd);
-                        }
+                        onClicked: tile.kbActivate()
                     }
                     Tooltip { target: tile; text: tile.modelData.tip; shown: tma.containsMouse; edge: Edges.Top }
+                    FocusRing {}
                 }
             }
         }
@@ -219,7 +225,12 @@ PanelPopup {
                     width: parent.width
                     height: ncol.implicitHeight + 16
                     radius: 11
-                    color: nma.containsMouse ? Theme.alpha(Theme.surface1, 0.55) : Theme.alpha(Theme.surface0, 0.5)
+                    activeFocusOnTab: true
+                    function kbActivate() { pop.close(); BarState.panelRequested("notifications", "phone"); }
+                    Keys.onPressed: ev => {
+                        if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
+                    }
+                    color: nma.containsMouse || activeFocus || BarState.kbItem === nrow ? Theme.alpha(Theme.surface1, 0.55) : Theme.alpha(Theme.surface0, 0.5)
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
                     Rectangle {
                         id: nbadge
@@ -265,8 +276,9 @@ PanelPopup {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: { pop.close(); BarState.panelRequested("notifications", "phone"); }
+                        onClicked: nrow.kbActivate()
                     }
+                    FocusRing {}
                 }
             }
             Text {

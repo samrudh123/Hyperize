@@ -87,11 +87,56 @@ Singleton {
         out.sort((a, b) => a.x - b.x);
         return out;
     }
+    // ONE focus grab for every bar panel, kept while you switch between them
+    // (Ctrl+arrows, or a click on another pill). Each popup used to have its
+    // own: a switch destroyed one grab and made the next, and every time
+    // Hyprland sent the bar's keyboard a leave + enter — Qt's key repeat dies
+    // at a leave, so a HELD Ctrl+arrow moved one pill and stopped. Now only
+    // the popup in it changes (add/remove surface, same grab); it ends a beat
+    // after the last popup closes, unless another opens meanwhile.
+    property var grabPopup: null
+    property bool grabHeld: false
+    function grabFor(p) {
+        grabRelease.stop();
+        grabPopup = p;
+        grabHeld = true;
+    }
+    function releaseGrab(p) {
+        if (grabPopup === p) grabRelease.restart();
+    }
+    Timer {
+        id: grabRelease
+        interval: 80
+        onTriggered: {
+            if (activePopup && activePopup.isOpen) return;
+            grabHeld = false;
+            grabPopup = null;
+        }
+    }
+    HyprlandFocusGrab {
+        active: grabHeld
+        windows: (grabPopup ? [grabPopup] : []).concat(bars)
+        // a click outside (or another grab): close the open panel
+        onCleared: {
+            const p = grabPopup;
+            grabRelease.stop();
+            grabHeld = false;
+            grabPopup = null;
+            if (p && p.isOpen) p.close();
+        }
+    }
+
     // Ctrl+arrow from the open popup: left / right along its bar, up / down to
-    // the other bar (the popup whose pill is nearest in x)
+    // the other bar (the popup whose pill is nearest in x). A held Ctrl+arrow
+    // repeats ~25×/s; it walks at most one pill per 120 ms (each step opens a
+    // panel, some start a helper process)
+    property real lastNav: 0
     function navPopup(dir) {
         const cur = activePopup;
         if (!cur || !cur.pill) return;
+        const t = Date.now();
+        if (t - lastNav < 120) return;
+        lastNav = t;
         const root = rootOf(cur.pill);
         let next = null;
         if (dir === "left" || dir === "right") {

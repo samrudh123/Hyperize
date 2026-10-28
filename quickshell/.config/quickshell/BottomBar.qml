@@ -32,22 +32,13 @@ PanelWindow {
         context: Qt.WindowShortcut
         onActivated: BarState.escapePressed()
     }
-    Shortcut {
-        sequences: ["Ctrl+Tab"]
-        context: Qt.WindowShortcut
-        onActivated: BarState.tabPressed(1)
-    }
-    Shortcut {
-        sequences: ["Ctrl+Shift+Tab", "Ctrl+Backtab", "Ctrl+Shift+Backtab"]
-        context: Qt.WindowShortcut
-        onActivated: BarState.tabPressed(-1)
-    }
     // keyboard navigation inside / between popups (PanelPopup.navKey): only
     // while a popup is open, so the bar never takes these keys otherwise
     Repeater {
-        // (Tab / Shift+Tab are the key sink's below: as Shortcuts, "Shift+Tab",
-        // "Backtab" and "Shift+Backtab" all matched one Shift+Tab press —
-        // ambiguous, so Qt fired none of them)
+        // (Tab / Shift+Tab / Ctrl+Tab / Ctrl+Shift+Tab are the key sink's
+        // below: as Shortcuts, "Shift+Tab", "Backtab" and "Shift+Backtab" all
+        // matched one Shift+Tab press — ambiguous, so Qt fired none of them;
+        // the Ctrl+Shift+Tab Shortcut had the same problem)
         model: [["Return", Qt.Key_Return, 0], ["Enter", Qt.Key_Enter, 0], ["Space", Qt.Key_Space, 0],
                 ["Left", Qt.Key_Left, 0], ["Right", Qt.Key_Right, 0], ["Up", Qt.Key_Up, 0], ["Down", Qt.Key_Down, 0],
                 ["Ctrl+Left", Qt.Key_Left, Qt.ControlModifier], ["Ctrl+Right", Qt.Key_Right, Qt.ControlModifier],
@@ -69,8 +60,9 @@ PanelWindow {
     Component.onDestruction: BarState.removeBar(bar)
     // Keys reaching the bar while one of the bar popups is open (Hyprland
     // gives them to a bar, not the popup): text goes on to the popup's
-    // focused text box (Keys.forwardTo), Shift+Tab / Esc are handled here
-    // whatever form they arrive in (the Shortcuts above cover the rest)
+    // focused text box (Keys.forwardTo), (Ctrl+)(Shift+)Tab / Esc are
+    // handled here whatever form they arrive in (the Shortcuts above cover
+    // the rest)
     Item {
         focus: true
         readonly property var target: BarState.activePopup && BarState.activePopup.isOpen ? BarState.activePopup : null
@@ -78,7 +70,14 @@ PanelWindow {
         Keys.onPressed: ev => {
             const p = target;
             if (!p) return;
-            if (ev.modifiers & Qt.ControlModifier) return;      // Ctrl+Tab: the Shortcuts
+            if (ev.modifiers & Qt.ControlModifier) {
+                // Ctrl+Tab / Ctrl+Shift+Tab: the popup's menu tabs
+                if (ev.key === Qt.Key_Tab || ev.key === Qt.Key_Backtab) {
+                    BarState.tabPressed(ev.key === Qt.Key_Backtab || (ev.modifiers & Qt.ShiftModifier) ? -1 : 1);
+                    ev.accepted = true;
+                }
+                return;
+            }
             if (ev.key === Qt.Key_Escape) { p.close(); ev.accepted = true; }
             else if (ev.key === Qt.Key_Backtab || (ev.key === Qt.Key_Tab && (ev.modifiers & Qt.ShiftModifier)))
                 ev.accepted = p.navKey(Qt.Key_Backtab, 0);

@@ -102,6 +102,10 @@ PopupWindow {
             enterAction();
             return true;
         }
+        if (ctrl && (key === Qt.Key_Tab || key === Qt.Key_Backtab)) {
+            cycleTab(key === Qt.Key_Backtab || (mods & Qt.ShiftModifier) ? -1 : 1);
+            return true;
+        }
         if (key === Qt.Key_Tab && !ctrl) { move((mods & Qt.ShiftModifier) ? -1 : 1); return true; }
         if (key === Qt.Key_Backtab && !ctrl) { move(-1); return true; }
         const it = current();
@@ -116,7 +120,7 @@ PopupWindow {
             return false;
         }
         const d = key === Qt.Key_Left || key === Qt.Key_Up ? -1 : key === Qt.Key_Right || key === Qt.Key_Down ? 1 : 0;
-        if (d && typeof it.kbStep === "function") { it.kbStep(d); return true; }
+        if (d && typeof it.kbStep === "function") { it.kbStep(d, key); return true; }
         if (d) { move(d); return true; }       // on a button: arrows walk like Tab
         return false;
     }
@@ -131,6 +135,7 @@ PopupWindow {
         if (BarState.activePopup && BarState.activePopup !== pop && BarState.activePopup.isOpen)
             BarState.activePopup.close();
         isOpen = true;
+        BarState.grabFor(pop);
         shown = true;
         introAnim.restart();
         card.forceActiveFocus();
@@ -144,6 +149,7 @@ PopupWindow {
         if (BarState.activePopup === pop) BarState.activePopup = null;
         if (BarState.kbItem && inside(BarState.kbItem)) BarState.kbItem = null;
         isOpen = false;
+        BarState.releaseGrab(pop);
         introAnim.stop();
         outAnim.restart();
         hideTimer.restart();
@@ -164,13 +170,10 @@ PopupWindow {
     implicitWidth: panelWidth
     implicitHeight: body.childrenRect.height + 2 * pad
 
-    // the bars are in the grab too, so their pills stay hoverable and
-    // clickable; a press on a bar outside our pill closes us (BarState)
-    HyprlandFocusGrab {
-        active: pop.isOpen
-        windows: [pop].concat(BarState.bars)
-        onCleared: pop.close()
-    }
+    // the focus grab (click outside / Esc closes us) is BarState's one
+    // shared grab — see BarState.grabFor; the bars are in it too, so their
+    // pills stay hoverable and clickable; a press on a bar outside our pill
+    // closes us (onBarPressed below)
     Connections {
         target: BarState
         enabled: pop.isOpen
@@ -188,31 +191,15 @@ PopupWindow {
         else tabBar.selected((at + dir + n) % n);
     }
     // Tab / Shift+Tab inside the popup: ours (move(): visible controls of
-    // this popup only, wrapping), not Qt's own focus chain — one Shortcut per
-    // direction holding every form the key can arrive in
+    // this popup only, wrapping), not Qt's own focus chain. Only plain Tab is
+    // a Shortcut: Shift+Tab / Ctrl+Tab / Ctrl+Shift+Tab go through the card's
+    // Keys → navKey (Shortcuts listing a key's several forms — "Shift+Tab",
+    // "Backtab", "Shift+Backtab" — all match one press: ambiguous, none fire)
     Shortcut {
         enabled: pop.isOpen
         sequences: ["Tab"]
         context: Qt.WindowShortcut
         onActivated: pop.move(1)
-    }
-    Shortcut {
-        enabled: pop.isOpen
-        sequences: ["Backtab", "Shift+Backtab", "Shift+Tab"]
-        context: Qt.WindowShortcut
-        onActivated: pop.move(-1)
-    }
-    Shortcut {
-        enabled: pop.isOpen
-        sequences: ["Ctrl+Tab"]
-        context: Qt.WindowShortcut
-        onActivated: pop.cycleTab(1)
-    }
-    Shortcut {
-        enabled: pop.isOpen
-        sequences: ["Ctrl+Shift+Tab", "Ctrl+Backtab", "Ctrl+Shift+Backtab"]
-        context: Qt.WindowShortcut
-        onActivated: pop.cycleTab(-1)
     }
     Shortcut {
         enabled: pop.isOpen
