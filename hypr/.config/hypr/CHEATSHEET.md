@@ -199,6 +199,7 @@ secret-tool store --label='BitLocker Windows volume' \
     bitlocker-uuid <uuid>
 ```
 
+`<uuid>` is the partition's: `lsblk -o NAME,FSTYPE,UUID`, the BitLocker row.
 Check it took: `secret-tool lookup bitlocker-uuid <uuid>`
 
 Still asking? Run `~/.config/hypr/mount-windows.sh` in a terminal — that mode

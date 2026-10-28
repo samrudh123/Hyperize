@@ -89,6 +89,8 @@ Files of yours that a copy would overwrite are moved to
 | `nwg` `waybar` | the app grid, and the old waybar setup (kept as a fallback) |
 | `portals` | routes file dialogs to yazi, screen sharing to the Hyprland portal |
 | `zsh` `bash` `git` | shell, prompt (starship), git (identity in `~/.gitconfig.local`) |
+| `mpris-position` | Zen extension + native host: every YouTube / YouTube Music tab is its own MPRIS player with reliable position, shuffle and repeat — the bar's laptop pill and media menu rely on it (`copy` builds it, installs it into Zen and registers the host) |
+| `media-title-sync` | browser extension, mainly for Firefox on the phone: keeps the media notification's title current on streaming sites that switch episodes without reloading (not installed by `install.sh`; see its README) |
 | `dl-popup` `aria2` | the download popup, its Zen extension + native host (`.local/share/dl-popup`, `build.sh` installs it into Zen) and its aria2 daemon hooks |
 | `systemd` `environment` `applications` `bin` `gtk` `vscode` | user units, env, `.desktop` overrides, small scripts, GTK, VS Code settings |
 | `notes` | `Hyprland_CLAUDE.md` — the long-form notes: how it all works, landmines (not copied; read it here) |

@@ -28,6 +28,9 @@
 #        secret-tool store --label='BitLocker Windows volume' \
 #            bitlocker-uuid <uuid>
 #
+#      <uuid> is the partition's, as `lsblk -o NAME,FSTYPE,UUID` shows it
+#      (the row whose FSTYPE is BitLocker).
+#
 #      (needs `libsecret-tools`; it prompts with echo off and stores nothing
 #      in your shell history.)
 #
@@ -55,7 +58,9 @@
 
 set -u
 
-UUID="<uuid>"      # the BitLocker partition
+# The BitLocker partition: $WINDOWS_UUID if set, else the first BitLocker
+# volume lsblk lists (it reads udev's database — no `disk` group needed).
+UUID="${WINDOWS_UUID:-$(lsblk -rno UUID,FSTYPE 2>/dev/null | awk '$2 == "BitLocker" { print $1; exit }')}"
 DEV="/dev/disk/by-uuid/$UUID"
 KEYFILE="$HOME/.config/hypr/.windows-key"
 MOUNTPOINT="/run/media/$USER/Windows"

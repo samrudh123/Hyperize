@@ -1299,7 +1299,8 @@ toggle.** Two sources are tried, most secure first:
        bitlocker-uuid <uuid>
    ```
 
-   Look it up with `secret-tool lookup bitlocker-uuid <uuid>`.
+   `<uuid>` is the partition's (`lsblk -o NAME,FSTYPE,UUID`, the BitLocker
+   row). Look it up with `secret-tool lookup bitlocker-uuid <uuid>`.
 
 2. **`~/.config/hypr/.windows-key`**, mode 600 — plaintext, a fallback for
    machines with no keyring. `/` and `/home` here are plain ext4, so a

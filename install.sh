@@ -22,7 +22,7 @@ BACKUP="$HOME/.dotfiles-backup/$(date +%Y-%m-%d_%H-%M-%S)"
 # the config packages: each mirrors $HOME (hypr/.config/hypr/… -> ~/.config/hypr/…)
 PACKAGES=(hypr quickshell yazi ghostty mako fuzzel nwg waybar portals bat btop glow fastfetch tmux
           zsh bash git dl-popup aria2 systemd environment applications bin gtk vscode zathura
-          vscode-pdf-zathura nvim video-fullscreen zen pipewire)
+          vscode-pdf-zathura nvim video-fullscreen zen pipewire mpris-position media-title-sync)
 
 say() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
@@ -142,6 +142,11 @@ do_copy() {
     if [ ! -e "$HOME/.mozilla/native-messaging-hosts/dl_popup.json" ]; then
         say "Zen extension: dl-popup"
         sh "$HOME/.local/share/dl-popup/build.sh" || warn "dl-popup browser build failed"
+    fi
+    # YouTube tabs as MPRIS players (the bar's laptop pill + media menu use them)
+    if [ ! -e "$HOME/.mozilla/native-messaging-hosts/firefox_tabs.json" ]; then
+        say "Zen extension: MPRIS for YouTube tabs"
+        sh "$HOME/.local/share/firefox-mpris-position/build.sh" || warn "mpris-position browser build failed"
     fi
 }
 

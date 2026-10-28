@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "MPRIS for YouTube tabs",
+  "version": "1.2.0",
+  "description": "Every Firefox tab playing YouTube / YouTube Music becomes its own MPRIS player (via a native host), with a reliable length and position, shuffle and repeat; also fixes Firefox's own MPRIS length/position for YouTube.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "mpris-position@samrudh.local",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  },
+  "host_permissions": [
+    "*://*.youtube.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://music.youtube.com/*",
+        "*://m.youtube.com/*"
+      ],
+      "js": [
+        "position.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://music.youtube.com/*",
+        "*://m.youtube.com/*"
+      ],
+      "js": [
+        "tab.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "permissions": [
+    "nativeMessaging",
+    "tabs"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  }
+}
