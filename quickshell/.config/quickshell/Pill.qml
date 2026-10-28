@@ -69,7 +69,7 @@ Item {
             visible: pill.label !== ""
             x: pill.padLeft
             anchors.verticalCenter: parent.verticalCenter
-            text: pill.label
+            text: Theme.iconGap(pill.label)       // font-proof icon spacing
             textFormat: Text.StyledText
             color: pill.interactive && (mouse.containsMouse || pill.navHot) ? pill.hoverFg : pill.fg
             font.family: Theme.font

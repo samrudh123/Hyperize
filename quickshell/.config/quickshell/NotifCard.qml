@@ -261,7 +261,7 @@ Item {
                 radius: 9
                 color: Theme.alpha(Theme.surface1, 0.7)
                 border.width: 1
-                border.color: Theme.alpha(Theme.accent, field.activeFocus ? 0.7 : 0.3)
+                border.color: Theme.alpha(Theme.accent, field.typing ? 0.7 : 0.3)
                 TextInput {
                     id: field
                     anchors { left: parent.left; leftMargin: 10; right: send.left; rightMargin: 6; verticalCenter: parent.verticalCenter }
@@ -270,6 +270,10 @@ Item {
                     font.family: Theme.font
                     font.pixelSize: 12
                     clip: true
+                    // keys come from a bar (BarState.typing, see SettingsField)
+                    readonly property bool typing: activeFocus || (focus && BarState.typing === field)
+                    onFocusChanged: if (focus) BarState.typing = field
+                    cursorVisible: typing
                     Keys.onEscapePressed: { card.replying = false; text = ""; }
                     onAccepted: if (text.trim()) { card.reply(text); text = ""; card.replying = false; }
                     Text {

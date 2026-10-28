@@ -8,7 +8,7 @@
 # Mocha roles (rice-theme.py maps them to the current theme), plus the
 # accent token. The VS Code "PDF in Zathura" extension reads this file too.
 
-set font                    "CaskaydiaCove Nerd Font 11"
+set font                    "JetBrainsMono Nerd Font 11"
 set selection-clipboard     clipboard
 set statusbar-home-tilde    true
 set window-title-home-tilde true

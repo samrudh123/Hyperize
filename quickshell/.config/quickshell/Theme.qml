@@ -118,6 +118,20 @@ Singleton {
                 .replace(/\n/g, "<br>");
     }
 
+    // Icon → text gap that doesn't depend on the shell font. A Nerd Font
+    // icon advances one cell (0.6 em) but its ink is up to 0.92 em wide; in
+    // a monospace font the 0.6 em space after it covers that, a proportional
+    // font's space (Ubuntu Sans 0.23 em, Noto 0.26 …) doesn't, so the number
+    // ran into the icon. The space after an icon (StyledText) becomes an
+    // invisible copy of the icon — the icon font's cell, i.e. the very same
+    // width the space had in a Nerd monospace font, whatever the font is.
+    // Icons: Private Use Area, BMP (U+E000–F8FF) or plane 15 (surrogates).
+    function iconGap(s) {
+        if (!s) return "";
+        return s.replace(/((?:[\uDB80-\uDBBF][\uDC00-\uDFFF])|[-])((?:<\/[a-zA-Z]+>)*)(?: |&nbsp;)/g,
+                         "$1$2<font color='#00000000'>$1</font>");
+    }
+
     // Natural scrolling is touchpad-only here (Hyprland natural_scroll), and
     // waybar's "reverse-scrolling" undid it so a swipe up = up, like the wheel.
     // Hyprland does not send wl_pointer.axis_relative_direction, so Qt never

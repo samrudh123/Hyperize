@@ -189,7 +189,7 @@ Rectangle {
             radius: 10
             color: Theme.alpha(Theme.crust, 0.6)
             border.width: 1
-            border.color: pw.activeFocus ? pop.tint : Theme.surface1
+            border.color: pw.typing ? pop.tint : Theme.surface1
 
             onVisibleChanged: if (visible) { pw.text = ""; focusLater.restart(); }
             Timer { id: focusLater; interval: 60; onTriggered: pw.forceActiveFocus() }
@@ -213,6 +213,11 @@ Rectangle {
                 font.family: Theme.font
                 font.pixelSize: 13
                 clip: true
+                // the popup never holds the keyboard — a bar does and
+                // forwards keys to BarState.typing (see SettingsField)
+                readonly property bool typing: activeFocus || (focus && BarState.typing === pw)
+                onFocusChanged: if (focus) BarState.typing = pw
+                cursorVisible: typing
                 Text {
                     visible: !pw.text
                     anchors.verticalCenter: parent.verticalCenter
