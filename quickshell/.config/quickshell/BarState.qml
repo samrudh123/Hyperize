@@ -62,6 +62,10 @@ Singleton {
     // the open popup came from the keyboard (SUPER+. / Ctrl+arrows): its
     // pill shows the hover highlight so you can see where you are
     property bool kbMode: false
+    // the text box last focused in a bar popup (a click or forceActiveFocus
+    // sets its `focus` even while Hyprland keeps the keyboard on a bar); the
+    // bars forward typing to it (TopBar / BottomBar key sink)
+    property var typing: null
     property var popups: []
     function addPopup(p) { if (!popups.includes(p)) popups = popups.concat([p]); }
     function removePopup(p) {

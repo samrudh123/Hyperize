@@ -37,6 +37,7 @@ PopupWindow {
     // the screen edge the panel may not cross (bar height + gap)
     default property alias content: body.data
     readonly property alias card: card
+    readonly property Item textTarget: card.textTarget
 
     signal opened()
     signal closed2()                          // `closed` is FINAL on PopupWindow
@@ -52,6 +53,8 @@ PopupWindow {
     // them to navKey(). Opened from the keyboard (openByKeyboard), the first
     // control — or initialFocus — takes the focus.
     property bool navigable: true             // in Ctrl+arrow's round
+    // set (a function): Enter / Space run it — PillStop's "click the pill"
+    property var enterAction: null
     property string navName: ""               // e.g. "audio" (startNav picks it)
     property var initialFocus: null
     Component.onCompleted: BarState.addPopup(pop)
@@ -95,6 +98,10 @@ PopupWindow {
             BarState.navPopup(key === Qt.Key_Left ? "left" : key === Qt.Key_Right ? "right" : key === Qt.Key_Up ? "up" : "down");
             return true;
         }
+        if (enterAction && !ctrl && (key === Qt.Key_Return || key === Qt.Key_Enter || key === Qt.Key_Space)) {
+            enterAction();
+            return true;
+        }
         if (key === Qt.Key_Tab && !ctrl) { move((mods & Qt.ShiftModifier) ? -1 : 1); return true; }
         if (key === Qt.Key_Backtab && !ctrl) { move(-1); return true; }
         const it = current();
@@ -118,12 +125,15 @@ PopupWindow {
         if (isOpen) return;
         hideTimer.stop();
         if (alignLeft && pill) pillX = pill.mapToItem(null, 0, 0).x;
+        // the other open popup goes FIRST: its focus grab must end before
+        // ours starts — ending it after ours had begun dropped Hyprland's
+        // grab altogether (keys, Esc included, fell through to the window)
+        if (BarState.activePopup && BarState.activePopup !== pop && BarState.activePopup.isOpen)
+            BarState.activePopup.close();
         isOpen = true;
         shown = true;
         introAnim.restart();
         card.forceActiveFocus();
-        if (BarState.activePopup && BarState.activePopup !== pop && BarState.activePopup.isOpen)
-            BarState.activePopup.close();
         BarState.activePopup = pop;
         BarState.kbItem = null;
         BarState.kbMode = false;            // openByKeyboard sets it after this
@@ -176,6 +186,21 @@ PopupWindow {
         const at = tabBar.shownIndex !== undefined ? tabBar.shownIndex : tabBar.currentIndex;
         if (typeof tabBar.pick === "function") tabBar.pick(at + dir);
         else tabBar.selected((at + dir + n) % n);
+    }
+    // Tab / Shift+Tab inside the popup: ours (move(): visible controls of
+    // this popup only, wrapping), not Qt's own focus chain — one Shortcut per
+    // direction holding every form the key can arrive in
+    Shortcut {
+        enabled: pop.isOpen
+        sequences: ["Tab"]
+        context: Qt.WindowShortcut
+        onActivated: pop.move(1)
+    }
+    Shortcut {
+        enabled: pop.isOpen
+        sequences: ["Backtab", "Shift+Backtab", "Shift+Tab"]
+        context: Qt.WindowShortcut
+        onActivated: pop.move(-1)
     }
     Shortcut {
         enabled: pop.isOpen
@@ -238,6 +263,13 @@ PopupWindow {
         // a button…) — see navKey
         Keys.onPressed: ev => { if (pop.navKey(ev.key, ev.modifiers)) ev.accepted = true; }
         readonly property Item winFocus: Window.activeFocusItem
+        // the text box being typed in (focused by a click / focusAdd / Tab),
+        // for the bars to forward keys to: Hyprland gives a popup's keys to
+        // a BAR (the grab's first layer surface), never the popup itself
+        readonly property Item textTarget: {
+            const t = BarState.typing;
+            return t && t.focus && t.visible && pop.inside(t) ? t : null;
+        }
         onWinFocusChanged: if (winFocus && winFocus !== card && pop.inside(winFocus)) BarState.kbItem = winFocus
 
         Item {

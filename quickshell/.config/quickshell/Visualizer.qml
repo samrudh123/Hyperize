@@ -48,18 +48,22 @@ Item {
                 radius: vis.barWidth / 2
                 color: vis.tint
                 opacity: 0.55 + 0.45 * v
-                Behavior on height { NumberAnimation { duration: 60 } }
+                // the fake one steps at its timer's rate instead: smoothing
+                // its steps ran the bar at 60 fps for the whole song
+                Behavior on height { enabled: !vis.fake; NumberAnimation { duration: 60 } }
             }
         }
     }
 
     // made-up music: a ~120 bpm kick that hits the low bars, a softer
-    // off-beat for the mids, and a random walk per bar so it never repeats
+    // off-beat for the mids, and a random walk per bar so it never repeats.
+    // 20 steps a second (was 30, smoothed to 60 fps: ~4 % of a core while
+    // the phone played); decay and walk are scaled to keep the same feel.
     property real beat: 0
     property var walk: []
     property var fakeLv: []
     Timer {
-        interval: 33
+        interval: 50
         repeat: true
         running: vis.active && vis.fake
         onRunningChanged: if (!running) { vis.levels = []; vis.fakeLv = []; }
@@ -67,16 +71,16 @@ Item {
             const n = vis.bars;
             let walk = vis.walk.length === n ? vis.walk : Array.from({ length: n }, () => Math.random());
             let lv = vis.fakeLv.length === n ? vis.fakeLv : new Array(n).fill(0);
-            vis.beat = (vis.beat + 0.033 / 0.5) % 1;
+            vis.beat = (vis.beat + interval / 1000 / 0.5) % 1;
             const kick = Math.exp(-vis.beat * 7);
             const snare = Math.exp(-((vis.beat + 0.5) % 1) * 9) * (Math.random() < 0.85 ? 1 : 0);
             for (let i = 0; i < n; i++) {
-                walk[i] = Math.min(1, Math.max(0.1, walk[i] + (Math.random() - 0.5) * 0.3));
+                walk[i] = Math.min(1, Math.max(0.1, walk[i] + (Math.random() - 0.5) * 0.37));
                 const low = 1 - i / (n - 1);
                 const mid = 1 - Math.abs(i / (n - 1) - 0.5) * 2;
                 const target = Math.min(1, 0.15 + 0.45 * walk[i] * (0.6 + 0.4 * Math.random())
                                            + 0.55 * kick * low + 0.35 * snare * mid);
-                lv[i] = target > lv[i] ? target : lv[i] * 0.82;
+                lv[i] = target > lv[i] ? target : lv[i] * 0.74;
             }
             vis.walk = walk;
             vis.fakeLv = lv;

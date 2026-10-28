@@ -42,6 +42,9 @@ Rectangle {
         font.family: Theme.font
         font.pixelSize: 12
         onTextEdited: f.edited(text)
+        // see BarState.typing: in a bar popup the keys arrive at a bar
+        onFocusChanged: if (focus) BarState.typing = input
+        cursorVisible: activeFocus || (focus && BarState.typing === input)
         Keys.onEscapePressed: ev => { ev.accepted = true; focus = false; f.escaped(); }
         Keys.onReturnPressed: f.accepted()
         Keys.onEnterPressed: f.accepted()

@@ -32,6 +32,9 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | `SUPER + N` | Notifications panel (System / Phone, DND, clear) |
 | ⤷ pill clicks | every pill's left / right / middle click and scroll is set in **Settings › Pills** (SUPER+I); the rows below are the defaults |
 | ⤷ top-bar pills | audio click = audio panel (the mixer is a button in it), right-click = mute · network / Bluetooth click = Wi-Fi / Bluetooth panel · bell = notifications |
+| ⤷ downloads pill (bottom; a dim ⬇ when idle) | click: downloads panel — progress, speed, time left; pause / resume / retry / open / folder / copy URL / remove (click twice); Downloading · Finished tabs. Right-click: pause / resume all |
+| ⤷ display pill (top, with an external screen) | click: displays panel — duplicate ⇄ extend, external screen left / right / above / below, each monitor's mode |
+| ⤷ window pill (top, next to the title) | click: float · right-click: window panel (float, pin, maximise / fullscreen, move to workspace, close — click twice) · middle: fullscreen |
 | ⤷ CPU / RAM / temp pills | click: panel — per-core bars + top processes by CPU · programs by memory (PSS, grouped) · every sensor, hottest outlined. Right-click: btop |
 | ⤷ battery pill | click: panel — charge, time left, draw, health, cycles, power mode |
 | `SUPER + .` | Keyboard mode: opens the sound panel with its first control focused (again: close). In any panel: Tab / Shift+Tab move, Enter / Space press, arrows change sliders and switches, Ctrl+← / Ctrl+→ the neighbouring pill's panel, Ctrl+↑ / Ctrl+↓ the other bar, Esc close |

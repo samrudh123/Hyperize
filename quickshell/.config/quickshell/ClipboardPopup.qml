@@ -161,6 +161,8 @@ PanelPopup {
             }
             TextInput {
                 id: search
+                onFocusChanged: if (focus) BarState.typing = search      // see BarState.typing
+                cursorVisible: activeFocus || (focus && BarState.typing === search)
                 anchors { left: lens.right; leftMargin: 9; right: count.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
                 color: Theme.text
                 selectionColor: Theme.alpha(Theme.accent, 0.4)
@@ -259,7 +261,8 @@ PanelPopup {
                         visible: row.isImage
                         x: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        width: Math.min(240, thumb.paintedWidth > 0 ? thumb.paintedWidth : 120)
+                        // from the image's own aspect (paintedWidth depends on this width: a loop)
+                        width: Math.min(240, thumb.implicitHeight > 0 ? thumb.implicitWidth * height / thumb.implicitHeight : 120)
                         height: 70
                         radius: 8
                         clip: true

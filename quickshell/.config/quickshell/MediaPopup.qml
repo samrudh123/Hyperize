@@ -363,10 +363,16 @@ PanelPopup {
             }
         }
 
+        // Lyrics take only what they need: 170 px when found (was 280), and
+        // nothing at all while searching / when there are none — a one-line
+        // note below says so instead of a big empty box
+        readonly property bool lyricsShown: pop.shownTab === 1 && ["synced", "plain"].includes(lyrics.state_)
         Item {
-            visible: pop.hasLower
+            visible: pop.hasLower && height > 0
             width: parent.width
-            height: 280
+            height: pop.shownTab === 0 ? 280 : parent.lyricsShown ? 170 : 0
+            Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            clip: true
             opacity: pop.stage(2) * tabFx.value
             transform: Translate { y: 14 * (1 - pop.stage(2)) + 8 * (1 - tabFx.value) }
 
@@ -390,6 +396,17 @@ PanelPopup {
                 tint: pop.col
                 onSeekRequested: s => pop.seekTo(s * 1e6)
             }
+        }
+        Text {
+            visible: pop.hasLower && pop.shownTab === 1 && !parent.lyricsShown
+            width: parent.width
+            text: lyrics.state_ === "searching" || lyrics.state_ === "idle" ? "\u{f0349}  Searching lyrics…"
+                : lyrics.state_ === "error" ? "\u{f092d}  Couldn't reach lrclib.net for lyrics"
+                : "\u{f075b}  No lyrics found for this track"
+            color: Theme.overlay1
+            font.family: Theme.font
+            font.pixelSize: 11
+            opacity: pop.stage(2)
         }
     }
 }

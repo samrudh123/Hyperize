@@ -45,17 +45,21 @@ PanelWindow {
     // keyboard navigation inside / between popups (PanelPopup.navKey): only
     // while a popup is open, so the bar never takes these keys otherwise
     Repeater {
-        model: [["Tab", Qt.Key_Tab, 0], ["Shift+Tab", Qt.Key_Tab, Qt.ShiftModifier],
-                ["Backtab", Qt.Key_Backtab, 0], ["Shift+Backtab", Qt.Key_Backtab, 0],
-                ["Return", Qt.Key_Return, 0], ["Enter", Qt.Key_Enter, 0], ["Space", Qt.Key_Space, 0],
+        // (Tab / Shift+Tab are the key sink's below: as Shortcuts, "Shift+Tab",
+        // "Backtab" and "Shift+Backtab" all matched one Shift+Tab press —
+        // ambiguous, so Qt fired none of them)
+        model: [["Return", Qt.Key_Return, 0], ["Enter", Qt.Key_Enter, 0], ["Space", Qt.Key_Space, 0],
                 ["Left", Qt.Key_Left, 0], ["Right", Qt.Key_Right, 0], ["Up", Qt.Key_Up, 0], ["Down", Qt.Key_Down, 0],
                 ["Ctrl+Left", Qt.Key_Left, Qt.ControlModifier], ["Ctrl+Right", Qt.Key_Right, Qt.ControlModifier],
                 ["Ctrl+Up", Qt.Key_Up, Qt.ControlModifier], ["Ctrl+Down", Qt.Key_Down, Qt.ControlModifier]]
         delegate: Item {
             id: navKeyItem
             required property var modelData
+            // Space / Enter / plain arrows belong to a text box being typed in
+            readonly property bool textKey: ["Return", "Enter", "Space", "Left", "Right", "Up", "Down"].includes(modelData[0])
             Shortcut {
                 enabled: BarState.activePopup !== null
+                         && !(navKeyItem.textKey && BarState.activePopup.textTarget)
                 sequences: [navKeyItem.modelData[0]]
                 context: Qt.WindowShortcut
                 onActivated: if (BarState.activePopup) BarState.activePopup.navKey(navKeyItem.modelData[1], navKeyItem.modelData[2])
@@ -63,6 +67,24 @@ PanelWindow {
         }
     }
     Component.onDestruction: BarState.removeBar(bar)
+    // Keys reaching the bar while one of the bar popups is open (Hyprland
+    // gives them to a bar, not the popup): text goes on to the popup's
+    // focused text box (Keys.forwardTo), Shift+Tab / Esc are handled here
+    // whatever form they arrive in (the Shortcuts above cover the rest)
+    Item {
+        focus: true
+        readonly property var target: BarState.activePopup && BarState.activePopup.isOpen ? BarState.activePopup : null
+        Keys.forwardTo: target && target.textTarget ? [target.textTarget] : []
+        Keys.onPressed: ev => {
+            const p = target;
+            if (!p) return;
+            if (ev.modifiers & Qt.ControlModifier) return;      // Ctrl+Tab: the Shortcuts
+            if (ev.key === Qt.Key_Escape) { p.close(); ev.accepted = true; }
+            else if (ev.key === Qt.Key_Backtab || (ev.key === Qt.Key_Tab && (ev.modifiers & Qt.ShiftModifier)))
+                ev.accepted = p.navKey(Qt.Key_Backtab, 0);
+            else if (ev.key === Qt.Key_Tab) ev.accepted = p.navKey(Qt.Key_Tab, 0);
+        }
+    }
     MouseArea {
         id: barBg
         anchors.fill: parent
@@ -89,10 +111,17 @@ PanelWindow {
         function menu(name: string): void {
             const p = { phone: phonePill, tailscale: tsPill, focus: focusPill }[name];
             if (p) { BarState.bottomShown = true; p.toggleMenu(); }
+            else if (name === "downloads" && downloads.shown) { BarState.bottomShown = true; dlPop.toggle(); }
         }
         // the focus timer, for keybinds: toggle | stop | skip
         function focus(cmd: string): void { focusPill.run([cmd || "toggle"]); }
     }
+
+    // keyboard stops on the pills without a popup (Ctrl+arrows land here;
+    // Enter = click, Esc = out)
+    PillStop { pill: awake }
+    PillStop { pill: profilePill }
+    PillStop { pill: wallPill }
 
     // the players deck: laptop | phone columns, each with its own controls
     PlayersPopup {
@@ -155,7 +184,7 @@ PanelWindow {
     readonly property real leftFixed: 2 * leftGroup.pad
         + (local.visible ? local.chromeWidth : 0) + visLocal.targetWidth
         + (local.visible && remote.visible ? 6 : 0)
-        + (remote.visible ? remote.chromeWidth : 0) + visRemote.targetWidth
+        + (remote.visible ? remote.chromeWidth : 0)
         + nothingPill.implicitWidth + spotifyLogin.implicitWidth + menuChevron.implicitWidth
     readonly property var titleWidths: {
         const a = local.visible ? local.naturalTextWidth : 0;
@@ -184,13 +213,9 @@ PanelWindow {
             tint: local.tint
         }
         Item { width: 6; height: 1; visible: local.visible && remote.visible }
+        // no visualizer for the phone: its audio isn't here, and the made-up
+        // one (Visualizer fake: true) redrew this bar ~20 times a second
         NowPlaying { id: remote; scope: "remote"; maxTextWidth: bar.titleWidths[1] }
-        Visualizer {
-            id: visRemote
-            active: remote.visible && remote.playing
-            fake: true
-            tint: remote.tint
-        }
 
         // Nothing playing anywhere: a faint, empty progress line — the "no
         // player is open" sign. Not clickable.
@@ -223,6 +248,8 @@ PanelWindow {
             onClicked: button => PillClicks.dispatch("spotify", button, {
                 login: () => { Theme.exec(Theme.hypr + "/spotify-remote.py login"); spotifyLogin.poke(); }
             })
+            // one action (log in, in a browser): a keyboard stop, no panel
+            PillStop { pill: spotifyLogin }
         }
 
         Pill {
@@ -330,8 +357,11 @@ PanelWindow {
                 command: [Theme.home + "/.local/bin/dl-popup", "watch", "2"]
                 interval: 0
                 pokable: true
-                textFilter: t => t.replace(/\s*[▰▱]+/, "")
-                defaultFg: Theme.sapphire
+                // idle (nothing downloading): just the download glyph, dimmed —
+                // the pill stays, so the panel (finished ones too) is a click away
+                readonly property bool idle: rawText === "" || classes.includes("hidden") || classes.includes("idle")
+                textFilter: t => idle ? "\u{f01da}" : t.replace(/\s*[▰▱]+/, "")
+                defaultFg: idle ? Theme.overlay1 : Theme.sapphire
                 colors: ({ paused: Theme.subtext0 })
                 defaultBg: Theme.alpha(Theme.surface0, 0.7)
                 // hover fills the pill in its text colour with dark text
@@ -342,11 +372,30 @@ PanelWindow {
                 padRight: 12
                 marginH: 2
                 tipEdge: Edges.Top
+                // always on the bar (idle: the glyph); was: only while downloading
+                shown: true
                 pillId: "downloads"
                 onClicked: button => PillClicks.dispatch("downloads", button, {
-                    menu: () => { Theme.exec(Theme.home + "/.local/bin/dl-popup status"); downloads.poke(); },
+                    menu: () => dlPop.toggle(),
+                    fuzzel: () => { Theme.exec(Theme.home + "/.local/bin/dl-popup status"); downloads.poke(); },
                     pause: () => { Theme.exec(Theme.home + "/.local/bin/dl-popup bar-toggle"); downloads.poke(); }
                 })
+
+                // the downloads panel (DownloadsPopup.qml)
+                DownloadsPopup {
+                    id: dlPop
+                    pill: downloads
+                    scriptPill: downloads
+                }
+                IpcHandler {
+                    target: "downloads"
+                    enabled: bar.active
+                    function toggle(): void { BarState.bottomShown = true; dlPop.toggle(); }
+                    function open(): void { BarState.bottomShown = true; dlPop.open(); }
+                    function close(): void { dlPop.close(); }
+                    // sample cards (nothing real happens), to see the panel idle
+                    function demo(): void { BarState.bottomShown = true; dlPop.demo = true; Qt.callLater(dlPop.open); }
+                }
             }
             Item { width: 6; height: 1; visible: downloads.shown }
 

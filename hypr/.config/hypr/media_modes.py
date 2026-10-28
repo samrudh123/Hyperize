@@ -254,9 +254,10 @@ def web(key, playing):
     return as_fields(d)
 
 
-def state(inst, spotify=False, key="", playing=False):
+def state(inst, spotify=False, key="", playing=False, modes=None):
+    """modes: mpris(inst) already read (now-playing.py keeps it between events)"""
     global web_shown
-    shuffle, loop = mpris(inst)
+    shuffle, loop = modes if modes is not None else mpris(inst)
     web_shown = spotify and not shuffle and not loop
     if web_shown:
         return web(key, playing)

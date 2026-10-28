@@ -77,13 +77,83 @@ def run(*cmd):
 
 
 def identity(instance):
+    """A player's Identity — remembered per bus name (it doesn't change;
+    render() forgets players that are gone), except the bridge's: that one
+    names the device Spotify is playing on."""
+    if instance in _ident:
+        return _ident[instance]
     out = run("busctl", "--user", "--json=short", "get-property",
               "org.mpris.MediaPlayer2." + instance, "/org/mpris/MediaPlayer2",
               "org.mpris.MediaPlayer2", "Identity")
     try:
-        return json.loads(out)["data"]
+        ident = json.loads(out)["data"]
     except (ValueError, KeyError):
         return ""
+    if instance != BRIDGE:
+        _ident[instance] = ident
+    return ident
+
+
+_ident = {}
+
+# One render asked `playerctl -l` up to three times and spotify_where twice
+# (with a phone player showing, ~9 helper processes a second): within one
+# render the answers are the same. render() clears this.
+_memo = {}
+
+
+def players_l():
+    if "l" not in _memo:
+        _memo["l"] = run("playerctl", "-l").splitlines()
+    return list(_memo["l"])
+
+
+def mirrors_of(players):
+    key = ("hidden", tuple(players))
+    if key not in _memo:
+        _memo[key] = spotify_where.hidden(players)
+    return _memo[key]
+
+
+# Every player's status / title / artist / length / position in ONE
+# `playerctl -a metadata` a render, instead of a status call, a metadata call
+# and the other-pill check each (5 helper processes a render -> 2). A player
+# missing from it (no metadata; a title with a newline) is asked by itself.
+META = ("{{status}}", "{{title}}", "{{artist}}", "{{mpris:length}}", "{{position}}")
+
+
+def meta_table():
+    """{instance: [status, title, artist, length, position]}"""
+    if "meta" not in _memo:
+        table = {}
+        out = run("playerctl", "-a", "metadata", "--format", SEP.join(("{{playerInstance}}",) + META))
+        for line in out.splitlines():
+            f = line.split(SEP)
+            if len(f) == len(META) + 1:
+                table[f[0]] = f[1:]
+        _memo["meta"] = table
+    return _memo["meta"]
+
+
+def status_of(p):
+    m = meta_table().get(p)
+    return m[0] if m else run("playerctl", "-p", p, "status")
+
+
+# shuffle / repeat (a busctl GetAll a render) only change along with an MPRIS
+# event, and every event wakes main()'s loop, which forgets these then;
+# MODES_TTL s is the safety net.
+_modes = {}            # player -> ((shuffle, loop), monotonic)
+MODES_TTL = 10.0
+
+
+def modes_of(inst):
+    hit = _modes.get(inst)
+    if hit and time.monotonic() - hit[1] < MODES_TTL:
+        return hit[0]
+    modes = media_modes.mpris(inst)
+    _modes[inst] = (modes, time.monotonic())
+    return modes
 
 
 # spotify-remote.py's Web API bridge. Its bus name sits under "kdeconnect." so
@@ -153,15 +223,23 @@ def kdec_focus(inst):
     the phone for that player's status). Set only when it differs. The
     hidden KDE Connect Spotify copy then shows the wrong position, which
     nothing displays. Called each render, and by media-seek.sh before it
-    reads a position (`now-playing.py focus <player>`)."""
+    reads a position (`now-playing.py focus <player>`).
+
+    Skipped while nothing can have changed since the last check (_focus).
+    -> True when it switched the selection (positions read before are stale)."""
     if inst == BRIDGE:
         # The bridge (Web API) shows Spotify; it reads KDE Connect's Spotify
         # copy for position, which is only right while that copy is current.
-        inst = next((p for p in run("playerctl", "-l").split()
+        inst = next((p for p in players_l()
                      if p.startswith("kdeconnect.mpris_")
                      and identity(p).lower().startswith("spotify")), "")
     if not inst.startswith("kdeconnect.mpris_"):
         return
+    now = time.monotonic()
+    if _focus["ok"] and _focus["inst"] == inst and now - _focus["at"] < FOCUS_RECHECK:
+        return
+    _focus["ok"] = False
+    gen = _focus["gen"]                          # a change signalled while we look
     ident = identity(inst)                       # "YouTube Morphe - My Phone"
     out = run("busctl", "--user", "--json=short", "call", "org.kde.kdeconnect",
               "/modules/kdeconnect", "org.kde.kdeconnect.daemon", "devices", "bb",
@@ -187,7 +265,35 @@ def kdec_focus(inst):
         if name != current:
             run("busctl", "--user", "set-property", "org.kde.kdeconnect", path,
                 "org.kde.kdeconnect.device.mprisremote", "player", "s", name)
-        return
+        _focus.update(inst=inst, at=now, ok=_focus["watched"] and _focus["gen"] == gen)
+        return name != current
+
+
+# kdec_focus's last check. KDE Connect's selected player changes only when
+# someone sets it or the phone's players change, and both make the device's
+# mprisremote object emit `propertiesChanged` (no args; it sends no
+# org.freedesktop PropertiesChanged) — kdec_watch() then bumps gen / clears
+# ok and the next render looks again. FOCUS_RECHECK s is the safety net.
+# Checking every render was 3 busctl calls a second.
+_focus = {"inst": None, "at": 0.0, "ok": False, "gen": 0, "watched": False}
+FOCUS_RECHECK = 30.0
+
+
+def kdec_watch():
+    """Thread: follow KDE Connect's mprisremote changes for kdec_focus. If
+    dbus-monitor goes, kdec_focus checks every render again."""
+    cmd = ["dbus-monitor", "--session",
+           "type='signal',interface='org.kde.kdeconnect.device.mprisremote',"
+           "member='propertiesChanged'"]
+    try:
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                              text=True, preexec_fn=die_with_parent) as p:
+            for _ in p.stdout:                   # first: its own NameAcquired = listening
+                _focus["watched"] = True
+                _focus["gen"] += 1
+                _focus["ok"] = False
+    finally:
+        _focus.update(watched=False, ok=False)
 
 
 def position_frozen(inst, title, status, position):
@@ -279,13 +385,10 @@ def other_scope_showing(scope):
     if scope is None:
         return False
     other = SCOPES[1 - SCOPES.index(scope)]
-    out = run("playerctl", "-a", "metadata", "--format",
-              SEP.join(["{{playerInstance}}", "{{status}}", "{{title}}"]))
-    mirrors = spotify_where.hidden(run("playerctl", "-l").splitlines())
-    for line in out.splitlines():
-        f = line.split(SEP)
-        if len(f) == 3 and in_scope(f[0], other) and f[1] in ("Playing", "Paused") and f[2] \
-                and f[0] not in mirrors:
+    mirrors = mirrors_of(players_l())
+    for p, (status, title, *_) in meta_table().items():
+        if in_scope(p, other) and status in ("Playing", "Paused") and title \
+                and p not in mirrors:
             return True
     return False
 
@@ -294,8 +397,8 @@ def shown_player(scope=None):
     """The player the bar shows — and so the one its buttons must act on
     (media-skip.sh, media-seek.sh: `now-playing.py current`). "" if none.
     scope: only "local" or "remote" players (see in_scope)."""
-    players = run("playerctl", "-l").splitlines()
-    mirrors = spotify_where.hidden(players)
+    players = players_l()
+    mirrors = mirrors_of(players)
     players = [p for p in players if not superseded(p, players) and p not in mirrors]
     players = [p for p in players if in_scope(p, scope)]
     players = firefox_tabs(players)
@@ -307,9 +410,8 @@ def shown_player(scope=None):
     # media-prefer-playing.sh only rotates a playing one back ~0.5 s later.
     # Show the playing one straight away instead of flickering (measured:
     # 0.7 s of "YouTube paused" while Spotify was starting).
-    if run("playerctl", "-p", inst, "status") != "Playing":
-        inst = next((p for p in players[1:]
-                     if run("playerctl", "-p", p, "status") == "Playing"), inst)
+    if status_of(inst) != "Playing":
+        inst = next((p for p in players[1:] if status_of(p) == "Playing"), inst)
     return inst
 
 
@@ -340,13 +442,18 @@ def held_position(inst, title, status, position):
 
 def render(scope=None):
     """-> (waybar dict, is_playing)."""
+    _memo.clear()
+    live = set(players_l())
+    for cache in (_ident, _modes):                      # gone: a new one may reuse the name
+        for p in [p for p in cache if p not in live]:
+            del cache[p]
     inst = shown_player(scope)
     if not inst:
         return HIDDEN, False
-    kdec_focus(inst)                                    # or its position is another's
-    meta = run("playerctl", "-p", inst, "metadata", "--format",
-               SEP.join(["{{status}}", "{{title}}", "{{artist}}",
-                         "{{mpris:length}}", "{{position}}"])).split(SEP)
+    switched = kdec_focus(inst)                         # or its position is another's
+    meta = None if switched else meta_table().get(inst)
+    if meta is None:
+        meta = run("playerctl", "-p", inst, "metadata", "--format", SEP.join(META)).split(SEP)
     if len(meta) != 5 or meta[0] not in ("Playing", "Paused"):
         return HIDDEN, False
     status, title, artist, length, position = meta
@@ -384,7 +491,7 @@ def render(scope=None):
         classes.append(f"p{pct}")
         when = f"\n{clock(position)} / {clock(length)}"
     shuffle, loop = media_modes.state(inst, colour == "spotify", f"{status} {title}",
-                                      status == "Playing")
+                                      status == "Playing", modes=modes_of(inst))
     tooltip = (f"{who}: {title}" + (f" — {artist}" if artist else "") + when
                + "\nClick: play/pause · Right-click: players · Scroll: seek")
     out = {"text": text, "tooltip": html.escape(tooltip), "class": classes,
@@ -495,6 +602,8 @@ def main(cffi=False, scope=None):
                          "type='signal',interface='org.mpris.MediaPlayer2.Player',member='Seeked'"],
                         "seek")):
         threading.Thread(target=follow, args=(cmd, q, token), daemon=True).start()
+    if scope != "local":                                # only phone players need kdec_focus
+        threading.Thread(target=kdec_watch, daemon=True).start()
 
     last = None
     while True:
@@ -520,6 +629,8 @@ def main(cffi=False, scope=None):
                 tokens.append(q.get(timeout=0.25))
         except queue.Empty:
             pass
+        if tokens:                                      # an event, not the tick:
+            _modes.clear()                              # shuffle / repeat may have changed
         if "seek" in tokens:
             _live_until[0] = time.monotonic() + SEEK_SETTLE
 

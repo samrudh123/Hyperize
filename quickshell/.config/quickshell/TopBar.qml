@@ -39,17 +39,21 @@ PanelWindow {
     // keyboard navigation inside / between popups (PanelPopup.navKey): only
     // while a popup is open, so the bar never takes these keys otherwise
     Repeater {
-        model: [["Tab", Qt.Key_Tab, 0], ["Shift+Tab", Qt.Key_Tab, Qt.ShiftModifier],
-                ["Backtab", Qt.Key_Backtab, 0], ["Shift+Backtab", Qt.Key_Backtab, 0],
-                ["Return", Qt.Key_Return, 0], ["Enter", Qt.Key_Enter, 0], ["Space", Qt.Key_Space, 0],
+        // (Tab / Shift+Tab are the key sink's below: as Shortcuts, "Shift+Tab",
+        // "Backtab" and "Shift+Backtab" all matched one Shift+Tab press —
+        // ambiguous, so Qt fired none of them)
+        model: [["Return", Qt.Key_Return, 0], ["Enter", Qt.Key_Enter, 0], ["Space", Qt.Key_Space, 0],
                 ["Left", Qt.Key_Left, 0], ["Right", Qt.Key_Right, 0], ["Up", Qt.Key_Up, 0], ["Down", Qt.Key_Down, 0],
                 ["Ctrl+Left", Qt.Key_Left, Qt.ControlModifier], ["Ctrl+Right", Qt.Key_Right, Qt.ControlModifier],
                 ["Ctrl+Up", Qt.Key_Up, Qt.ControlModifier], ["Ctrl+Down", Qt.Key_Down, Qt.ControlModifier]]
         delegate: Item {
             id: navKeyItem
             required property var modelData
+            // Space / Enter / plain arrows belong to a text box being typed in
+            readonly property bool textKey: ["Return", "Enter", "Space", "Left", "Right", "Up", "Down"].includes(modelData[0])
             Shortcut {
                 enabled: BarState.activePopup !== null
+                         && !(navKeyItem.textKey && BarState.activePopup.textTarget)
                 sequences: [navKeyItem.modelData[0]]
                 context: Qt.WindowShortcut
                 onActivated: if (BarState.activePopup) BarState.activePopup.navKey(navKeyItem.modelData[1], navKeyItem.modelData[2])
@@ -57,6 +61,24 @@ PanelWindow {
         }
     }
     Component.onDestruction: BarState.removeBar(bar)
+    // Keys reaching the bar while one of the bar popups is open (Hyprland
+    // gives them to a bar, not the popup): text goes on to the popup's
+    // focused text box (Keys.forwardTo), Shift+Tab / Esc are handled here
+    // whatever form they arrive in (the Shortcuts above cover the rest)
+    Item {
+        focus: true
+        readonly property var target: BarState.activePopup && BarState.activePopup.isOpen ? BarState.activePopup : null
+        Keys.forwardTo: target && target.textTarget ? [target.textTarget] : []
+        Keys.onPressed: ev => {
+            const p = target;
+            if (!p) return;
+            if (ev.modifiers & Qt.ControlModifier) return;      // Ctrl+Tab: the Shortcuts
+            if (ev.key === Qt.Key_Escape) { p.close(); ev.accepted = true; }
+            else if (ev.key === Qt.Key_Backtab || (ev.key === Qt.Key_Tab && (ev.modifiers & Qt.ShiftModifier)))
+                ev.accepted = p.navKey(Qt.Key_Backtab, 0);
+            else if (ev.key === Qt.Key_Tab) ev.accepted = p.navKey(Qt.Key_Tab, 0);
+        }
+    }
     MouseArea {
         id: barBg
         anchors.fill: parent
@@ -223,9 +245,18 @@ PanelWindow {
     //
     // Floating / pinned / fullscreen come from Hyprland's client JSON, which
     // quickshell only fetches on demand: refresh it when any of them changes.
+    // Hyprland re-sends activewindowv2 on every TITLE change of the focused
+    // window too (a terminal's spinner: several a second) — only a focus
+    // change to another window needs the JSON again.
+    property string lastActive: ""
     Connections {
         target: Hyprland
         function onRawEvent(event) {
+            if (event.name === "activewindowv2") {
+                if (event.data === bar.lastActive)
+                    return;
+                bar.lastActive = event.data;
+            }
             if (["activewindowv2", "openwindow", "changefloatingmode", "fullscreen", "pin"].includes(event.name))
                 ipcRefresh.restart();
         }
@@ -288,9 +319,12 @@ PanelWindow {
                     },
                     fullscreen: () => { Hyprland.dispatch("focuswindow " + addr); Hyprland.dispatch("fullscreen 0"); },
                     maximise: () => { Hyprland.dispatch("focuswindow " + addr); Hyprland.dispatch("fullscreen 1"); },
-                    close: () => Hyprland.dispatch("closewindow " + addr)
+                    close: () => Hyprland.dispatch("closewindow " + addr),
+                    panel: () => winPop.toggle()
                 });
             }
+            // the window panel (WindowPopup.qml): float, pin, size, move, close
+            WindowPopup { id: winPop; pill: winState }
         }
 
         Text {
@@ -458,6 +492,7 @@ PanelWindow {
         }
 
         Pill {
+            id: settingsPill
             label: "\u{f0493}"
             fg: Theme.subtext0
             fillHover: true
@@ -470,6 +505,9 @@ PanelWindow {
                 settings: () => BarState.panelRequested("settings", ""),
                 gnome: () => Theme.exec("gtk-launch org.gnome.Settings")
             })
+            // Settings is its own full-screen panel: a keyboard stop here
+            // (Ctrl+arrows land on the gear, Enter opens Settings)
+            PillStop { pill: settingsPill }
         }
 
         Item { width: 4; height: 1 }

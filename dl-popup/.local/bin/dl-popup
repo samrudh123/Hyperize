@@ -11,6 +11,12 @@
                                                           (exit 3 = run the real tool instead)
     dl-popup bar / bar-toggle                             waybar module output / pause-resume all
     dl-popup watch [SEC]                                  `bar` every SEC s (2), a line per change
+    dl-popup json                                         every download as JSON (the Quickshell
+                                                          downloads panel, DownloadsPopup.qml);
+                                                          never starts aria2 / JD
+    dl-popup act ACTION [GID]                             one change, answered with {"ok", "msg"}:
+                                                          pause|resume|retry|remove|open|folder|copy GID,
+                                                          pauseall|resumeall|purge|dir|jd
 
 `add` prints one JSON line on stdout, which the Firefox extension acts on:
     {"action": "aria2" | "jd" | "firefox" | "preview" | "cancel" | "error", ...}
@@ -1141,6 +1147,95 @@ def bar_watch(interval):
         signal.sigtimedwait({signal.SIGUSR1}, interval)
 
 
+def dump_json():
+    """Every download for the panel: aria2 (active, queued, the last 30
+    finished / failed), JDownloader (unfinished), curl / wget / package
+    managers (proc_items). Never starts a backend."""
+    out, stat, aria_up = [], {}, True
+    try:
+        for it in (aria2("aria2.tellActive", KEYS) + aria2("aria2.tellWaiting", 0, 100, KEYS)
+                   + aria2("aria2.tellStopped", 0, 30, KEYS)):
+            total, done, speed = int(it["totalLength"]), int(it["completedLength"]), int(it["downloadSpeed"])
+            f = (it.get("files") or [{}])[0]
+            out.append({"id": it["gid"], "name": item_name(it), "done": done, "total": total, "speed": speed,
+                        "state": it["status"], "via": "aria2", "path": f.get("path") or "",
+                        "dir": it.get("dir") or "", "error": it.get("errorMessage") or "",
+                        "eta": (total - done) // speed if speed and total else -1,
+                        "url": ((f.get("uris") or [{}])[0]).get("uri", "")})
+        stat = aria2("aria2.getGlobalStat")
+    except (OSError, RuntimeError, ValueError):
+        aria_up = False
+    try:
+        q = {"running": True, "finished": True, "enabled": True, "bytesLoaded": True,
+             "bytesTotal": True, "speed": True}
+        for l in jd("downloadsV2/queryLinks", q, timeout=1) or []:
+            if l.get("finished") or not l.get("enabled", True):
+                continue
+            total, done, speed = l.get("bytesTotal", 0), l.get("bytesLoaded", 0), l.get("speed", 0)
+            out.append({"id": "", "name": l.get("name", "?"), "done": done, "total": total, "speed": speed,
+                        "state": "active" if l.get("running") else "waiting", "via": "JD", "path": "", "dir": "",
+                        "error": "", "eta": (total - done) // speed if speed and total else -1, "url": ""})
+    except (OSError, RuntimeError, ValueError):
+        pass
+    for i in proc_items():
+        out.append(dict(i, id="", path="", dir="", error="", url="", eta=-1))
+    print(json.dumps({"items": out, "aria2": aria_up,
+                      "speed": sum(i["speed"] for i in out if i["state"] == "active"),
+                      "active": int(stat.get("numActive", 0)) if stat else 0,
+                      "waiting": int(stat.get("numWaiting", 0)) if stat else 0,
+                      "dir": tilde(os.path.expanduser(CFG["default_dir"]))}, ensure_ascii=False))
+
+
+def act(action, gid=""):
+    """One change from the panel (the same calls as `status`'s menus)."""
+    def reply(ok, msg=""):
+        print(json.dumps({"ok": ok, "msg": msg}))
+    try:
+        if action in ("pauseall", "resumeall", "purge"):
+            aria2({"pauseall": "aria2.forcePauseAll", "resumeall": "aria2.unpauseAll",
+                   "purge": "aria2.purgeDownloadResult"}[action])
+            return reply(True)
+        if action == "dir":
+            subprocess.Popen(["xdg-open", os.path.expanduser(CFG["default_dir"])], start_new_session=True)
+            return reply(True)
+        if action == "jd":
+            open_jd()
+            return reply(True)
+        it = aria2("aria2.tellStatus", gid, KEYS)
+        f = (it.get("files") or [{}])[0]
+        path = f.get("path") or ""
+        uri = ((f.get("uris") or [{}])[0]).get("uri", "")
+        st = it["status"]
+        if action == "pause":
+            aria2("aria2.forcePause", gid)
+        elif action == "resume":
+            aria2("aria2.unpause", gid)
+        elif action == "retry" and uri:
+            aria2("aria2.addUri", [uri], {"dir": it["dir"], "out": os.path.basename(path)} if path
+                  else {"dir": it["dir"]})
+            aria2("aria2.removeDownloadResult", gid)
+        elif action == "open" and path:
+            subprocess.Popen(["xdg-open", path], start_new_session=True)
+        elif action == "folder":
+            if path and os.path.exists(path) and subprocess.run(
+                    ["which", "nautilus"], capture_output=True).returncode == 0:
+                subprocess.Popen(["nautilus", "--select", path], start_new_session=True)
+            else:
+                subprocess.Popen(["xdg-open", it["dir"]], start_new_session=True)
+        elif action == "copy" and uri:
+            subprocess.run(["wl-copy", uri])
+        elif action == "remove":
+            if st in ("active", "waiting", "paused"):
+                aria2("aria2.forceRemove", gid)
+                time.sleep(0.3)
+            aria2("aria2.removeDownloadResult", gid)
+        else:
+            return reply(False, "can't " + action + " that one")
+        reply(True)
+    except (OSError, RuntimeError, ValueError, KeyError) as e:
+        reply(False, str(e))
+
+
 def bar_toggle():
     try:
         active = aria2("aria2.tellActive", ["gid"])
@@ -1170,6 +1265,10 @@ def main():
     w = sub.add_parser("watch")
     w.add_argument("interval", nargs="?", type=float, default=2.0)
     sub.add_parser("bar-toggle")
+    sub.add_parser("json")
+    ac = sub.add_parser("act")
+    ac.add_argument("action")
+    ac.add_argument("gid", nargs="?", default="")
     args = ap.parse_args()
 
     if args.cmd == "fetch":
@@ -1180,6 +1279,10 @@ def main():
         bar_watch(args.interval)
     elif args.cmd == "bar-toggle":
         bar_toggle()
+    elif args.cmd == "json":
+        dump_json()
+    elif args.cmd == "act":
+        act(args.action, args.gid)
     elif args.cmd == "status":
         status()
     elif args.cmd == "jd":

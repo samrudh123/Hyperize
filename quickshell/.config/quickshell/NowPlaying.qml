@@ -114,9 +114,10 @@ Row {
     }
     Timer { id: respawn; interval: 3000; onTriggered: proc.running = true }
 
-    // smooth playhead between updates
+    // move the playhead between updates — once a second: the line creeps
+    // ~1-2 px/s on a song, and every tick is a whole-bar redraw (was 250 ms)
     Timer {
-        interval: 250
+        interval: 1000
         repeat: true
         running: np.playing && np.visible
         onTriggered: np.now = Date.now()

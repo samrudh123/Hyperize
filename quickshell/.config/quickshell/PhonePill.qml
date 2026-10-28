@@ -116,5 +116,8 @@ Row {
                 panel: () => phone.toggleMenu()
             });
         }
+        // its click opens the notification centre's Phone tab (a panel on
+        // the top bar): here just a keyboard stop, Enter = that click
+        PillStop { pill: notifPill }
     }
 }

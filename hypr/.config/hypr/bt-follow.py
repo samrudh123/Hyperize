@@ -60,7 +60,9 @@ do they move — and only if the OTHER device is playing then:
   * COOLDOWN s between actions, so the two rules can't ping-pong.
 
 Event-driven on the laptop side (`pw-dump -m` wakes it when a PipeWire
-node changes), polled every POLL s for the phone and Bluetooth. Stdlib only.
+node changes), polled every POLL s for the phone and Bluetooth while a
+device is released (IDLE_POLL s otherwise; the phone isn't asked then).
+Stdlib only.
 """
 
 import json
@@ -74,6 +76,7 @@ import time
 import kdec_link   # same directory: is the KDE Connect link usable?
 
 POLL = 1.0          # s: phone / Bluetooth re-check when nothing wakes us
+IDLE_POLL = 3.0     # s: the same with nothing released (PipeWire events still wake at once)
 QUIET = 2.25        # s the side holding the headphones must be silent before they move (was 3.5)
 SUSTAIN = 0.8       # s a laptop stream must run before reclaiming
 COOLDOWN = 4.0      # s between actions
@@ -118,13 +121,20 @@ def notify(body):
 
 
 # ── what's going on ──────────────────────────────────────────────────────────
-def laptop_streams():
-    """Node ids of PipeWire output streams that are playing (running) here."""
+def pw_objs():
+    """one pw-dump, parsed ([] on failure) — the watch loop shares one per
+    pass between laptop_streams and hold_id (two were ~half its CPU)"""
     rc, out = run("pw-dump", timeout=5)
     try:
-        objs = json.loads(out) if rc == 0 else []
+        return json.loads(out) if rc == 0 else []
     except ValueError:
-        return set()
+        return []
+
+
+def laptop_streams(objs=None):
+    """Node ids of PipeWire output streams that are playing (running) here."""
+    if objs is None:
+        objs = pw_objs()
     ids = set()
     for o in objs:
         if o.get("type") != "PipeWire:Interface:Node":
@@ -221,12 +231,9 @@ def bt_sink_id(prefixes):
 HOLD = "bt-follow-hold"
 
 
-def hold_id():
-    rc, out = run("pw-dump", timeout=5)
-    try:
-        objs = json.loads(out) if rc == 0 else []
-    except ValueError:
-        return None
+def hold_id(objs=None):
+    if objs is None:
+        objs = pw_objs()
     return next((o["id"] for o in objs if ((o.get("info") or {}).get("props") or {}).get("node.name") == HOLD), None)
 
 
@@ -441,15 +448,24 @@ def watch(dry=False):
     last_reason = ""
     while True:
         now = time.monotonic()
-        playing_here = bool(laptop_streams())
+        objs = pw_objs()
+        playing_here = bool(laptop_streams(objs))
         if playing_here:
             quiet_since = None
             laptop_since = laptop_since or now
         else:
             laptop_since = None
             quiet_since = quiet_since or now
-        phone = phone_playing()
-        if phone:
+        released = load_released()
+        # decide() only looks at the phone to release (RELEASE) or to wait
+        # for it before reclaiming a released device: otherwise don't ask
+        # playerctl every pass. Not watched = not known quiet, so once it
+        # matters it has to be quiet QUIET s first.
+        need_phone = RELEASE or bool(released)
+        phone = phone_playing() if need_phone else False
+        if not need_phone:
+            phone_quiet_since = None
+        elif phone:
             phone_quiet_since = None
         else:
             phone_quiet_since = phone_quiet_since or now
@@ -458,7 +474,7 @@ def watch(dry=False):
         else:
             devs = bt_audio()
             what, arg = decide(now, phone, kdec_link.healthy(), laptop_since,
-                               quiet_since, devs, load_released(), last_action, phone_quiet_since)
+                               quiet_since, devs, released, last_action, phone_quiet_since)
             if what == "release":
                 release(arg, devs, dry)
                 last_action = time.monotonic()
@@ -475,10 +491,15 @@ def watch(dry=False):
                 log(f"  ({arg})")
                 last_reason = arg
             if not dry:
-                keep_tidy(bt_audio(), load_released(), tidy)
-        # sleep until PipeWire changes or POLL s; while a laptop stream is
+                if what in ("release", "reclaim"):         # things moved: look again
+                    keep_tidy(bt_audio(), load_released(), tidy)
+                else:
+                    keep_tidy(devs, released, tidy, objs)
+        # sleep until PipeWire changes or POLL s (IDLE_POLL with nothing
+        # released: then only PipeWire events — streams, a headphone's sink
+        # appearing — can lead anywhere); while a laptop stream is
         # waiting out SUSTAIN, come back in time for it
-        timeout = POLL
+        timeout = POLL if need_phone else IDLE_POLL
         if quiet_since is not None and now - quiet_since < QUIET:
             timeout = min(timeout, QUIET - (now - quiet_since) + 0.05)
         if laptop_since is not None and now - laptop_since < SUSTAIN:
@@ -510,13 +531,15 @@ def restore_all():
     hold_off()
 
 
-def keep_tidy(devs, released, state):
+def keep_tidy(devs, released, state, objs=None):
     """the hold sink exists exactly while a released device is connected
-    (audio off); a headphone that just came on becomes the default once"""
+    (audio off); a headphone that just came on becomes the default once.
+    objs: a fresh pw-dump to reuse"""
     held = [m for m, e in released.items() if isinstance(e, dict) and m in devs and devs[m][1]]
-    if held and hold_id() is None:
+    have = hold_id(objs) is not None
+    if held and not have:
         hold_on(devs[held[0]][0])
-    elif not held and hold_id() is not None:
+    elif not held and have:
         hold_off()
     # newly connected with audio on -> default (edge-triggered)
     live = {m for m, (_, c) in devs.items() if c and m not in released}
