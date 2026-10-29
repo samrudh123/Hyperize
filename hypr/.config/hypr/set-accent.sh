@@ -392,6 +392,9 @@ git_filter() {   # clean|smudge THEME HEX PATH — the committed theme+accent; s
     elif [[ "$rel" == .config/gtk-[34].0/settings.ini ]]; then
         # one line of a hand-written file (app-accent.sh seds it)
         sed "s/^gtk-theme-name=$(gtk_name "$fa" "$ft")\$/gtk-theme-name=$(gtk_name "$ta" "$tt")/" "$tmp/in"
+    elif [ "$1" = clean ] && [ "$rel" = "$GIT_STATE/app-accent" ] && [ "$(cat "$tmp/in")" = force ]; then
+        # set-theme.sh's "re-apply" marker, until app-accent.sh finishes
+        git_expect "$rel" "$tt" "$ta"
     elif git_expect "$rel" "$ft" "$fa" > "$tmp/from" 2>/dev/null && cmp -s "$tmp/in" "$tmp/from" \
          && git_expect "$rel" "$tt" "$ta" > "$tmp/to" 2>/dev/null; then
         cat "$tmp/to"
@@ -568,6 +571,7 @@ case "${1:-}" in
         init >/dev/null
         render "$hex"
         printf '%s\n' "$hex" > "$STATE"
+        git_refresh >/dev/null 2>&1 &     # app-accent.sh can take a minute
         reload_live "$hex"
         reload_apps
         # No bar restart: the bars and dock are Quickshell since 2026-10-09

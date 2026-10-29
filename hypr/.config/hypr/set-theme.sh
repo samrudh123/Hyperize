@@ -73,6 +73,8 @@ for f in "$HOME/.config/bat/themes/Catppuccin Mocha.tmTheme" \
     $PY "$RICE" subst "$id" < "$keep" > "$f.tmp" && mv -f "$f.tmp" "$f"
 done
 command -v bat >/dev/null && bat cache --build >/dev/null 2>&1
+# theme/name, palette.json, … changed length: keep `git status` clean
+"$HYPR/set-accent.sh" --git-refresh >/dev/null 2>&1 &
 
 hyprctl reload >/dev/null
 pkill -USR2 -x ghostty 2>/dev/null     # Ghostty >= 1.2 reloads its config

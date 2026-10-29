@@ -140,6 +140,8 @@ if [ -d "$HOME/.local/share/themes/$gtk_theme" ]; then
     # would swap each link for a copy
     sed -i --follow-symlinks "s/^gtk-theme-name=.*/gtk-theme-name=$gtk_theme/" \
         "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
+    # now, not just at the end: LibreOffice / Spotify below can take a while
+    "$HOME/.config/hypr/set-accent.sh" --git-refresh >/dev/null 2>&1 &
 fi
 
 # ── LibreOffice ────────────────────────────────────────────────────────────
