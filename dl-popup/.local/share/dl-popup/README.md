@@ -1,9 +1,16 @@
 # dl-popup — IDM-style download popup for Firefox → aria2 / JDownloader
 
 Click a download in Firefox → the extension cancels it → native host →
-`~/.local/bin/dl-popup add` shows a fuzzel menu (folder, filename, speed,
-chunks, parallel, backend) → queued in aria2 (default) or JDownloader.
-Picking "Let Firefox download it", or any failure, gives the download back to Firefox.
+`~/.local/bin/dl-popup add` shows the "New download" panel (Quickshell,
+`~/.config/quickshell/DownloadAskPopup.qml`, Serpantinum style, above the bottom
+bar's downloads pill: folder, filename, speed, chunks, parallel, backend) → queued
+in aria2 (default) or JDownloader. Enter = Download, Tab walks the controls, Esc /
+a click outside = cancel. The request goes to `$XDG_RUNTIME_DIR/dl-popup/ask-*.json`
+(0600) via `qs ipc call downloads ask PATH`, the answer comes back in PATH.reply.
+When the shell isn't running it falls back to the old fuzzel menu (config.json
+`"ui": "fuzzel"` = always fuzzel).
+Picking "Let Zen download it" (the native host names the browser that started it),
+or any failure, gives the download back to the browser.
 
 PDFs get "Preview in zathura (nothing saved)" as the first row (Enter = preview):
 it opens the PDF in the PDF in Zathura extension (`~/.config/vscode-pdf-zathura/firefox`)
@@ -40,7 +47,7 @@ Upload from a **private window**: in a normal one an add-on breaks AMO's uploade
   (otherwise Firefox's own dialog appears before the popup).
 - `about:config` → `browser.download.alwaysOpenPanel` = false (no panel flash).
 
-## Fuzzel keys
+## Fuzzel keys (fallback)
 Enter picks. To type a value that isn't in the list (custom path, `750K`, `12`),
 type it and press **Shift+Enter**.
 

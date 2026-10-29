@@ -3,7 +3,7 @@
 
 Firefox starts this once per message (runtime.sendNativeMessage), sends one
 length-prefixed JSON message on stdin and waits for one reply on stdout.
-The job is piped into `dl-popup add --stdin`, which shows the fuzzel popup
+The job is piped into `dl-popup add --stdin`, which shows the popup (Quickshell panel, or fuzzel)
 and prints what happened ({"action": "aria2" | "jd" | "firefox" | ...}).
 Registered by ~/.mozilla/native-messaging-hosts/dl_popup.json.
 """
@@ -29,11 +29,23 @@ def send(obj):
     sys.stdout.buffer.flush()
 
 
+def browser():
+    """Who started us (Zen, Firefox, …), for the popup's "Let … download it"."""
+    try:
+        with open(f"/proc/{os.getppid()}/comm") as f:
+            comm = f.read().strip()
+    except OSError:
+        return "Firefox"
+    return {"zen": "Zen", "zen-bin": "Zen", "firefox": "Firefox", "firefox-bin": "Firefox",
+            "librewolf": "LibreWolf"}.get(comm, "Firefox")
+
+
 msg = read()
 if msg.get("cmd") == "ping":
     send({"ok": True})
 elif msg.get("cmd") == "add":
-    p = subprocess.run([DL_POPUP, "add", "--stdin"], input=json.dumps(msg["job"]),
+    job = dict(msg["job"], browser=browser())
+    p = subprocess.run([DL_POPUP, "add", "--stdin"], input=json.dumps(job),
                        capture_output=True, text=True)
     try:
         send(json.loads(p.stdout.strip().splitlines()[-1]))

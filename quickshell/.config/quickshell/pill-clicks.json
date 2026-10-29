@@ -1,1 +1,6 @@
-{}
+{
+  "player": {
+    "left": "panel",
+    "right": "playpause"
+  }
+}

@@ -1,5 +1,7 @@
 #!/usr/bin/python3
-"""dl-popup: IDM-style download popup (fuzzel) in front of aria2 and JDownloader.
+"""dl-popup: IDM-style download popup in front of aria2 and JDownloader — the
+Quickshell panel above the bottom bar's downloads pill (DownloadAskPopup.qml),
+or fuzzel when the shell isn't running (config "ui": "fuzzel" = always fuzzel).
 
     dl-popup add URL [--filename NAME] [--referrer URL]   popup for one URL
     dl-popup add --stdin                                  job as JSON on stdin (the Firefox
@@ -88,6 +90,7 @@ DEFAULTS = {
     "jd_dir": "~/jd2",
     "jd_headless": False,        # True = no JD window at all (captchas then need the browser solver)
     "fuzzel_width": 64,
+    "ui": "shell",               # "shell" = the Quickshell panel (fuzzel if the shell is down), "fuzzel"
 }
 
 
@@ -467,6 +470,11 @@ def popup(job):
         "backend": "jd" if to_jd else "aria2",
     }
     size = job.get("size")
+    browser = job.get("browser") or "Firefox"
+    if CFG.get("ui", "shell") != "fuzzel":
+        result = shell_popup(job, st, filename, size, host, browser)
+        if result is not None:
+            return result
     info = " · ".join(x for x in (filename or "(name from server)",
                                   human(size) if size and size > 0 else "", host) if x)
 
@@ -486,7 +494,7 @@ def popup(job):
             ("backend", f"{I_BACKEND}  Using       "
                         + ("JDownloader  (switch to aria2)" if jd_mode
                            else "aria2  (switch to JDownloader)")),
-            ("firefox", f"{I_FIREFOX}  Let Firefox download it"),
+            ("firefox", f"{I_FIREFOX}  Let {browser} download it"),
             ("cancel", f"{I_CANCEL}  Cancel"),
         ]
         keys = [k for k, _ in rows]
@@ -516,18 +524,135 @@ def popup(job):
         elif key == "firefox":
             return {"action": "firefox"}
         elif key == "go":
+            return start(job, st)
+
+
+def start(job, st):
+    """Hand the job to the chosen backend; the extension's answer."""
+    try:
+        if st["backend"] == "jd":
+            send_jd(job, st)
+            result = {"action": "jd"}
+        else:
+            result = {"action": "aria2", "gid": send_aria2(job, st)}
+    except Exception as e:   # surface anything to the user; the browser falls back
+        notify("Download could not be started", f"{e}\nThe browser will download it instead.",
+               urgency="critical", icon="dialog-error")
+        return {"action": "error", "error": str(e)}
+    remember(st)
+    return result
+
+
+# ---------------------------------------------------------------- the shell panel
+
+def qs_bin():
+    q = os.path.join(HOME, ".local/bin/qs")
+    return q if os.access(q, os.X_OK) else "qs"
+
+
+def qs_ipc(*args, timeout=4):
+    """`qs ipc call downloads ARGS…` → its output, or None (shell down / no target)."""
+    try:
+        p = subprocess.run([qs_bin(), "ipc", "call", "downloads", *args],
+                           capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return p.stdout.strip() if p.returncode == 0 else None
+
+
+def shell_popup(job, st, filename, size, host, browser):
+    """The Quickshell panel (DownloadAskPopup.qml) above the bottom bar's
+    downloads pill. The request goes to a 0600 file (the URL / cookies never
+    show up in `ps`), the answer comes back in FILE.reply. Returns the
+    extension's answer, or None when the shell isn't there (→ fuzzel)."""
+    rundir = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "dl-popup")
+    os.makedirs(rundir, mode=0o700, exist_ok=True)
+    req = os.path.join(rundir, f"ask-{os.getpid()}-{int(time.time() * 1000)}.json")
+    reply = req + ".reply"
+    speeds = []
+    for p in CFG["speed_presets"]:
+        bps = _speed_or_none(p)
+        if bps is not None and all(x["bps"] != bps for x in speeds):
+            speeds.append({"label": p, "bps": bps})
+    try:
+        while True:
+            dirs = []
+            for d in [os.path.expanduser(CFG["default_dir"])] + CFG["recent_dirs"] + [
+                    os.path.join(HOME, x) for x in ("Downloads", "Videos", "Music", "Documents")]:
+                d = os.path.expanduser(d)
+                if os.path.isdir(d) and tilde(d) not in [x["label"] for x in dirs]:
+                    dirs.append({"label": tilde(d)})
+            request = {
+                "name": filename, "host": host, "browser": browser,
+                "size": human(size) if size and size > 0 else "",
+                "preview": bool(job.get("preview")),
+                "dirs": dirs, "speeds": speeds,
+                "chunks": [1, 2, 4, 8, 16], "parallel": [1, 2, 3, 4, 5, 6, 8],
+                "state": dict(st, dir=tilde(st["dir"])),
+            }
+            fd = os.open(req, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
+                json.dump(request, f)
+            for _ in range(8):          # "Not ready to accept queries yet." while reloading
+                out = qs_ipc("ask", req)
+                if out is None or out == "ok":
+                    break
+                time.sleep(0.4)
+            if out != "ok":
+                return None
+            ans = None
+            last_check, misses = time.monotonic(), 0
+            while ans is None:
+                time.sleep(0.1)
+                if os.path.exists(reply):
+                    try:
+                        with open(reply) as f:
+                            ans = json.load(f)
+                    except (OSError, ValueError):
+                        ans = {"action": "cancel"}
+                    os.remove(reply)
+                elif time.monotonic() - last_check > 2:
+                    # the panel lost the request (shell reloaded / crashed): ask
+                    # again (twice in a row: the reply may still be on its way)
+                    last_check = time.monotonic()
+                    now = qs_ipc("asking")
+                    misses = misses + 1 if now != req and not os.path.exists(reply) else 0
+                    if misses >= 2:
+                        if now is None:
+                            return None
+                        break
+            if ans is None:
+                continue
+            s = ans.get("state") or {}
+            st["dir"] = os.path.abspath(os.path.expanduser(str(s.get("dir") or st["dir"]).strip()))
+            st["filename"] = str(s.get("filename", st["filename"])).strip().replace("/", "_")
+            for k, lo, hi in (("chunks", 1, 20 if s.get("backend") == "jd" else 16), ("parallel", 1, 20)):
+                try:
+                    st[k] = max(lo, min(hi, int(s.get(k, st[k]))))
+                except (TypeError, ValueError):
+                    pass
             try:
-                if jd_mode:
-                    send_jd(job, st)
-                    result = {"action": "jd"}
-                else:
-                    result = {"action": "aria2", "gid": send_aria2(job, st)}
-            except Exception as e:   # surface anything to the user; Firefox falls back
-                notify("Download could not be started", f"{e}\nFirefox will download it instead.",
-                       urgency="critical", icon="dialog-error")
-                return {"action": "error", "error": str(e)}
-            remember(st)
-            return result
+                st["speed"] = max(0, int(s.get("speed", st["speed"])))
+            except (TypeError, ValueError):
+                pass
+            st["backend"] = "jd" if s.get("backend") == "jd" else "aria2"
+            action = ans.get("action")
+            if action == "browse":
+                st["dir"] = yazi_pick_dir(st["dir"] if os.path.isdir(st["dir"]) else last_dir()) or st["dir"]
+            elif action == "go":
+                return start(job, st)
+            elif action == "preview":
+                return {"action": "preview"}
+            elif action == "browser":
+                return {"action": "firefox"}
+            else:
+                return {"action": "cancel"}
+    finally:
+        for f in (req, reply):
+            try:
+                os.remove(f)
+            except FileNotFoundError:
+                pass
 
 
 def remember(st):

@@ -386,6 +386,12 @@ PanelWindow {
                     pill: downloads
                     scriptPill: downloads
                 }
+                // a new download from the browser (DownloadAskPopup.qml,
+                // `dl-popup add` → `ask PATH`)
+                DownloadAskPopup {
+                    id: askPop
+                    pill: downloads
+                }
                 IpcHandler {
                     target: "downloads"
                     enabled: bar.active
@@ -394,6 +400,14 @@ PanelWindow {
                     function close(): void { dlPop.close(); }
                     // sample cards (nothing real happens), to see the panel idle
                     function demo(): void { BarState.bottomShown = true; dlPop.demo = true; Qt.callLater(dlPop.open); }
+                    // dl-popup add: show the new-download panel for the request
+                    // in PATH (answer → PATH.reply)
+                    function ask(path: string): string { BarState.bottomShown = true; askPop.ask(path); return "ok"; }
+                    // close it unanswered (= cancel)
+                    function dismiss(): void { askPop.close(); }
+                    // the request the panel is answering ("" = none), so
+                    // dl-popup can tell a reload / crash lost its popup
+                    function asking(): string { return askPop.reqPath; }
                 }
             }
             Item { width: 6; height: 1; visible: downloads.shown }
