@@ -194,6 +194,17 @@ alias ga='git add'
 alias gc='git commit'
 alias gp='git push'
 
+# In the dotfiles repo, settle accent / theme picks before `git status`:
+# set-accent.sh's git filter hides them, but git skips it for a file whose
+# SIZE changed until --git-refresh has run, and a theme switch takes a few
+# seconds to get there — so an instant `git status` listed them.
+function git() {
+  if [[ $1 == status && ${PWD:A}/ == $HOME/Hyperize/* && -x ~/.config/hypr/set-accent.sh ]]; then
+    ~/.config/hypr/set-accent.sh --git-refresh 2>/dev/null
+  fi
+  command git "$@"
+}
+
 # ─── yazi: cd to the directory you quit in (press q) ───────────────────────
 function y() {
   local tmp="$(mktemp -t yazi-cwd.XXXXXX)" cwd

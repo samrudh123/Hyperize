@@ -441,6 +441,9 @@ git_setup() {   # run inside the dotfiles repo; idempotent
 git_refresh() {
     local top; top=$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel 2>/dev/null) || return 0
     cd "$top" && git config --get filter.accent.clean >/dev/null || return 0
+    # same-size files: one filtered pass that also records their new stat, so
+    # neither the diff below nor the caller's `git status` filters them again
+    git update-index -q --refresh >/dev/null 2>&1
     # stat-dirty (ls-files -m) but content-equal (absent from diff), ours only
     comm -23 <(git ls-files -m | sort) <(git diff --name-only | sort) \
         | git check-attr --stdin filter | awk -F': ' '$3 == "accent" { print $1 }' \
