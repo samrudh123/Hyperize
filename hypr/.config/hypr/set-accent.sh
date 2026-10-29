@@ -12,6 +12,8 @@
 #                              current accent + theme (a target that did not
 #                              exist before, e.g. zen-import-firefox's profile)
 #   set-accent.sh --show       print the current accent
+#   set-accent.sh --git-setup  (in ~/Hyperize) keep picks out of git — see
+#                              "git:" below
 #
 # HOW IT WORKS — templates, not in-place edits
 #
@@ -313,7 +315,129 @@ reload_apps() {
     return 0
 }
 
+# ── git: keep accent / theme picks out of the dotfiles repo ────────────────
+# Every pick rewrites ~25 tracked files (the manifest, theme/accent, the GTK
+# theme name, …), so `git status` was never clean. `--git-setup`, run once in
+# the repo, registers this script as a git clean/smudge filter for exactly
+# those files — locally (.git/info/attributes + .git/config), so the public
+# repo and other people's clones are unaffected:
+#
+#   clean  (status / diff / add)        live theme+accent -> the committed one
+#   smudge (checkout / stash / pull)    committed -> live, so git never
+#                                       repaints the desktop
+#
+# Like --resync this never pattern-matches colours: a file is converted only
+# when it is BYTE-IDENTICAL to what the templates produce at the source
+# colours, and is then produced afresh at the target ones. Anything else — a
+# real edit not yet --resync'ed — passes through untouched and shows in git
+# as usual.
+GIT_STATE=".config/hypr/theme"
+GIT_EXTRA=".config/gtk-3.0/settings.ini
+.config/gtk-4.0/settings.ini
+.config/bat/themes/Catppuccin Mocha.tmTheme
+.config/yazi/Catppuccin-mocha.tmTheme
+$GIT_STATE/accent
+$GIT_STATE/name
+$GIT_STATE/app-accent
+$GIT_STATE/palette.json"
+
+fill_cached() {   # $1 hex, $2 theme -> fill_expr, memoised (git runs us per file)
+    local d="${XDG_RUNTIME_DIR:-/tmp}/accent-git-filter"
+    local f="$d/$2-$1"
+    if [ ! -s "$f" ] || [ "$RICE" -nt "$f" ]; then
+        mkdir -p "$d"
+        THEME_ID="$2" fill_expr "$1" > "$f.$$" && mv -f "$f.$$" "$f"
+    fi
+    cat "$f"
+}
+
+gtk_name() {   # $1 hex, $2 theme -> rice-theme.py gtk's name, without building it
+    local role; role=$(/usr/bin/python3 "$RICE" nearest "$1" "$2")
+    if [ "$2" = mocha ]; then echo "catppuccin-mocha-$role-standard+default"
+    else echo "rice-$2-$role-standard+default"; fi
+}
+
+# What the file at home-relative path $1 holds at theme $2 + accent $3, on
+# stdout; non-zero when it is not a file the theming writes whole.
+git_expect() {
+    local rel="$1" tid="$2" hex="$3" name tpl
+    case "$rel" in
+        "$GIT_STATE/accent")       printf '%s\n' "$hex" ;;
+        "$GIT_STATE/name")         printf '%s\n' "$tid" ;;
+        "$GIT_STATE/app-accent")   printf '%s %s\n' "$tid" "$hex" ;;
+        "$GIT_STATE/palette.json") /usr/bin/python3 "$RICE" palette "$tid" ;;
+        *.tmTheme)   # set-theme.sh's syntax themes: pristine Mocha, recoloured
+            tpl="$THEME/pristine/$(basename "$(dirname "$rel")")-$(basename "$rel")"
+            [ -f "$tpl" ] || return 1
+            /usr/bin/python3 "$RICE" subst "$tid" < "$tpl" ;;
+        *)
+            name=$(manifest | awk -F'\t' -v r="$rel" '$2 == r { print $1 }')
+            [ -n "$name" ] && [ -f "$TEMPLATES/$name" ] || return 1
+            tpl=$(THEME_ID="$tid" tpl_for "$name")
+            sed "$(fill_cached "$hex" "$tid")" "$tpl" ;;
+    esac
+}
+
+git_filter() {   # clean|smudge THEME HEX PATH — the committed theme+accent; stdin -> stdout
+    local live_hex ft fa tt ta tmp
+    live_hex=$(norm "$(cat "$STATE" 2>/dev/null)")
+    valid "$live_hex" || live_hex="$ORIGINAL"
+    if [ "$1" = clean ]; then ft=$THEME_ID fa=$live_hex tt=$2 ta=$3
+    else                      ft=$2 fa=$3 tt=$THEME_ID ta=$live_hex; fi
+    tmp=$(mktemp -d)
+    cat > "$tmp/in"
+    local rel="${4#*/}"      # repo path -> home path (drop the stow package)
+    if [ "$ft $fa" = "$tt $ta" ]; then
+        cat "$tmp/in"
+    elif [[ "$rel" == .config/gtk-[34].0/settings.ini ]]; then
+        # one line of a hand-written file (app-accent.sh seds it)
+        sed "s/^gtk-theme-name=$(gtk_name "$fa" "$ft")\$/gtk-theme-name=$(gtk_name "$ta" "$tt")/" "$tmp/in"
+    elif git_expect "$rel" "$ft" "$fa" > "$tmp/from" 2>/dev/null && cmp -s "$tmp/in" "$tmp/from" \
+         && git_expect "$rel" "$tt" "$ta" > "$tmp/to" 2>/dev/null; then
+        cat "$tmp/to"
+    else
+        cat "$tmp/in"
+    fi
+    rm -rf "$tmp"
+}
+
+git_setup() {   # run inside the dotfiles repo; idempotent
+    local top; top=$(git rev-parse --show-toplevel 2>/dev/null) \
+        || { echo "--git-setup: run it inside the dotfiles repo" >&2; return 1; }
+    cd "$top" || return 1
+    # The committed theme + accent: what clean turns everything back into.
+    local sp ct ca
+    sp=$(git ls-files -- "*/$GIT_STATE/name" | head -n1)
+    ct=$(git show "HEAD:$sp" 2>/dev/null)
+    ca=$(git show "HEAD:${sp%/name}/accent" 2>/dev/null)
+    [ -n "$ct" ] && valid "$ca" || { echo "--git-setup: no committed theme/accent" >&2; return 1; }
+    local cmd='"$HOME/.config/hypr/set-accent.sh" --git-filter'
+    git config filter.accent.clean  "$cmd clean $ct $ca %f"
+    git config filter.accent.smudge "$cmd smudge $ct $ca %f"
+    # Patterns for every tracked file the theming writes (? = a space: the
+    # line is split on whitespace before the pattern is read).
+    local attrs; attrs="$(git rev-parse --git-path info/attributes)"
+    mkdir -p "$(dirname "$attrs")"
+    {
+        [ -f "$attrs" ] && sed '/^# >>> set-accent/,/^# <<< set-accent/d' "$attrs"
+        echo "# >>> set-accent --git-setup (do not edit; re-run it instead)"
+        { manifest | cut -f2; printf '%s\n' "$GIT_EXTRA"; } | while IFS= read -r rel; do
+            git ls-files -- "*/$rel" | sed 's/ /?/g; s/^/\//; s/$/ filter=accent/'
+        done
+        echo "# <<< set-accent"
+    } > "$attrs.tmp" && mv -f "$attrs.tmp" "$attrs"
+    echo "accent filter on: commits keep theme '$ct', accent #$ca ($(grep -c 'filter=accent' "$attrs") files)"
+}
+
 case "${1:-}" in
+    --git-filter)
+        git_filter "$2" "$3" "$4" "$5"
+        exit 0
+        ;;
+    --git-setup)
+        git_setup
+        exit
+        ;;
     --show)
         init >/dev/null
         cat "$STATE" 2>/dev/null || echo "$ORIGINAL"
@@ -415,7 +539,7 @@ case "${1:-}" in
         say "Reverted to the original theme"
         ;;
     "")
-        echo "usage: set-accent.sh <hex> | --preview <hex> | --restore | --revert | --resync | --show" >&2
+        echo "usage: set-accent.sh <hex> | --preview <hex> | --restore | --revert | --resync | --show | --git-setup" >&2
         exit 2
         ;;
     *)
