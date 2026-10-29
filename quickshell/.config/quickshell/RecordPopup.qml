@@ -21,7 +21,7 @@ PanelPopup {
 
     readonly property bool recording: !!rec && rec.recording
     readonly property var st: rec ? rec.st : ({})
-    readonly property color tint: recording ? (st.state === "paused" ? Theme.yellow : Theme.red) : Theme.flamingo
+    tint: recording ? (st.state === "paused" ? Theme.yellow : Theme.red) : Theme.flamingo
 
     function shot(mode) { close(); rec.shot(mode); }
     function record(args) { close(); rec.run(args); }

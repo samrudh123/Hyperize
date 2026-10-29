@@ -11,7 +11,7 @@ Rectangle {
     property string icon
     property string text
     property color fg: Theme.subtext0
-    property color activeFg: Theme.accent
+    property color activeFg: Theme.tintOf(parent)     // the popup's tint
     property bool active: false
     property real size: 34
     property real iconSize: 16

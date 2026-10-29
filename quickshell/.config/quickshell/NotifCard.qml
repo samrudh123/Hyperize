@@ -19,7 +19,7 @@ Item {
     signal reply(string text)
 
     readonly property bool isPhone: n.kind === "phone"
-    readonly property color tint: n.critical ? Theme.red : Theme.accent
+    readonly property color tint: n.critical ? Theme.red : Theme.tintOf(parent)   // the popup's
     readonly property bool canClick: !!n.hasDefault
 
     function ago(t) {
@@ -75,7 +75,7 @@ Item {
         color: hover.hovered ? Theme.alpha(Theme.surface0, 0.95) : Theme.alpha(Theme.surface0, 0.55)
         border.width: 1
         border.color: card.n.critical ? Theme.alpha(Theme.red, 0.7)
-                    : card.n.unread ? Theme.alpha(Theme.accent, 0.45) : Theme.alpha(Theme.surface1, 0.5)
+                    : card.n.unread ? Theme.alpha(card.tint, 0.45) : Theme.alpha(Theme.surface1, 0.5)
         opacity: 1 - Math.min(0.7, Math.abs(card.dx) / (card.width * 0.9))
         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
@@ -219,7 +219,7 @@ Item {
                 maximumLineCount: card.expanded ? 40 : 3
                 elide: Text.ElideRight
                 color: Theme.subtext0
-                linkColor: Theme.accent
+                linkColor: card.tint
                 font.family: Theme.font
                 font.pixelSize: 12
                 lineHeight: 1.1
@@ -261,12 +261,12 @@ Item {
                 radius: 9
                 color: Theme.alpha(Theme.surface1, 0.7)
                 border.width: 1
-                border.color: Theme.alpha(Theme.accent, field.typing ? 0.7 : 0.3)
+                border.color: Theme.alpha(card.tint, field.typing ? 0.7 : 0.3)
                 TextInput {
                     id: field
                     anchors { left: parent.left; leftMargin: 10; right: send.left; rightMargin: 6; verticalCenter: parent.verticalCenter }
                     color: Theme.text
-                    selectionColor: Theme.alpha(Theme.accent, 0.4)
+                    selectionColor: Theme.alpha(card.tint, 0.4)
                     font.family: Theme.font
                     font.pixelSize: 12
                     clip: true

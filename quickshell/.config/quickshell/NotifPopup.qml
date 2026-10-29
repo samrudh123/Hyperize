@@ -129,7 +129,7 @@ PanelPopup {
                 width: 34
                 height: 34
                 radius: 11
-                color: pop.dnd ? Theme.alpha(Theme.surface1, 0.8) : Theme.accent
+                color: pop.dnd ? Theme.alpha(Theme.surface1, 0.8) : pop.tint
                 Text {
                     anchors.centerIn: parent
                     text: pop.dnd ? "\u{f009b}" : "\u{f009a}"
@@ -163,7 +163,7 @@ PanelPopup {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "DND"
-                    color: pop.dnd ? Theme.accent : Theme.overlay1
+                    color: pop.dnd ? pop.tint : Theme.overlay1
                     font.family: Theme.font
                     font.pixelSize: 11
                     font.weight: Font.Bold
@@ -264,7 +264,7 @@ PanelPopup {
                         height: 24
                         topPadding: row.index === 0 ? 0 : 6
                         text: row.modelData.group.toUpperCase()
-                        color: row.modelData.group === "New" ? Theme.accent : Theme.overlay1
+                        color: row.modelData.group === "New" ? pop.tint : Theme.overlay1
                         font.family: Theme.font
                         font.pixelSize: 10
                         font.weight: Font.Bold

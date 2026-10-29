@@ -1,5 +1,8 @@
 #!/bin/bash
 # Seek the bar's current player — scroll on custom/now-playing.
+# (The Quickshell bar's wheel no longer comes here: NowPlaying.seekTo moves
+# the playhead itself and sends "seekto <player> <us>" on now-playing.py's
+# stdin. Still used there for players with no known length, and by waybar.)
 #
 #   media-seek.sh 5+ | 5-  [player]
 #

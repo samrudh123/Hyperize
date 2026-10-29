@@ -26,7 +26,7 @@ PanelPopup {
     readonly property bool up: !!ph && ph.up
     readonly property int batt: ph ? ph.batt : -1
     readonly property var notifs: ph ? ph.notifs : []
-    readonly property color tint: !up ? Theme.overlay0 : st.charging ? Theme.green
+    tint: !up ? Theme.overlay0 : st.charging ? Theme.green
                                 : batt >= 0 && batt <= 15 ? Theme.red
                                 : batt >= 0 && batt <= 30 ? Theme.peach : Theme.sky
 
@@ -110,12 +110,12 @@ PanelPopup {
                         width: nc.implicitWidth + 14
                         height: 20
                         radius: 6
-                        color: Theme.alpha(Theme.accent, 0.16)
+                        color: Theme.alpha(pop.tint, 0.16)
                         Text {
                             id: nc
                             anchors.centerIn: parent
                             text: "\u{f009e} " + pop.notifs.length + " waiting"
-                            color: Theme.accent
+                            color: pop.tint
                             font.family: Theme.font
                             font.pixelSize: 10
                             font.weight: Font.Bold
@@ -239,11 +239,11 @@ PanelPopup {
                         width: 26
                         height: 26
                         radius: 8
-                        color: Theme.alpha(Theme.accent, 0.16)
+                        color: Theme.alpha(pop.tint, 0.16)
                         Text {
                             anchors.centerIn: parent
                             text: "\u{f036a}"            // md-message_text_outline
-                            color: Theme.accent
+                            color: pop.tint
                             font.family: Theme.font
                             font.pixelSize: 13
                         }

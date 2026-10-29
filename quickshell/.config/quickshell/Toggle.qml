@@ -7,7 +7,7 @@ Rectangle {
     id: tg
 
     property bool checked: false
-    property color accent: Theme.accent
+    property color accent: Theme.tintOf(parent)       // the popup's tint
     property bool busy: false
 
     signal toggled(bool value)

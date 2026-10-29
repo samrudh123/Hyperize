@@ -26,7 +26,7 @@ PanelPopup {
     readonly property bool mirror: Displays.mirror
     readonly property string dir: Displays.dir
     readonly property int count: demo ? Math.max(2, Displays.count + 1) : Displays.count
-    readonly property color tint: Theme.lavender
+    tint: Theme.lavender
     property string msg: ""
 
     function set(m, d) {

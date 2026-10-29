@@ -1,5 +1,5 @@
 // The keyboard-focus outline for the panels' controls (IconBtn, Toggle,
-// Slider, Segmented, cards): an accent ring just outside the parent, shown
+// Slider, Segmented, cards): a ring in the panel's tint just outside the parent, shown
 // while it has keyboard focus — real focus, or BarState.kbItem (keys the bar
 // forwards while the pointer is over a popup; see PanelPopup.navKey).
 //
@@ -14,7 +14,7 @@ Rectangle {
     radius: (target && target.radius !== undefined ? target.radius : 8) + 3
     color: "transparent"
     border.width: 2
-    border.color: Theme.accent
+    border.color: Theme.tintOf(target)
     opacity: on ? 1 : 0
     visible: opacity > 0
     z: 1000

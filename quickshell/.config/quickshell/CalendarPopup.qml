@@ -117,7 +117,7 @@ PanelPopup {
                 width: 64
                 height: 64
                 radius: 18
-                color: Theme.accent
+                color: pop.tint
                 Column {
                     anchors.centerIn: parent
                     spacing: -4
@@ -161,7 +161,7 @@ PanelPopup {
                     text: pop.overdueAll.length ? "\u{f0026}  " + pop.overdueAll.length + " overdue"
                                                   + (pop.weekCount ? "  ·  " + pop.weekCount + " due this week" : "")
                         : pop.weekCount ? "\u{f00f0}  " + pop.weekCount + " due this week" : "\u{f0132}  nothing due this week"
-                    color: pop.overdueAll.length ? Theme.red : Theme.accent
+                    color: pop.overdueAll.length ? Theme.red : pop.tint
                     font.family: Theme.font
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
@@ -255,7 +255,7 @@ PanelPopup {
                             width: monthCol.width / 7
                             horizontalAlignment: Text.AlignHCenter
                             text: modelData
-                            color: index >= 5 ? Theme.overlay1 : Theme.accent
+                            color: index >= 5 ? Theme.overlay1 : pop.tint
                             font.family: Theme.font
                             font.pixelSize: 11
                             font.weight: Font.Bold
@@ -303,13 +303,13 @@ PanelPopup {
                                 width: 34
                                 height: 34
                                 radius: 11
-                                color: cell.isToday ? Theme.accent
+                                color: cell.isToday ? pop.tint
                                      : dayMa.containsMouse || cell.isPicked && grid.kb ? Theme.alpha(Theme.surface1, 0.8)
                                      : cell.due.length && cell.inMonth ? Theme.alpha(pop.dotColor(cell.due[0]), 0.1) : "transparent"
                                 // picked = accent ring; the keyboard cursor (grid
                                 // focused) = a thicker one, crust on today's fill
                                 border.width: cell.isPicked && (!cell.isToday || grid.kb) ? (grid.kb ? 3 : 2) : 0
-                                border.color: cell.isToday ? Theme.crust : Theme.accent
+                                border.color: cell.isToday ? Theme.crust : pop.tint
                                 Behavior on color { ColorAnimation { duration: Theme.fast } }
                             }
                             Text {

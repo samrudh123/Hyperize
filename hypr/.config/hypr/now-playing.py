@@ -210,7 +210,7 @@ def describe(inst):
     }.get(name, ("other", I_DEFAULT, name, False))
 
 
-def kdec_focus(inst):
+def _kdec_focus(inst):
     """Make `inst` (a phone player) KDE Connect's CURRENT player, so its
     MPRIS Position is its own.
 
@@ -277,6 +277,13 @@ def kdec_focus(inst):
 # Checking every render was 3 busctl calls a second.
 _focus = {"inst": None, "at": 0.0, "ok": False, "gen": 0, "watched": False}
 FOCUS_RECHECK = 30.0
+_focus_lock = threading.Lock()
+
+
+def kdec_focus(inst):
+    """_kdec_focus, one caller at a time (render + the stdin seek worker)."""
+    with _focus_lock:
+        return _kdec_focus(inst)
 
 
 def kdec_watch():
@@ -566,11 +573,39 @@ def spotify_may_move():
     return run("playerctl", "-p", "spotify", "status") == "Playing"
 
 
-def read_commands():
+_seek = {"want": None}
+_seek_cv = threading.Condition()
+
+
+def seek_worker(q):
+    """The bar's seeks ("seekto <player> <us>" on stdin), one at a time,
+    latest wins: a wheel spin that outruns KDE Connect skips the targets it
+    has already passed instead of queueing them. Replaces a media-seek.sh +
+    Python start-up per notch; kdec_focus is usually a no-op here (the shown
+    player is already selected), so a seek costs one playerctl."""
+    while True:
+        with _seek_cv:
+            while _seek["want"] is None:
+                _seek_cv.wait()
+            player, us = _seek["want"]
+            _seek["want"] = None
+        kdec_focus(player)
+        run("playerctl", "-p", player, "position", f"{max(0, us) / 1e6:.3f}")
+        q.put("seek")                                   # redraw (paused: nothing else will)
+
+
+def read_commands(q):
+    threading.Thread(target=seek_worker, args=(q,), daemon=True).start()
     for line in sys.stdin:
-        what, _, player = line.strip().partition(" ")
-        if what in ("shuffle", "repeat") and player:
-            media_modes.change_bg(what, player)
+        what, _, rest = line.strip().partition(" ")
+        if what in ("shuffle", "repeat") and rest:
+            media_modes.change_bg(what, rest)
+        elif what == "seekto":
+            player, _, us = rest.partition(" ")
+            if player and us.lstrip("-").isdigit():
+                with _seek_cv:
+                    _seek["want"] = (player, int(us))
+                    _seek_cv.notify()
 
 
 def main(cffi=False, scope=None):
@@ -590,7 +625,8 @@ def main(cffi=False, scope=None):
         # The bar's ⇄ ⟲ clicks ("shuffle <player>" / "repeat <player>"):
         # handled here, on media_modes' warm Web API connection — a fresh
         # media_modes.py process paid Python start-up + a new TLS handshake.
-        threading.Thread(target=read_commands, daemon=True).start()
+        # And its seeks ("seekto <player> <us>", see seek_worker).
+        threading.Thread(target=read_commands, args=(q,), daemon=True).start()
     for cmd, token in ((["playerctl", "-a", "-F", "metadata", "--format",
                          # shuffle / loop: wake on the ⇄ ⟲ buttons too
                          "{{playerInstance}} {{status}} {{title}} {{artist}} {{shuffle}} {{loop}}"],

@@ -22,7 +22,7 @@ Rectangle {
     radius: 9
     color: Theme.alpha(Theme.surface0, 0.8)
     border.width: 1
-    border.color: input.activeFocus ? Theme.alpha(Theme.accent, 0.8) : Theme.alpha(Theme.surface1, 0.8)
+    border.color: input.activeFocus ? Theme.alpha(Theme.tintOf(parent), 0.8) : Theme.alpha(Theme.surface1, 0.8)
     Behavior on border.color { ColorAnimation { duration: Theme.fast } }
 
     MouseArea {
@@ -35,7 +35,7 @@ Rectangle {
         id: input
         anchors { left: parent.left; right: parent.right; leftMargin: 11; rightMargin: 11; verticalCenter: parent.verticalCenter }
         color: Theme.text
-        selectionColor: Theme.alpha(Theme.accent, 0.4)
+        selectionColor: Theme.alpha(Theme.tintOf(parent), 0.4)
         selectByMouse: true
         activeFocusOnTab: f.visible
         clip: true

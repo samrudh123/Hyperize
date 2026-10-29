@@ -81,7 +81,7 @@ SettingsPage {
         icon: "\u{f04c5}"
         SettingsRow {
             icon: page.profile === "performance" ? "\u{f14de}" : page.profile === "power-saver" ? "\u{f032a}" : "\u{f05d1}"
-            iconColor: page.profile === "performance" ? Theme.peach : page.profile === "power-saver" ? Theme.green : Theme.accent
+            iconColor: page.profile === "performance" ? Theme.peach : page.profile === "power-saver" ? Theme.green : Theme.blue
             title: "Power mode"
             subtitle: page.profile === "performance" ? "Performance — fastest, hungriest"
                     : page.profile === "power-saver" ? "Power saver — quieter and longer battery"
@@ -92,7 +92,7 @@ SettingsPage {
                 height: 32
                 options: ["Saver", "Balanced", "Performance"]
                 currentIndex: Math.max(0, page.profiles.indexOf(page.profile))
-                accent: currentIndex === 2 ? Theme.peach : currentIndex === 0 ? Theme.green : Theme.accent
+                accent: currentIndex === 2 ? Theme.peach : currentIndex === 0 ? Theme.green : Theme.blue
                 onSelected: i => {
                     page.profile = page.profiles[i];
                     setProf.command = ["busctl", "--system", "set-property", "org.freedesktop.UPower.PowerProfiles",

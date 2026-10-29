@@ -56,7 +56,7 @@ PanelPopup {
         return t ? s.reduce((a, i) => a + i.done, 0) / t : 0;
     }
     readonly property bool anyActive: running.some(i => i.state === "active")
-    readonly property color tint: anyActive ? Theme.sapphire : Theme.subtext0
+    tint: anyActive ? Theme.sapphire : Theme.subtext0
 
     function human(n) {
         const u = ["B", "KB", "MB", "GB", "TB"];

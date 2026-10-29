@@ -3,7 +3,7 @@ import QtQuick
 
 Row {
     id: dots
-    property color color: Theme.accent
+    property color color: Theme.tintOf(parent)
     property real size: 4
     spacing: 3
     Repeater {

@@ -34,6 +34,10 @@ PopupWindow {
     property real pillX: 0
     // 0→1 shortly after opening, for the content's entrance
     property real intro: 0
+    // the panel's highlight colour — the pill's (Theme.pillTint); the shared
+    // controls inside (Segmented, Slider, Toggle, IconBtn, FocusRing) pick it
+    // up via Theme.tintOf. Popups with their own colour logic set it.
+    property color tint: Theme.pillTint(pill)
     // the screen edge the panel may not cross (bar height + gap)
     default property alias content: body.data
     readonly property alias card: card
@@ -230,6 +234,7 @@ PopupWindow {
 
     Rectangle {
         id: card
+        readonly property color panelTint: pop.tint     // Theme.tintOf finds it
         width: parent.width
         height: parent.height
         radius: 18

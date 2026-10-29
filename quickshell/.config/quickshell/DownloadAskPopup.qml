@@ -32,7 +32,7 @@ PanelPopup {
     property bool answered: false
     readonly property bool jd: st.backend === "jd"
     readonly property string browser: req.browser || "the browser"
-    readonly property color tint: jd ? Theme.peach : Theme.sapphire
+    tint: jd ? Theme.peach : Theme.sapphire
 
     // ── request / reply ─────────────────────────────────────────────────────
     // (Processes, not FileViews: a FileView whose path changes kept serving

@@ -34,7 +34,7 @@ PanelPopup {
     pad: 16
     navName: "vesktop"
 
-    readonly property color tint: Theme.lavender
+    tint: Theme.lavender
     function stage(k) { return Math.max(0, Math.min(1, (pop.intro - k * 0.12) / (1 - k * 0.12))); }
 
     // ── the window ──────────────────────────────────────────────────────────

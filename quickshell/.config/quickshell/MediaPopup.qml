@@ -48,6 +48,7 @@ PanelPopup {
              : c.includes("zen") ? Theme.mauve : c.includes("youtube") ? Theme.youtube
              : c.includes("ytmusic") ? Theme.pink : Theme.accent;
     }
+    tint: col                                 // the panel's controls + focus ring
     readonly property string title: mp && mp.trackTitle ? mp.trackTitle
                                    : np ? np.text.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim() : ""
     readonly property string artist: mp ? (mp.trackArtist || "") : ""
@@ -65,12 +66,7 @@ PanelPopup {
 
     function seekTo(us) {
         if (!np || !np.seekable) return;
-        const target = Math.max(0, Math.min(np.lenUs, Math.round(us)));
-        Theme.exec("/usr/bin/python3 " + Theme.hypr + "/now-playing.py seekto " + np.player + " " + target);
-        np.posUs = target;
-        np.posAt = Date.now();
-        np.now = np.posAt;
-        np.holdUntil = np.posAt + 2000;
+        np.seekTo(us);                            // NowPlaying: instant playhead + stdin
     }
 
     // np's playhead only ticks while its pill is visible; keep it moving here

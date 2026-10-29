@@ -24,7 +24,7 @@ PanelPopup {
     readonly property var w: pill
     readonly property bool valid: !!w && w.addr !== ""
     readonly property var ipc: valid ? w.ipc : ({})
-    readonly property color tint: !valid ? Theme.overlay1 : w.fs > 0 ? Theme.peach : w.pinned ? Theme.yellow
+    tint: !valid ? Theme.overlay1 : w.fs > 0 ? Theme.peach : w.pinned ? Theme.yellow
                                 : w.floating ? Theme.accent : Theme.overlay1
     property bool closeArmed: false
     Timer { id: disarm; interval: 3000; onTriggered: pop.closeArmed = false }

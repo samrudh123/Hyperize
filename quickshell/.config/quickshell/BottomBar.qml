@@ -362,7 +362,6 @@ PanelWindow {
                 textFilter: t => idle ? "\u{f01da}" : t.replace(/\s*[▰▱]+/, "")
                 defaultFg: idle ? Theme.overlay1 : Theme.sapphire
                 colors: ({ paused: Theme.subtext0 })
-                defaultBg: Theme.alpha(Theme.surface0, 0.7)
                 // hover fills the pill in its text colour with dark text
                 hoverFg: Theme.crust
                 hoverBg: fg
@@ -423,7 +422,6 @@ PanelWindow {
                 interval: 0
                 pokable: true
                 colors: ({ pending: Theme.peach, "due-soon": Theme.yellow, overdue: Theme.red, clear: Theme.green, empty: Theme.overlay0, error: Theme.red })
-                defaultBg: Theme.alpha(Theme.surface0, 0.7)
                 // hover fills the pill in its text colour with dark text
                 hoverFg: Theme.crust
                 hoverBg: fg
@@ -487,8 +485,8 @@ PanelWindow {
                 command: [Theme.hypr + "/power-profile.sh", "watch"]
                 interval: 0
                 defaultFg: Theme.green
-                colors: ({ balanced: Theme.accent, performance: Theme.peach })
-                // saver / balanced / performance: green / accent / orange
+                colors: ({ balanced: Theme.blue, performance: Theme.peach })
+                // saver / balanced / performance: green / blue / orange
                 // text; hover fills the pill in that colour with dark text
                 hoverFg: Theme.crust
                 hoverBg: fg
@@ -510,7 +508,6 @@ PanelWindow {
                 maxChars: 48
                 defaultFg: Theme.accent
                 colors: ({ paused: Theme.overlay0 })
-                defaultBg: Theme.alpha(Theme.surface0, 0.7)
                 hoverFg: Theme.crust
                 hoverBg: Theme.accent
                 padLeft: 10

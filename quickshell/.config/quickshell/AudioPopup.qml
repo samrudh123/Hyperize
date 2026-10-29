@@ -30,7 +30,7 @@ PanelPopup {
     readonly property real vol: ok ? dev.audio.volume : 0
     readonly property bool muted: ok && dev.audio.muted
     // the pill's colour: sound pink; mic flamingo (red while an app records)
-    readonly property color tint: !inputs ? Theme.pink
+    tint: !inputs ? Theme.pink
                                 : pill && pill.live && !muted ? Theme.red : Theme.flamingo
 
     function setVol(v) {

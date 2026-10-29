@@ -90,11 +90,11 @@ PanelPopup {
                     width: 42
                     height: 42
                     radius: 13
-                    color: Theme.alpha(Theme.accent, 0.18)
+                    color: Theme.alpha(pop.tint, 0.18)
                     Text {
                         anchors.centerIn: parent
                         text: "\u{f0a38}"
-                        color: Theme.accent
+                        color: pop.tint
                         font.family: Theme.font
                         font.pixelSize: 21
                     }
@@ -149,13 +149,13 @@ PanelPopup {
             opacity: pop.stage(1)
             color: Theme.alpha(Theme.surface0, 0.8)
             border.width: 1
-            border.color: search.activeFocus ? Theme.alpha(Theme.accent, 0.7) : Theme.alpha(Theme.surface1, 0.8)
+            border.color: search.activeFocus ? Theme.alpha(pop.tint, 0.7) : Theme.alpha(Theme.surface1, 0.8)
             Text {
                 id: lens
                 x: 11
                 anchors.verticalCenter: parent.verticalCenter
                 text: "\u{f0349}"
-                color: search.activeFocus ? Theme.accent : Theme.overlay1
+                color: search.activeFocus ? pop.tint : Theme.overlay1
                 font.family: Theme.font
                 font.pixelSize: 15
             }
@@ -165,7 +165,7 @@ PanelPopup {
                 cursorVisible: activeFocus || (focus && BarState.typing === search)
                 anchors { left: lens.right; leftMargin: 9; right: count.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
                 color: Theme.text
-                selectionColor: Theme.alpha(Theme.accent, 0.4)
+                selectionColor: Theme.alpha(pop.tint, 0.4)
                 font.family: Theme.font
                 font.pixelSize: 13
                 clip: true
@@ -233,10 +233,10 @@ PanelPopup {
                     width: ListView.view.width
                     height: isImage ? 86 : Math.max(46, txt.implicitHeight + 22)
                     radius: 12
-                    color: current ? Theme.alpha(Theme.accent, 0.14)
+                    color: current ? Theme.alpha(pop.tint, 0.14)
                          : mouse.containsMouse ? Theme.alpha(Theme.surface1, 0.5) : Theme.alpha(Theme.surface0, 0.55)
                     border.width: 1
-                    border.color: current ? Theme.alpha(Theme.accent, 0.6) : Theme.alpha(Theme.surface1, 0.35)
+                    border.color: current ? Theme.alpha(pop.tint, 0.6) : Theme.alpha(Theme.surface1, 0.35)
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
 
                     Rectangle {
@@ -247,11 +247,11 @@ PanelPopup {
                         width: 26
                         height: 26
                         radius: 8
-                        color: Theme.alpha(row.current ? Theme.accent : Theme.overlay0, 0.16)
+                        color: Theme.alpha(row.current ? pop.tint : Theme.overlay0, 0.16)
                         Text {
                             anchors.centerIn: parent
                             text: /^https?:\/\//.test(row.modelData.text.trim()) ? "\u{f0337}" : "\u{f09aa}"
-                            color: row.current ? Theme.accent : Theme.overlay1
+                            color: row.current ? pop.tint : Theme.overlay1
                             font.family: Theme.font
                             font.pixelSize: 13
                         }

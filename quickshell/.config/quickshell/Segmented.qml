@@ -9,7 +9,7 @@ Rectangle {
 
     property var options: []
     property int currentIndex: 0
-    property color accent: Theme.accent
+    property color accent: Theme.tintOf(parent)       // the popup's tint
     property real fontSize: 12
 
     signal selected(int index)

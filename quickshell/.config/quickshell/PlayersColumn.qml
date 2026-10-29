@@ -82,12 +82,7 @@ Rectangle {
     }
     function seekTo(us) {
         if (!heroIsNp || !np.seekable) return;
-        const target = Math.max(0, Math.min(np.lenUs, Math.round(us)));
-        Theme.exec("/usr/bin/python3 " + Theme.hypr + "/now-playing.py seekto " + np.player + " " + target);
-        np.posUs = target;
-        np.posAt = Date.now();
-        np.now = np.posAt;
-        np.holdUntil = np.posAt + 2000;
+        np.seekTo(us);                            // NowPlaying: instant playhead + stdin
     }
 
     // ── look: a card washed in the hero's colour from the top ───────────────

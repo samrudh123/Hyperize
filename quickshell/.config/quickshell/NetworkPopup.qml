@@ -42,9 +42,8 @@ PanelPopup {
     readonly property var tabIds: mode === "bluetooth" ? ["bluetooth"]
                                 : mode === "wifi" ? (wired ? ["wifi", "ethernet"] : ["wifi"])
                                 : wired ? ["wifi", "bluetooth", "ethernet"] : ["wifi", "bluetooth"]
-    // the Bluetooth popup wears its pill's colour (off / on / connected);
-    // the Wi-Fi one the accent, like its pill
-    readonly property color tint: mode === "bluetooth" && pill && pill.fg !== undefined ? pill.fg : Theme.accent
+    // tint (PanelPopup's default) = the pill's colour: Bluetooth on /
+    // connected, Wi-Fi accent (red offline); greys (BT off) -> accent
 
     // open on that tab, or close if it is already showing
     function openTab(name) {

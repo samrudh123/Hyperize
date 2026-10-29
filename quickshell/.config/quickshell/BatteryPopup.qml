@@ -27,7 +27,7 @@ PanelPopup {
     readonly property int st: present ? dev.state : UPowerDeviceState.Unknown
     readonly property bool charging: st === UPowerDeviceState.Charging
     readonly property bool plugged: st === UPowerDeviceState.FullyCharged || st === UPowerDeviceState.PendingCharge
-    readonly property color tint: charging ? Theme.green : pct <= 12 ? Theme.red : pct <= 25 ? Theme.peach : Theme.lavender
+    tint: charging ? Theme.green : pct <= 12 ? Theme.red : pct <= 25 ? Theme.peach : Theme.lavender
     function hm(sec) {
         if (!sec || sec <= 0) return "";
         const h = Math.floor(sec / 3600), m = Math.round(sec % 3600 / 60);
@@ -192,7 +192,7 @@ PanelPopup {
                 height: 32
                 options: ["\u{f032a}  Saver", "\u{f05d1}  Balanced", "\u{f14de}  Performance"]
                 currentIndex: Math.max(0, pop.profiles.indexOf(pop.profile))
-                accent: currentIndex === 2 ? Theme.peach : currentIndex === 0 ? Theme.green : Theme.accent
+                accent: currentIndex === 2 ? Theme.peach : currentIndex === 0 ? Theme.green : Theme.blue
                 onSelected: i => {
                     pop.profile = pop.profiles[i];
                     setProf.command = ["busctl", "--system", "set-property", "org.freedesktop.UPower.PowerProfiles",

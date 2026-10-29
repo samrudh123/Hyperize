@@ -10,6 +10,7 @@
 //
 //   pill            click: play/pause · right: the music panel (MediaPopup:
 //                   cover, controls, equalizer, lyrics) · scroll: ±5 s
+//                   (seekTo: instant playhead, throttled stdin seeks)
 //   bottom 11 px    the seek zone: line thickens, knob + time bubble;
 //                   click = jump, drag = seek on release (one request)
 //   ⏮ ⏭            media-skip.sh prev|next <player>
@@ -100,6 +101,33 @@ Row {
     }
     // the script gave up (no change came back): stop pulsing
     Timer { id: pendingTimeout; interval: 7000; onTriggered: np.pendingMode = "" }
+
+    // Absolute seek (click, drag, wheel, the panels): the playhead moves at
+    // once, the request goes as "seekto <player> <us>" on now-playing.py's
+    // stdin (no process per notch). A wheel spin is throttled: the first
+    // notch goes out now, the rest of the spin as one seek per 180 ms.
+    property real seekWant: -1
+    function seekTo(us) {
+        if (!seekable) return;
+        const target = Math.round(Math.max(0, Math.min(lenUs - 1e6, us)));
+        posUs = target;
+        posAt = Date.now();
+        now = posAt;
+        holdUntil = posAt + 2500;
+        seekWant = target;
+        if (!seekThrottle.running) flushSeek();
+    }
+    // ± sec from where the playhead is (or is about to be, mid-spin)
+    function seekBy(sec) {
+        seekTo(Math.min(lenUs, posUs + (playing ? (Date.now() - posAt) * 1000 : 0)) + sec * 1e6);
+    }
+    function flushSeek() {
+        if (seekWant < 0 || !player) return;
+        proc.write("seekto " + player + " " + seekWant + "\n");
+        seekWant = -1;
+        seekThrottle.restart();
+    }
+    Timer { id: seekThrottle; interval: 180; onTriggered: np.flushSeek() }
 
     visible: !hidden
     spacing: 0
@@ -299,12 +327,7 @@ Row {
                     }
                     if (pressInZone && np.seekable) {
                         const f = dragging ? dragFrac : frac(ev.x);
-                        const target = Math.round(f * np.lenUs);
-                        Theme.exec("/usr/bin/python3 " + Theme.hypr + "/now-playing.py seekto " + np.player + " " + target);
-                        np.posUs = target;
-                        np.posAt = Date.now();
-                        np.now = np.posAt;
-                        np.holdUntil = np.posAt + 2000;
+                        np.seekTo(f * np.lenUs);
                     } else if (np.player && containsMouse) {
                         PillClicks.dispatch("player", Qt.LeftButton, acts);
                     }
@@ -319,7 +342,11 @@ Row {
                     while (Math.abs(acc) >= 120) {
                         // Settings › Pills (default: seek ±5 s)
                         PillClicks.scroll("player", acc > 0 ? 1 : -1, {
-                            seek: d => Theme.exec(Theme.hypr + "/media-seek.sh " + (d > 0 ? "5+" : "5-") + " " + np.player)
+                            seek: d => {
+                                if (np.seekable) np.seekBy(d > 0 ? 5 : -5);
+                                // no length known: the script's relative seek
+                                else if (np.player) Theme.exec(Theme.hypr + "/media-seek.sh " + (d > 0 ? "5+" : "5-") + " " + np.player);
+                            }
                         });
                         acc -= acc > 0 ? 120 : -120;
                     }

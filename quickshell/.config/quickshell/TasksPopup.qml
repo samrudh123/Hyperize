@@ -203,11 +203,11 @@ PanelPopup {
                     width: 42
                     height: 42
                     radius: 13
-                    color: Theme.alpha(pop.overdue.length ? Theme.red : Theme.accent, 0.18)
+                    color: Theme.alpha(pop.overdue.length ? Theme.red : pop.tint, 0.18)
                     Text {
                         anchors.centerIn: parent
                         text: pop.open_.length ? "\u{f0131}" : "\u{f0132}"
-                        color: pop.overdue.length ? Theme.red : Theme.accent
+                        color: pop.overdue.length ? Theme.red : pop.tint
                         font.family: Theme.font
                         font.pixelSize: 21
                     }
@@ -527,7 +527,7 @@ PanelPopup {
                                     Text {
                                         topPadding: 6
                                         text: modelData[0].toUpperCase() + "  ·  " + modelData[1].length
-                                        color: Theme.accent
+                                        color: pop.tint
                                         font.family: Theme.font
                                         font.pixelSize: 10
                                         font.weight: Font.Bold
@@ -559,7 +559,7 @@ PanelPopup {
                             Text {
                                 topPadding: 6
                                 text: "LOG  ·  " + (pop.hist && pop.hist.log ? pop.hist.log.length : 0)
-                                color: Theme.accent
+                                color: pop.tint
                                 font.family: Theme.font
                                 font.pixelSize: 10
                                 font.weight: Font.Bold

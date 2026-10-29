@@ -28,7 +28,7 @@ PanelPopup {
     readonly property var peers: tsp ? tsp.peers : []
     readonly property var self: tsp ? tsp.self : ({})
     readonly property bool hasExit: running && !!tsp && tsp.exitOptions.length > 0
-    readonly property color tint: Theme.teal
+    tint: Theme.teal
     property int tab: 0                       // 0 machines, 1 exit node
     property string copied: ""                // an IP just copied (a moment's tick)
     Timer { id: uncopy; interval: 1600; onTriggered: pop.copied = "" }

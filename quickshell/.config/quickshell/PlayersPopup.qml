@@ -117,11 +117,11 @@ PanelPopup {
                     width: 40
                     height: 40
                     radius: 12
-                    color: Theme.alpha(Theme.accent, 0.18)
+                    color: Theme.alpha(pop.tint, 0.18)
                     Text {
                         anchors.centerIn: parent
                         text: "\u{f0cb8}"                 // md-playlist_music
-                        color: Theme.accent
+                        color: pop.tint
                         font.family: Theme.font
                         font.pixelSize: 20
                     }
@@ -139,7 +139,7 @@ PanelPopup {
                         text: pop.players.length === 0 ? "Nothing open anywhere"
                             : pop.playingCount === 0 ? "All paused"
                             : pop.playingCount + " playing"
-                        color: pop.playingCount ? Theme.accent : Theme.overlay1
+                        color: pop.playingCount ? pop.tint : Theme.overlay1
                         font.family: Theme.font
                         font.pixelSize: 11
                         font.weight: Font.DemiBold

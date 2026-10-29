@@ -75,7 +75,7 @@ Rectangle {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: Qt.formatDate(cal.shown, "MMMM")
-                color: Theme.accent
+                color: Theme.tintOf(parent)
                 font.family: Theme.font
                 font.pixelSize: 15
                 font.weight: Font.Bold
@@ -101,7 +101,7 @@ Rectangle {
                     width: 34
                     horizontalAlignment: Text.AlignHCenter
                     text: modelData
-                    color: index >= 5 ? Theme.overlay2 : Theme.accent
+                    color: index >= 5 ? Theme.overlay2 : Theme.tintOf(parent)
                     font.family: Theme.font
                     font.pixelSize: 12
                     font.weight: Font.Bold
@@ -175,7 +175,7 @@ Rectangle {
             Text {
                 topPadding: 4
                 text: "DEADLINES"
-                color: Theme.accent
+                color: Theme.tintOf(parent)
                 font.family: Theme.font
                 font.pixelSize: 11
                 font.weight: Font.Bold

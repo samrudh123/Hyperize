@@ -144,6 +144,26 @@ Singleton {
         return wheel.inverted || touchpad ? -wheel.angleDelta.y : wheel.angleDelta.y;
     }
 
+    // A popup's highlight colour = its pill's: the text colour, or the fill
+    // for a filled pill (clock, critical temp…). Greys (idle bell, players
+    // chevron) would make a "selected" look disabled — those get the accent.
+    // (Many pills sit on a translucent surface0 slab: `filled`, but grey.)
+    function pillTint(p) {
+        if (!p || p.fg === undefined) return accent;
+        const grey = c => [text, subtext1, subtext0, overlay2, overlay1, overlay0, surface2, surface1,
+                           surface0, base, mantle, crust].some(g => Qt.colorEqual(g, Qt.rgba(c.r, c.g, c.b, 1)));
+        if (p.filled && !grey(p.bg)) return Qt.rgba(p.bg.r, p.bg.g, p.bg.b, 1);
+        return grey(p.fg) ? accent : p.fg;
+    }
+    // The highlight colour for a control (Segmented, Slider, Toggle, IconBtn,
+    // FocusRing, fields): its PanelPopup's tint, the accent anywhere else.
+    // Pass `parent` from a binding; the walk re-runs if the item moves.
+    function tintOf(item) {
+        for (let x = item; x; x = x.parent)
+            if (x.panelTint !== undefined) return x.panelTint;
+        return accent;
+    }
+
     // Bar style: "classic" (edge-to-edge panels) or "islands" (floating
     // rounded groups) — theme/bar-style, toggled with `b` in the theme picker.
     readonly property string barStyle: (barStyleFile.text() || "classic").trim()

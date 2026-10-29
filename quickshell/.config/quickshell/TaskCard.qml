@@ -29,7 +29,7 @@ Rectangle {
     color: cardMa.containsMouse || editingMe ? Theme.alpha(Theme.surface1, 0.5) : Theme.alpha(Theme.surface0, 0.55)
     border.width: 1
     border.color: t.level === "overdue" && !t.done ? Theme.alpha(Theme.red, 0.45)
-                : editingMe ? Theme.alpha(Theme.accent, 0.6) : Theme.alpha(Theme.surface1, 0.4)
+                : editingMe ? Theme.alpha(Theme.tintOf(parent), 0.6) : Theme.alpha(Theme.surface1, 0.4)
     Behavior on color { ColorAnimation { duration: Theme.fast } }
     Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 

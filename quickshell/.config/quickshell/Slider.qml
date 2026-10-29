@@ -9,7 +9,7 @@ Item {
     id: sl
 
     property real value: 0
-    property color color: Theme.accent
+    property color color: Theme.tintOf(parent)        // the popup's tint
     property color trackColor: Theme.alpha(Theme.surface1, 0.9)
     property real step: 0.05
     property bool enabled: true

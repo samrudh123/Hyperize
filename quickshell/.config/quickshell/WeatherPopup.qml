@@ -24,7 +24,7 @@ PanelPopup {
 
     property var w: null
     readonly property bool ok: !!w && w.ok
-    readonly property color tint: !ok ? Theme.overlay1 : w.wet ? Theme.sapphire : w.day ? Theme.yellow : Theme.lavender
+    tint: !ok ? Theme.overlay1 : Theme.pillTint(pill)          // = the pill (accent)
 
     function load() { if (!jsonProc.running) jsonProc.running = true; }
     Process {

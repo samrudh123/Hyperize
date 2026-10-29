@@ -29,7 +29,7 @@ PanelPopup {
     readonly property var night: (nightFile.text() || "off 3500").trim().split(/\s+/)
     readonly property bool nightOn: night[0] === "on"
     readonly property int nightK: Number(night[1]) || 3500
-    readonly property color tint: nightOn ? Theme.peach : Theme.yellow
+    tint: nightOn ? Theme.peach : Theme.yellow
     // the Kelvin shown: the slider's while it moves / a change is on its way
     property int pendingK: -1
     Timer { id: kSettle; interval: 1200; onTriggered: pop.pendingK = -1 }

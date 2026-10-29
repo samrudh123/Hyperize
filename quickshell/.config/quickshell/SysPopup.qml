@@ -22,7 +22,7 @@ PanelPopup {
     panelWidth: kind === "temp" ? 440 : 470
     pad: 16
 
-    readonly property color tint: kind === "cpu" ? Theme.green : kind === "mem" ? Theme.teal : tempColor(pkgC)
+    tint: kind === "cpu" ? Theme.green : kind === "mem" ? Theme.teal : tempColor(pkgC)
     function tempColor(c) { return Stats.tempColor(c); }
     function loadColor(p) { return p >= 85 ? Theme.red : p >= 60 ? Theme.peach : p >= 30 ? Theme.yellow : Theme.green; }
     function size(kib) {

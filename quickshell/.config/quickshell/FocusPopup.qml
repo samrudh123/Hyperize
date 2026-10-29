@@ -24,7 +24,7 @@ PanelPopup {
     pad: 16
 
     readonly property bool idle: !fp || fp.idle
-    readonly property color tint: !fp || fp.idle ? Theme.accent : fp.tint
+    tint: !fp || fp.idle ? Theme.accent : fp.tint
     readonly property real frac: fp && fp.frac >= 0 ? fp.frac : 1
 
     // today's focus sessions, from today's log (tasks.py json)
