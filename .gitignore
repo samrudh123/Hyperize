@@ -40,3 +40,6 @@ video-fullscreen/.config/video-fullscreen/chromium/
 # mpris-position / media-title-sync: the .xpi is build.sh's output
 mpris-position/.local/share/firefox-mpris-position/*.xpi
 media-title-sync/.local/share/firefox-media-title-sync/*.xpi
+
+# set-accent.sh's per-theme template cache (tpl_for rebuilds it on demand)
+hypr/.config/hypr/theme/rendered/
