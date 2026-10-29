@@ -429,6 +429,22 @@ git_setup() {   # run inside the dotfiles repo; idempotent
     echo "accent filter on: commits keep theme '$ct', accent #$ca ($(grep -c 'filter=accent' "$attrs") files)"
 }
 
+# git only runs the clean filter when a file's SIZE still matches the index:
+# a pick that changes a length (gtk-theme-name …-blue- -> …-mauve-, a theme
+# id) is listed as modified unseen, though `git diff` is empty. Re-adding
+# such a file stages nothing — its cleaned content IS the index's — but
+# records the new size, so `git status` is clean again. app-accent.sh runs
+# this after every pick; a no-op unless --git-setup was run.
+git_refresh() {
+    local top; top=$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel 2>/dev/null) || return 0
+    cd "$top" && git config --get filter.accent.clean >/dev/null || return 0
+    # stat-dirty (ls-files -m) but content-equal (absent from diff), ours only
+    comm -23 <(git ls-files -m | sort) <(git diff --name-only | sort) \
+        | git check-attr --stdin filter | awk -F': ' '$3 == "accent" { print $1 }' \
+        | while IFS= read -r f; do git add -- "$f" 2>/dev/null; done
+    return 0
+}
+
 case "${1:-}" in
     --git-filter)
         git_filter "$2" "$3" "$4" "$5"
@@ -437,6 +453,10 @@ case "${1:-}" in
     --git-setup)
         git_setup
         exit
+        ;;
+    --git-refresh)
+        git_refresh
+        exit 0
         ;;
     --show)
         init >/dev/null

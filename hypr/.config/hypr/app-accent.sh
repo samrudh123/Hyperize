@@ -178,3 +178,7 @@ PYEOF
 "$HOME/.config/hypr/folder-accent.sh" "$hex" >/dev/null
 
 printf '%s %s\n' "$THEME_ID" "$hex" > "$STATE"
+
+# The gtk-theme-name sed above (and theme ids) change file lengths, which
+# git's accent filter can't hide by itself — see set-accent.sh --git-refresh.
+"$HOME/.config/hypr/set-accent.sh" --git-refresh
