@@ -27,6 +27,11 @@ Item {
     property int padLeft: 9
     property int padRight: 9
     property int marginH: 1
+    // centre the label's INK (not its advance box) between padLeft and
+    // padRight: lone icon glyphs often draw off-centre in their advance
+    property bool centerInk: false
+    // the pixel columns the ink touches when the text sits on a whole pixel
+    readonly property int inkPx: Math.ceil(ink.tightBoundingRect.right) - Math.floor(ink.tightBoundingRect.x)
     property string tip
     property int tipEdge: Edges.Bottom
     property bool shown: true
@@ -58,17 +63,27 @@ Item {
         id: body
         x: pill.marginH
         height: 32
-        width: Math.max(text.visible ? text.implicitWidth : 0, inner.childrenRect.width) + pill.padLeft + pill.padRight
+        width: Math.max(!text.visible ? 0 : pill.centerInk ? pill.inkPx : text.implicitWidth,
+                        inner.childrenRect.width) + pill.padLeft + pill.padRight
         radius: 8
         color: pill.interactive && (mouse.containsMouse || pill.navHot) ? pill.hoverBg : pill.bg
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Easing.OutQuint } }
         Behavior on width { NumberAnimation { duration: Theme.normal; easing.type: Easing.OutCubic } }
 
+        TextMetrics {
+            id: ink
+            font: text.font
+            text: pill.centerInk ? pill.label : ""
+        }
+
         Text {
             id: text
             visible: pill.label !== ""
-            x: pill.padLeft
-            anchors.verticalCenter: parent.verticalCenter
+            x: pill.centerInk ? pill.padLeft - Math.floor(ink.tightBoundingRect.x)
+                              : pill.padLeft
+            y: pill.centerInk ? Math.round((parent.height - ink.tightBoundingRect.height) / 2
+                                           - ink.tightBoundingRect.y - baselineOffset)
+                              : (parent.height - height) / 2
             text: Theme.iconGap(pill.label)       // font-proof icon spacing
             textFormat: Text.StyledText
             color: pill.interactive && (mouse.containsMouse || pill.navHot) ? pill.hoverFg : pill.fg

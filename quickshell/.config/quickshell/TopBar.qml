@@ -496,8 +496,9 @@ PanelWindow {
             fg: Theme.subtext0
             fillHover: true
             fontSize: 15
-            padLeft: 8
-            padRight: 11
+            centerInk: true
+            padLeft: 10
+            padRight: 10
             tip: "Settings" + PillClicks.hintLine("settings")
             pillId: "settings"                    // wheel: Settings › Pills
             onClicked: button => PillClicks.dispatch("settings", button, {
@@ -515,14 +516,12 @@ PanelWindow {
             id: powerPill
             label: "\u{f011}"
             fg: Theme.red
-            bg: Theme.alpha(Theme.surface0, 0.7)
-            hoverFg: Theme.crust
-            hoverBg: Theme.red
+            fillHover: true
             fontSize: 15
-            // U+F011's ink sits right of its advance box: 12/8 centres it
-            padLeft: 8
-            padRight: 12
-            marginH: 2
+            centerInk: true
+            // U+F011 antialiases one column past its hinted ink box
+            padLeft: 10
+            padRight: 11
             tip: powerPop.isOpen ? "" : "Lock · Suspend · Log out · Restart · Power off" + PillClicks.hintLine("power")
             // the power panel (PowerPopup.qml; was nwg-bar)
             pillId: "power"                    // wheel: Settings › Pills
