@@ -186,7 +186,7 @@ alias ip='ip --color=auto'
 alias grep='grep --color=auto'
 alias please='sudo $(fc -ln -1)'
 alias reload='exec zsh'
-alias ff='fastfetch'
+alias ff='fortunefetch'
 alias gs='git status -sb'
 alias gl="git log --oneline --graph --decorate --all -20"
 alias gd='git diff'
@@ -233,7 +233,48 @@ function extract() {
 }
 
 # ─── Greeting ──────────────────────────────────────────────────────────────
-command -v fastfetch >/dev/null && fastfetch
+# fastfetch with `fortune | cowsay` (accent, colour 1) under the small Ubuntu
+# logo: both go in as one logo, so the cow sits in the logo column. The logo
+# is ~/.config/fastfetch/ubuntu-small.txt ($1/$2 = fastfetch logo colours);
+# `$` in the fortune is doubled so fastfetch doesn't read it as a colour code.
+# The cow is nudged 4 columns left so the logo column stays 27 wide and the
+# info (63 wide, the cpu line) still fits a half-screen ghostty (91 cols).
+function fortunefetch() {
+  local logo=~/.config/fastfetch/ubuntu-small.txt cow
+  if [[ ! -r $logo || ! -x /usr/games/fortune || ! -x /usr/games/cowsay ]]; then
+    fastfetch; return
+  fi
+  cow=$(/usr/games/fortune -s | /usr/games/cowsay -W 20 | expand | sed "s/^        /    /")
+  cow=${cow//\$/\$\$}
+  _ff_logo="$(<$logo)"$'\n\n'"${(F)${(@)${(f)cow}/#/\$1}}"
+  _ff_draw
+}
+function _ff_draw() {
+  fastfetch --logo-type data --logo "$_ff_logo"
+  _ff_size=$COLUMNS:$LINES
+}
+
+# The greeting is laid out for the window size it was printed at, so a
+# terminal that opens in a narrow tile and is then widened would keep the
+# squeezed version. Until the first command runs, a resize redraws it (same
+# fortune) at the new size; after that, resizing leaves the screen alone.
+if command -v fastfetch >/dev/null; then
+  fortunefetch
+  if [[ -n $_ff_logo ]]; then
+    TRAPWINCH() {
+      [[ $COLUMNS:$LINES == $_ff_size ]] && return
+      zle && zle -I                     # take the prompt down; zle redraws it after
+      print -n '\e[H\e[2J\e[3J'           # screen + scrollback hold only the greeting
+      _ff_draw
+    }
+    function _ff_greeting_done() {
+      add-zsh-hook -d preexec _ff_greeting_done
+      unfunction TRAPWINCH _ff_greeting_done
+    }
+    autoload -Uz add-zsh-hook
+    add-zsh-hook preexec _ff_greeting_done
+  fi
+fi
 
 # ─── Syntax highlighting MUST be sourced last ──────────────────────────────
 [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] \
