@@ -4,6 +4,8 @@
 // Log out / Restart / Power off ask for a second click (3 s); Esc or a click
 // outside cancels. Tab / Shift+Tab (or ← →) walk the tiles, Enter / Space
 // press one. Same commands as nwg-bar (~/.config/nwg-bar/bar.json).
+// Below them: screen-off / sleep timeouts for battery and plugged in — the
+// same values as Settings › Power (Idle.qml → hypr/idle.sh).
 //
 //   `qs ipc call power toggle|open|close`  (SUPER+SHIFT+X)
 import QtQuick
@@ -210,6 +212,71 @@ PanelPopup {
                         onClicked: pop.act(tile.modelData)
                     }
                     FocusRing {}
+                }
+            }
+        }
+
+        // ── when idle: screen off / sleep, battery | plugged in ──────────────
+        Rectangle {
+            width: parent.width
+            height: 1
+            color: Theme.alpha(Theme.surface2, 0.45)
+            opacity: pop.stage(2)
+        }
+        Row {
+            id: idleRow
+            width: parent.width
+            spacing: 14
+            opacity: pop.stage(2.5)
+            Repeater {
+                model: [
+                    { src: "battery", name: "On battery", icon: "\u{f0079}", col: "green" },
+                    { src: "ac", name: "Plugged in", icon: "\u{f06a5}", col: "blue" }
+                ]
+                delegate: Column {
+                    id: idleCol
+                    required property var modelData
+                    readonly property color col: Theme[modelData.col]
+                    readonly property bool now: Idle.current === modelData.src
+                    width: (idleRow.width - idleRow.spacing) / 2
+                    spacing: 6
+                    Text {
+                        text: idleCol.modelData.icon + "  " + idleCol.modelData.name + (idleCol.now ? "  ·  now" : "")
+                        color: idleCol.now ? idleCol.col : Theme.subtext0
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                        font.weight: Font.Bold
+                    }
+                    Repeater {
+                        model: [
+                            { key: "screen", name: "Screen off" },
+                            { key: "sleep", name: "Sleep" }
+                        ]
+                        delegate: Column {
+                            id: idleSet
+                            required property var modelData
+                            readonly property bool isScreen: modelData.key === "screen"
+                            readonly property var opts: isScreen ? Idle.screenOpts : Idle.sleepOpts
+                            width: idleCol.width
+                            spacing: 3
+                            Text {
+                                text: idleSet.modelData.name
+                                color: Theme.overlay1
+                                font.family: Theme.font
+                                font.pixelSize: 10
+                                font.weight: Font.DemiBold
+                            }
+                            Segmented {
+                                width: parent.width
+                                height: 26
+                                fontSize: 10
+                                accent: idleCol.col
+                                options: idleSet.isScreen ? Idle.screenLabels : Idle.sleepLabels
+                                currentIndex: Idle.index(idleSet.opts, Idle.get(idleCol.modelData.src, idleSet.modelData.key))
+                                onSelected: i => Idle.set(idleCol.modelData.src, idleSet.modelData.key, idleSet.opts[i])
+                            }
+                        }
+                    }
                 }
             }
         }

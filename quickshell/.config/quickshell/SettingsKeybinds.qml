@@ -224,10 +224,15 @@ SettingsPage {
         command: ["/usr/bin/python3", Theme.hypr + "/settings-keybinds.py", "list"]
         stdout: StdioCollector {
             onStreamFinished: {
-                try { const d = JSON.parse(text); d.forEach(e => e._hy = true); page.hypr = d; } catch (e) {}
+                let d = null;
+                try { d = JSON.parse(text); d.forEach(e => e._hy = true); } catch (e) { return; }
+                const wait = page.settle - (Date.now() - page.bornAt);
+                if (wait > 0) { holdHypr.d = d; holdHypr.interval = wait; holdHypr.restart(); }
+                else page.hypr = d;
             }
         }
     }
+    Timer { id: holdHypr; property var d: null; onTriggered: { page.hypr = d; d = null; } }
     Process {
         id: nvimProc
         command: ["/usr/bin/python3", Theme.hypr + "/settings-nvim.py", "list"]
@@ -414,6 +419,30 @@ SettingsPage {
         if (!q) return mode === 0 ? matches(hypr, true, "", "") : matches(nvimSorted, false, "", "");
         const h = matches(hypr, true, q, "Hyprland · "), n = matches(nvimSorted, false, q, "Neovim · ");
         return mode === 0 ? h.concat(n) : n.concat(h);
+    }
+    // how many rows have their controls built (see the row Loader): a
+    // screenful at once, then a few more each frame
+    // (a rebuild while scrolled down — an edited bind, a search — starts
+    // from everything down to the bottom of the view, rows are >= 40 px)
+    // The first build waits for the panel's opening animation (the list
+    // arrives ~90 ms in — hyprProc holds it back until `settle`) and then
+    // cascades in, 3 rows a frame: building the list (~110 rows, ~7 ms a
+    // row with controls) mid-animation made it stutter.
+    property int revealed: 0
+    readonly property real bornAt: Date.now()
+    readonly property int settle: 420       // the panel fades in from ~110 ms, settles by ~380
+    onRowsChanged: {
+        if (revealed > 0) revealed = Math.max(14, Math.ceil((contentY + height) / 40) + 2);
+        revealTick.restart();
+    }
+    Timer {
+        id: revealTick
+        interval: 16
+        repeat: true
+        onTriggered: {
+            page.revealed += 3;
+            if (page.revealed >= page.rows.length) stop();
+        }
     }
     readonly property int changedCount: (mode === 0 ? hypr : nvim).filter(e => e.changed).length
 
@@ -732,6 +761,7 @@ SettingsPage {
             delegate: Item {
                 id: rowItem
                 required property var modelData
+                required property int index
                 readonly property bool isHeader: modelData.header !== undefined
                 // Hyprland row or Neovim row (both show up while searching)
                 readonly property bool hy: isHeader ? modelData.hy === true : modelData._hy === true
@@ -761,195 +791,204 @@ SettingsPage {
                     font.letterSpacing: 1
                 }
 
-                Rectangle {
-                    visible: !rowItem.isHeader
+                // A row's controls are built a few rows per frame (page.revealed),
+                // not all ~100 at once: that froze the panel ~330 ms right as it
+                // opened. Headings and the row heights are there at once.
+                Loader {
                     anchors.fill: parent
-                    anchors.topMargin: 2
-                    anchors.bottomMargin: 2
-                    radius: 12
-                    color: rowItem.capturing ? Theme.alpha(Theme.accent, 0.12)
-                         : rowMa.containsMouse ? Theme.alpha(Theme.surface0, 0.75) : Theme.alpha(Theme.surface0, 0.35)
-                    border.width: rowItem.capturing ? 1 : 0
-                    border.color: Theme.alpha(Theme.accent, 0.6)
-                    Behavior on color { ColorAnimation { duration: Theme.fast } }
-
-                    MouseArea {
-                        id: rowMa
+                    active: !rowItem.isHeader && rowItem.index < page.revealed
+                    sourceComponent: Component {
+                    Rectangle {
+                        // (the Loader is active only for a row)
                         anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: if (rowItem.canChange && !rowItem.capturing) page.startCapture(rowItem.e)
-                    }
+                        anchors.topMargin: 2
+                        anchors.bottomMargin: 2
+                        radius: 12
+                        color: rowItem.capturing ? Theme.alpha(Theme.accent, 0.12)
+                             : rowMa.containsMouse ? Theme.alpha(Theme.surface0, 0.75) : Theme.alpha(Theme.surface0, 0.35)
+                        border.width: rowItem.capturing ? 1 : 0
+                        border.color: Theme.alpha(Theme.accent, 0.6)
+                        Behavior on color { ColorAnimation { duration: Theme.fast } }
 
-                    // description + action
-                    Column {
-                        x: 14
-                        y: 9
-                        width: parent.width - 14 - rightSide.width - 20
-                        spacing: 2
-                        Row {
-                            spacing: 8
-                            width: parent.width
-                            Rectangle {
-                                visible: !rowItem.isHeader && rowItem.e.changed === true
-                                width: 7; height: 7; radius: 4
-                                color: Theme.peach
-                                anchors.verticalCenter: parent.verticalCenter
+                        MouseArea {
+                            id: rowMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: if (rowItem.canChange && !rowItem.capturing) page.startCapture(rowItem.e)
+                        }
+
+                        // description + action
+                        Column {
+                            x: 14
+                            y: 9
+                            width: parent.width - 14 - rightSide.width - 20
+                            spacing: 2
+                            Row {
+                                spacing: 8
+                                width: parent.width
+                                Rectangle {
+                                    visible: !rowItem.isHeader && rowItem.e.changed === true
+                                    width: 7; height: 7; radius: 4
+                                    color: Theme.peach
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    width: parent.width - 20
+                                    text: rowItem.isHeader ? "" : (rowItem.e.desc || rowItem.e.rhs || rowItem.e.lhs)
+                                    color: rowItem.isDeleted ? Theme.overlay1 : Theme.text
+                                    font.strikeout: rowItem.isDeleted
+                                    elide: Text.ElideRight
+                                    font.family: Theme.font
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                }
                             }
                             Text {
-                                width: parent.width - 20
-                                text: rowItem.isHeader ? "" : (rowItem.e.desc || rowItem.e.rhs || rowItem.e.lhs)
-                                color: rowItem.isDeleted ? Theme.overlay1 : Theme.text
-                                font.strikeout: rowItem.isDeleted
+                                width: parent.width
+                                text: rowItem.isHeader ? ""
+                                    : rowItem.isDeleted ? "deleted  ·  Restore brings it back"
+                                    : rowItem.hy ? rowItem.e.dispatcher + (rowItem.e.argExpanded ? "  " + rowItem.e.argExpanded : "")
+                                    : (page.modeNames[rowItem.e.mode] || rowItem.e.mode) + " mode"
+                                      + (rowItem.e.rhs && rowItem.e.rhs !== "<Lua function>" ? "  ·  " + rowItem.e.rhs : "")
+                                      + (rowItem.e.changed && rowItem.e.orig !== rowItem.e.lhs ? "  ·  was " + rowItem.e.orig : "")
+                                color: Theme.overlay1
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: 13
-                                font.weight: Font.DemiBold
+                                font.pixelSize: 11
+                            }
+                            // capture hint / conflict
+                            Text {
+                                visible: rowItem.capturing
+                                topPadding: 6
+                                width: parent.width
+                                text: rowItem.hy
+                                    ? (page.pendKey ? "Enter to save  ·  Esc to cancel  ·  press another combo to change it"
+                                                    : "Press the new key combination…  (Esc cancels)")
+                                    : (page.tokens.length ? "Enter to save  ·  Backspace removes a key  ·  Esc cancels"
+                                                          : "Type the new keys (Space first = <leader>)…  Esc cancels")
+                                color: Theme.accent
+                                font.family: Theme.font
+                                font.pixelSize: 11
+                                SequentialAnimation on opacity {
+                                    running: rowItem.capturing && !page.pendKey && !page.tokens.length
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 0.4; duration: 600 }
+                                    NumberAnimation { to: 1; duration: 600 }
+                                }
+                            }
+                            Text {
+                                visible: rowItem.capturing && page.conflict.length > 0
+                                width: parent.width
+                                text: "\u{f0026}  Already used by: " + page.conflict.join(", ") + " — Enter again to bind anyway (both will fire)"
+                                color: Theme.peach
+                                wrapMode: Text.Wrap
+                                font.family: Theme.font
+                                font.pixelSize: 11
                             }
                         }
-                        Text {
-                            width: parent.width
-                            text: rowItem.isHeader ? ""
-                                : rowItem.isDeleted ? "deleted  ·  Restore brings it back"
-                                : rowItem.hy ? rowItem.e.dispatcher + (rowItem.e.argExpanded ? "  " + rowItem.e.argExpanded : "")
-                                : (page.modeNames[rowItem.e.mode] || rowItem.e.mode) + " mode"
-                                  + (rowItem.e.rhs && rowItem.e.rhs !== "<Lua function>" ? "  ·  " + rowItem.e.rhs : "")
-                                  + (rowItem.e.changed && rowItem.e.orig !== rowItem.e.lhs ? "  ·  was " + rowItem.e.orig : "")
-                            color: Theme.overlay1
-                            elide: Text.ElideRight
-                            font.family: Theme.font
-                            font.pixelSize: 11
-                        }
-                        // capture hint / conflict
-                        Text {
-                            visible: rowItem.capturing
-                            topPadding: 6
-                            width: parent.width
-                            text: rowItem.hy
-                                ? (page.pendKey ? "Enter to save  ·  Esc to cancel  ·  press another combo to change it"
-                                                : "Press the new key combination…  (Esc cancels)")
-                                : (page.tokens.length ? "Enter to save  ·  Backspace removes a key  ·  Esc cancels"
-                                                      : "Type the new keys (Space first = <leader>)…  Esc cancels")
-                            color: Theme.accent
-                            font.family: Theme.font
-                            font.pixelSize: 11
-                            SequentialAnimation on opacity {
-                                running: rowItem.capturing && !page.pendKey && !page.tokens.length
-                                loops: Animation.Infinite
-                                NumberAnimation { to: 0.4; duration: 600 }
-                                NumberAnimation { to: 1; duration: 600 }
+
+                        // combo chips + buttons
+                        Row {
+                            id: rightSide
+                            opacity: rowItem.isDeleted ? 0.85 : 1
+                            anchors.right: parent.right
+                            anchors.rightMargin: 12
+                            y: 13
+                            spacing: 6
+
+                            Repeater {
+                                model: {
+                                    if (rowItem.isHeader) return [];
+                                    if (rowItem.capturing) {
+                                        if (rowItem.hy) {
+                                            const m = page.pendKey ? page.pendMods : page.held;
+                                            return (m ? m.split(" ") : []).concat(page.pendKey ? [page.pendKey] : ["…"]);
+                                        }
+                                        return page.tokens.length ? page.tokens : ["…"];
+                                    }
+                                    if (rowItem.hy) return (rowItem.e.curMods ? rowItem.e.curMods.split(" ") : []).concat([rowItem.e.curKey]);
+                                    return [rowItem.e.lhs];
+                                }
+                                delegate: SettingsChip {
+                                    required property var modelData
+                                    text: modelData === " " ? "Space" : modelData
+                                    fg: rowItem.capturing ? Theme.crust : rowItem.isDeleted ? Theme.overlay0 : Theme.text
+                                    bg: rowItem.capturing ? Theme.accent : Theme.alpha(Theme.surface1, rowItem.isDeleted ? 0.35 : 0.8)
+                                }
                             }
-                        }
-                        Text {
-                            visible: rowItem.capturing && page.conflict.length > 0
-                            width: parent.width
-                            text: "\u{f0026}  Already used by: " + page.conflict.join(", ") + " — Enter again to bind anyway (both will fire)"
-                            color: Theme.peach
-                            wrapMode: Text.Wrap
-                            font.family: Theme.font
-                            font.pixelSize: 11
+
+                            Item { width: 4; height: 1 }
+
+                            IconBtn {
+                                visible: !rowItem.isHeader && !rowItem.capturing && rowItem.e.changed === true
+                                size: 26
+                                iconSize: 13
+                                icon: "\u{f0450}"
+                                fg: Theme.peach
+                                text: rowItem.isDeleted ? "Restore" : ""
+                                tip: rowItem.isDeleted ? "Bring it back" : rowItem.hy ? "Back to hyprland.conf's: " + (rowItem.e.mods ? rowItem.e.mods + " + " : "") + rowItem.e.key
+                                                       + (rowItem.e.edited ? "  ·  " + rowItem.e.origDesc : "")
+                                     : "Back to " + rowItem.e.orig + (rowItem.e.edited ? " and its own action" : "")
+                                onClicked: page.resetEntry(rowItem.e)
+                            }
+                            IconBtn {
+                                visible: rowItem.canChange && !rowItem.capturing
+                                size: 26
+                                iconSize: 13
+                                icon: "\u{f097b}"
+                                tip: "Change the keys"
+                                onClicked: page.startCapture(rowItem.e)
+                            }
+                            IconBtn {
+                                visible: rowItem.canEdit && !rowItem.capturing
+                                size: 26
+                                iconSize: 13
+                                icon: "\u{f03eb}"
+                                tip: "Edit the name and what it runs"
+                                onClicked: page.openForm(rowItem.e)
+                            }
+                            IconBtn {
+                                readonly property bool armed: rowItem.canEdit && page.delArmed === (rowItem.hy ? rowItem.e.id : rowItem.e.mode + "|" + rowItem.e.lhs)
+                                visible: rowItem.canEdit && !rowItem.capturing
+                                size: 26
+                                iconSize: 13
+                                icon: "\u{f0a7a}"
+                                text: armed ? "Delete?" : ""
+                                fg: Theme.red
+                                active: armed
+                                activeFg: Theme.red
+                                tip: armed ? "Click again to delete"
+                                   : rowItem.isCustom ? "Delete" : "Delete (Reset on the row brings it back)"
+                                onClicked: page.removeCustom(rowItem.e)
+                            }
+                            IconBtn {
+                                visible: rowItem.capturing
+                                size: 26
+                                iconSize: 13
+                                icon: "\u{f012c}"
+                                active: true
+                                enabled: rowItem.hy ? page.pendKey !== "" : page.tokens.length > 0
+                                tip: "Save"
+                                onClicked: page.confirm(page.conflict.length > 0)
+                            }
+                            IconBtn {
+                                visible: rowItem.capturing
+                                size: 26
+                                iconSize: 13
+                                icon: "\u{f0156}"
+                                tip: "Cancel"
+                                onClicked: page.cancelCapture()
+                            }
+                            Text {
+                                visible: !rowItem.isHeader && !rowItem.canChange && !rowItem.isDeleted
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "mouse"
+                                color: Theme.overlay0
+                                font.family: Theme.font
+                                font.pixelSize: 10
+                            }
                         }
                     }
-
-                    // combo chips + buttons
-                    Row {
-                        id: rightSide
-                        opacity: rowItem.isDeleted ? 0.85 : 1
-                        anchors.right: parent.right
-                        anchors.rightMargin: 12
-                        y: 13
-                        spacing: 6
-
-                        Repeater {
-                            model: {
-                                if (rowItem.isHeader) return [];
-                                if (rowItem.capturing) {
-                                    if (rowItem.hy) {
-                                        const m = page.pendKey ? page.pendMods : page.held;
-                                        return (m ? m.split(" ") : []).concat(page.pendKey ? [page.pendKey] : ["…"]);
-                                    }
-                                    return page.tokens.length ? page.tokens : ["…"];
-                                }
-                                if (rowItem.hy) return (rowItem.e.curMods ? rowItem.e.curMods.split(" ") : []).concat([rowItem.e.curKey]);
-                                return [rowItem.e.lhs];
-                            }
-                            delegate: SettingsChip {
-                                required property var modelData
-                                text: modelData === " " ? "Space" : modelData
-                                fg: rowItem.capturing ? Theme.crust : rowItem.isDeleted ? Theme.overlay0 : Theme.text
-                                bg: rowItem.capturing ? Theme.accent : Theme.alpha(Theme.surface1, rowItem.isDeleted ? 0.35 : 0.8)
-                            }
-                        }
-
-                        Item { width: 4; height: 1 }
-
-                        IconBtn {
-                            visible: !rowItem.isHeader && !rowItem.capturing && rowItem.e.changed === true
-                            size: 26
-                            iconSize: 13
-                            icon: "\u{f0450}"
-                            fg: Theme.peach
-                            text: rowItem.isDeleted ? "Restore" : ""
-                            tip: rowItem.isDeleted ? "Bring it back" : rowItem.hy ? "Back to hyprland.conf's: " + (rowItem.e.mods ? rowItem.e.mods + " + " : "") + rowItem.e.key
-                                                   + (rowItem.e.edited ? "  ·  " + rowItem.e.origDesc : "")
-                                 : "Back to " + rowItem.e.orig + (rowItem.e.edited ? " and its own action" : "")
-                            onClicked: page.resetEntry(rowItem.e)
-                        }
-                        IconBtn {
-                            visible: rowItem.canChange && !rowItem.capturing
-                            size: 26
-                            iconSize: 13
-                            icon: "\u{f097b}"
-                            tip: "Change the keys"
-                            onClicked: page.startCapture(rowItem.e)
-                        }
-                        IconBtn {
-                            visible: rowItem.canEdit && !rowItem.capturing
-                            size: 26
-                            iconSize: 13
-                            icon: "\u{f03eb}"
-                            tip: "Edit the name and what it runs"
-                            onClicked: page.openForm(rowItem.e)
-                        }
-                        IconBtn {
-                            readonly property bool armed: rowItem.canEdit && page.delArmed === (rowItem.hy ? rowItem.e.id : rowItem.e.mode + "|" + rowItem.e.lhs)
-                            visible: rowItem.canEdit && !rowItem.capturing
-                            size: 26
-                            iconSize: 13
-                            icon: "\u{f0a7a}"
-                            text: armed ? "Delete?" : ""
-                            fg: Theme.red
-                            active: armed
-                            activeFg: Theme.red
-                            tip: armed ? "Click again to delete"
-                               : rowItem.isCustom ? "Delete" : "Delete (Reset on the row brings it back)"
-                            onClicked: page.removeCustom(rowItem.e)
-                        }
-                        IconBtn {
-                            visible: rowItem.capturing
-                            size: 26
-                            iconSize: 13
-                            icon: "\u{f012c}"
-                            active: true
-                            enabled: rowItem.hy ? page.pendKey !== "" : page.tokens.length > 0
-                            tip: "Save"
-                            onClicked: page.confirm(page.conflict.length > 0)
-                        }
-                        IconBtn {
-                            visible: rowItem.capturing
-                            size: 26
-                            iconSize: 13
-                            icon: "\u{f0156}"
-                            tip: "Cancel"
-                            onClicked: page.cancelCapture()
-                        }
-                        Text {
-                            visible: !rowItem.isHeader && !rowItem.canChange && !rowItem.isDeleted
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "mouse"
-                            color: Theme.overlay0
-                            font.family: Theme.font
-                            font.pixelSize: 10
-                        }
                     }
                 }
             }

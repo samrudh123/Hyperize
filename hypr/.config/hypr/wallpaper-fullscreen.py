@@ -18,6 +18,12 @@ IPC socket (set-wallpaper.sh starts mpvpaper with input-ipc-server=MPV_SOCK).
 mpvpaper records an outside pause as a *user* pause and never overrides it,
 and the bottom-bar pause button uses SIGSTOP, so the three do not fight.
 
+Low battery (battery-saver.py keeps the flag file ~/.local/state/battery-saver/low while on
+battery at <= 20 %): the wallpaper is also paused while the active workspace
+has any tiled window — it only shows through the gaps and the 92 %-opaque,
+blurred windows then, yet costs ~4.5 W to keep animating (measured
+2026-10-31). Empty workspaces and floating-only ones keep it playing.
+
 Still wallpapers (swaybg) have no socket; the send just fails quietly.
 """
 
@@ -44,6 +50,8 @@ RESYNC = 3.0
 DEBUG = os.environ.get("WALLPAPER_FS_DEBUG") == "1"
 RUN = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
 MPV_SOCK = f"{RUN}/mpvpaper.sock"
+LOW_FLAG = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"),
+                        "battery-saver", "low")      # written by battery-saver.py
 
 
 def log(*a):
@@ -94,6 +102,20 @@ def active_is_fullscreen():
     return alpha >= 0.999
 
 
+def active_is_covered():
+    """True while a tiled (non-floating) window sits on the active workspace."""
+    ws = json.loads(request("j/activeworkspace")).get("id")
+    return any(c.get("workspace", {}).get("id") == ws and not c.get("floating")
+               and c.get("mapped", True) and not c.get("hidden")
+               for c in json.loads(request("j/clients")))
+
+
+def should_pause():
+    if active_is_fullscreen():
+        return True
+    return os.path.exists(LOW_FLAG) and active_is_covered()
+
+
 def set_pause(paused):
     msg = json.dumps({"command": ["set_property", "pause", paused]}) + "\n"
     try:
@@ -107,12 +129,12 @@ def set_pause(paused):
 
 def sync(last):
     try:
-        fs = active_is_fullscreen()
+        fs = should_pause()
     except (OSError, ValueError) as e:
         log("query failed:", e)
         return last
     if fs != last:
-        log("fullscreen on active workspace:", fs)
+        log("pause wallpaper:", fs)
     set_pause(fs)
     return fs
 

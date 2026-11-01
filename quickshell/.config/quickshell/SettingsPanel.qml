@@ -11,6 +11,7 @@
 //       loaded only while shown (nothing runs while the panel is closed).
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 
@@ -19,6 +20,31 @@ Scope {
 
     property bool isOpen: false
     property bool shown: false              // stays true through the closing fade
+    // BarState keeps an open bar panel waiting (not closed) while this is up —
+    // `shown`, not isOpen: when the layer unmaps after the fade, Hyprland
+    // moves the keyboard again, so the panel takes it back only after that
+    onShownChanged: BarState.settingsShown = shown
+
+    // A bar panel opened while Settings is up (a pill clicked — the bars stay
+    // outside Settings' layer, ExclusionMode.Normal) sits in front of it:
+    // Settings lets go of the keyboard (OnDemand) so the panel has it and Esc
+    // closes the panel first; once it closes, Settings takes it back. A panel
+    // that was open BEFORE Settings opened waits behind it instead (BarState).
+    property var popupOver: null
+    onIsOpenChanged: popupOver = null
+    Connections {
+        target: BarState
+        function onActivePopupChanged() {
+            const p = BarState.activePopup;
+            root.popupOver = root.isOpen && p && p.isOpen ? p : null;
+        }
+    }
+    onPopupOverChanged: if (popupOver) retake.restart()
+    Timer {
+        id: retake
+        interval: 60                         // Settings' OnDemand has been committed
+        onTriggered: BarState.retake(root.popupOver)
+    }
     property string tab: "keybinds"
 
     readonly property var tabs: [
@@ -57,12 +83,21 @@ Scope {
         target: BarState
         function onPanelRequested(name, arg) {
             if (name === "settings") root.toggle(arg);
-            else root.close();               // another panel: get out of its way
+            // another panel opens in front of Settings (popupOver below)
         }
     }
     Connections {
         target: SettingsState
         function onCloseRequested() { root.close(); }
+    }
+
+    // SUPER+I (hyprland.conf: `global, quickshell:settings`): straight in,
+    // without starting a `qs ipc call` process first (~50 ms)
+    GlobalShortcut {
+        appid: "quickshell"
+        name: "settings"
+        description: "Open / close Settings"
+        onPressed: root.toggle("")
     }
 
     IpcHandler {
@@ -80,19 +115,38 @@ Scope {
         PanelWindow {
             id: win
 
+            // Opening animates here, from the very first frame: the window
+            // is created with root.isOpen already true, so the card's
+            // Behaviors had nothing to animate and only Hyprland's layer fade
+            // (now off for qs-settings) brought it in. `up` flips once the
+            // window's first frames are out, so the dim and the card ease in.
+            property bool up: false
+            readonly property bool showing: root.isOpen && up
+            readonly property real createdAt: Date.now()
+            // flip after the first frames are out: the card starts at a
+            // near-invisible opacity (not 0, which Qt skips drawing), so that
+            // costly first draw (~80 ms) happens before the fade, not in it
+            FrameAnimation {
+                running: !win.up && win.backingWindowVisible
+                property int n: 0
+                onTriggered: if (++n >= 2) win.up = true
+            }
+
             screen: Quickshell.screens.find(s => s.name === BarState.active) || Quickshell.screens[0]
             anchors { top: true; bottom: true; left: true; right: true }
-            exclusionMode: ExclusionMode.Ignore
+            // between the bars, not over them: their pills stay clickable
+            exclusionMode: ExclusionMode.Normal
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.namespace: "qs-settings"
-            WlrLayershell.keyboardFocus: root.isOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+            WlrLayershell.keyboardFocus: !root.isOpen ? WlrKeyboardFocus.None
+                                       : root.popupOver ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive
             color: "transparent"
 
             // dim + click outside closes
             Rectangle {
                 anchors.fill: parent
-                color: Qt.rgba(0, 0, 0, root.isOpen ? 0.38 : 0)
-                Behavior on color { ColorAnimation { duration: 200 } }
+                color: Qt.rgba(0, 0, 0, win.showing ? 0.38 : 0)
+                Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
                 MouseArea {
                     anchors.fill: parent
                     onClicked: root.close()
@@ -110,10 +164,10 @@ Scope {
                 border.color: Theme.alpha(Theme.surface1, 0.9)
                 clip: true
 
-                opacity: root.isOpen ? 1 : 0
-                scale: root.isOpen ? 1 : 0.95
-                Behavior on opacity { NumberAnimation { duration: root.isOpen ? 240 : 160; easing.type: Easing.OutCubic } }
-                Behavior on scale { NumberAnimation { duration: root.isOpen ? 420 : 160; easing.type: root.isOpen ? Easing.OutBack : Easing.InCubic; easing.overshoot: 0.8 } }
+                opacity: win.showing ? 1 : win.up ? 0 : 0.004
+                scale: win.showing ? 1 : 0.96
+                Behavior on opacity { NumberAnimation { duration: win.showing ? 170 : 150; easing.type: Easing.OutCubic } }
+                Behavior on scale { NumberAnimation { duration: win.showing ? 260 : 150; easing.type: win.showing ? Easing.OutBack : Easing.InCubic; easing.overshoot: 0.7 } }
 
                 // swallow clicks so they don't reach the dim layer
                 MouseArea { anchors.fill: parent }
@@ -392,7 +446,13 @@ Scope {
                         width: parent.width
                         height: parent.height
                         sourceComponent: pageArea.pages[root.tab] || null
-                        onLoaded: enter.restart()
+                        onLoaded: {
+                            // the page opening with the panel rides the card's
+                            // own fade; a later one (tab switch, a slow page)
+                            // slides in
+                            if (Date.now() - win.createdAt < 60) { enter.stop(); opacity = 1; y = 0; }
+                            else enter.restart();
+                        }
                     }
 
                     // the new page slides up and fades in

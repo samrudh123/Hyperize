@@ -1,6 +1,8 @@
 // Settings › Power: battery (UPower), power profile (power-profiles-daemon,
 // the same busctl calls as power-profile.sh), keep awake (BarState — the
-// bottom bar's coffee pill), and lock / suspend / log out / restart / off.
+// bottom bar's coffee pill), screen-off / sleep timeouts for battery and
+// plugged in (Idle.qml → hypr/idle.sh → hypridle), and lock / suspend /
+// log out / restart / off.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -112,6 +114,45 @@ SettingsPage {
                 anchors.verticalCenter: parent.verticalCenter
                 checked: BarState.keepAwake
                 onToggled: v => BarState.keepAwake = v
+            }
+        }
+    }
+
+    SettingsCard {
+        title: "Screen & sleep"
+        icon: "\u{f04b2}"
+        Repeater {
+            model: [
+                { src: "battery", key: "screen", name: "Screen off on battery" },
+                { src: "battery", key: "sleep", name: "Sleep on battery" },
+                { src: "ac", key: "screen", name: "Screen off when plugged in" },
+                { src: "ac", key: "sleep", name: "Sleep when plugged in" }
+            ]
+            delegate: SettingsRow {
+                id: idleRow
+                required property var modelData
+                required property int index
+                readonly property bool isScreen: modelData.key === "screen"
+                readonly property var opts: isScreen ? Idle.screenOpts : Idle.sleepOpts
+                readonly property int secs: Idle.get(modelData.src, modelData.key)
+                icon: isScreen ? "\u{f0379}" : "\u{f04b2}"
+                iconColor: modelData.src === "battery" ? Theme.green : Theme.blue
+                title: modelData.name
+                subtitle: (secs ? (isScreen ? "Dims shortly before, then locks and turns the screen off after "
+                                            : "Suspends after ") + Idle.label(secs) + " idle"
+                                : (isScreen ? "The screen stays on" : "Never suspends on its own"))
+                        + (Idle.current === modelData.src ? "  ·  in use now" : "")
+                keywords: "idle timeout screen off display sleep suspend dpms lock battery plugged ac charger"
+                last: index === 3
+                Segmented {
+                    width: idleRow.isScreen ? 400 : 350
+                    height: 32
+                    fontSize: 11
+                    options: idleRow.isScreen ? Idle.screenLabels : Idle.sleepLabels
+                    currentIndex: Idle.index(idleRow.opts, idleRow.secs)
+                    accent: idleRow.modelData.src === "battery" ? Theme.green : Theme.blue
+                    onSelected: i => Idle.set(idleRow.modelData.src, idleRow.modelData.key, idleRow.opts[i])
+                }
             }
         }
     }

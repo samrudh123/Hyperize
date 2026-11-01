@@ -100,9 +100,15 @@ Singleton {
         grabRelease.stop();
         grabPopup = p;
         grabHeld = true;
+        openedAt = Date.now();
+        openedPopup = p;
     }
+    // when the open panel was opened (and which): one opened over Settings
+    // is in front of it (see onCleared)
+    property real openedAt: 0
+    property var openedPopup: null
     function releaseGrab(p) {
-        if (grabPopup === p) grabRelease.restart();
+        if (grabPopup === p || regrabFor.p === p) grabRelease.restart();
     }
     Timer {
         id: grabRelease
@@ -116,13 +122,116 @@ Singleton {
     HyprlandFocusGrab {
         active: grabHeld
         windows: (grabPopup ? [grabPopup] : []).concat(bars)
-        // a click outside (or another grab): close the open panel
+        // a click outside (or another grab): close the open panel — unless
+        // it was a workspace switch (see below)
         onCleared: {
-            const p = grabPopup;
+            const p = grabPopup || regrabFor.p;      // (regrab: bars-only for a beat)
+            regrabFor.stop();
+            regrabFor.p = null;
             grabRelease.stop();
             grabHeld = false;
-            grabPopup = null;
+            if (!p || !p.isOpen) { grabPopup = null; return; }
+            if (Date.now() - wsSwitchAt < 400) { regrab(p); return; }
+            // a picker or Settings (SUPER+Tab, SUPER+W, SUPER+I) took the keyboard: wait for it
+            // — unless the panel was opened while Settings was already up (a
+            // pill clicked with Settings open): then it is in front. Right
+            // after it opened, the end is Settings' exclusive keyboard letting
+            // go late (SettingsPanel retakes the grab); later, a real click
+            // outside — close as usual.
+            const inFront = pickerShown && openedPopup === p && openedAt > overlayAt;
+            if (inFront && Date.now() - openedAt < 500) return;
+            if (pickerShown && !inFront) { pausedPopup = p; return; }
+            pendingClose = p;
+            closeWait.restart();
+        }
+    }
+
+    // Switching workspace (SUPER+1…, the special workspace, a swipe) focuses
+    // a window there, and Hyprland ends the grab for it — that used to close
+    // the open panel. A panel lives on the bar, which every workspace shows,
+    // so it stays open: the grab is taken again, and Esc closes the panel
+    // before any key reaches the windows of the new workspace. Which comes
+    // first, the grab's end or Hyprland's workspace event, isn't fixed, so a
+    // grab end waits closeWait for a switch before it closes the panel.
+    property real wsSwitchAt: 0
+    property var pendingClose: null
+    // Take the grab back for the open panel `p`. Hyprland moves the keyboard
+    // to a surface of the grab when it starts — any one, and it may pick the
+    // panel's own popup surface, where Esc goes nowhere (the keys work on
+    // the BAR, which forwards them; a fresh open() gets the bar because its
+    // popup surface isn't mapped yet when the grab starts). So start with the
+    // bars only, and add the panel once the keyboard is on a bar.
+    function regrab(p) {
+        pendingClose = null;
+        closeWait.stop();
+        grabPopup = null;
+        regrabFor.p = p;
+        Qt.callLater(() => {
+            if (!p.isOpen || activePopup !== p) return;
+            grabHeld = true;
+            regrabFor.restart();
+        });
+    }
+    // start the grab over for `p` (another surface — Settings — had the
+    // keyboard while it began)
+    function retake(p) {
+        if (!p || !p.isOpen || activePopup !== p) return;
+        pausedPopup = null;
+        grabHeld = false;
+        regrab(p);
+    }
+    Timer {
+        id: regrabFor
+        property var p: null
+        interval: 40
+        onTriggered: {
+            if (p && p.isOpen && grabHeld && !grabPopup) {
+                grabPopup = p;
+                p.card.forceActiveFocus();
+            }
+            p = null;
+        }
+    }
+    Timer {
+        id: closeWait
+        interval: 120
+        onTriggered: {
+            const p = pendingClose;
+            pendingClose = null;
+            if (grabPopup === p && !grabHeld) grabPopup = null;
             if (p && p.isOpen) p.close();
+        }
+    }
+    // the pickers' and Settings' exclusive keyboard ends the grab too (the
+    // workspace picker, SUPER+Tab; the wallpaper picker, SUPER+W; Settings,
+    // SUPER+I): the panel stays open behind them and gets the grab back once
+    // they close
+    property bool wsPickerShown: false      // WorkspacePicker.qml sets it
+    property bool wallPickerShown: false    // WallpaperPicker.qml sets it
+    property bool settingsShown: false      // SettingsPanel.qml sets it
+    readonly property bool pickerShown: wsPickerShown || wallPickerShown || settingsShown
+    property real overlayAt: 0               // when pickerShown last became true
+    property var pausedPopup: null
+    onPickerShownChanged: {
+        if (pickerShown) overlayAt = Date.now();
+        if (pickerShown || !pausedPopup) return;
+        const p = pausedPopup;
+        pausedPopup = null;
+        pickerDone.p = p;
+        if (p.isOpen) pickerDone.restart();
+    }
+    Timer {
+        id: pickerDone
+        property var p: null
+        interval: 60                         // the picker's layer lets go of the keyboard first
+        onTriggered: if (p && p.isOpen && activePopup === p) regrab(p)
+    }
+    Connections {
+        target: Hyprland
+        function onRawEvent(ev) {
+            if (ev.name !== "workspacev2" && ev.name !== "activespecialv2") return;
+            wsSwitchAt = Date.now();
+            if (pendingClose) regrab(pendingClose);
         }
     }
 

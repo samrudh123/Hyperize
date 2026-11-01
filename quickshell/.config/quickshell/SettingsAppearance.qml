@@ -189,7 +189,7 @@ SettingsPage {
             icon: "\u{f1853}"
             title: "Panels & popups"
             subtitle: Math.round(opac.dragging ? 35 + opac.dragValue * 65 : Theme.panelOpacity * 100) + "%  ·  this window and every bar popup "
-                    + "(sound, Wi-Fi, tasks, power, music…) — blurred behind"
+                    + "(sound, Wi-Fi, tasks, power, music…)" + (page.blurOn ? " — blurred behind" : "")
             keywords: "transparency opacity translucent glass blur see-through alpha"
             Row {
                 anchors.verticalCenter: parent.verticalCenter
@@ -221,6 +221,19 @@ SettingsPage {
             }
         }
         SettingsRow {
+            icon: "\u{f00b5}"
+            title: "Blur"
+            subtitle: (page.blurOn ? "Frosted glass behind windows, bars, popups and the dock"
+                                   : "Off — see-through surfaces show what's behind them sharply")
+                    + "  ·  also SUPER+ALT+B  ·  always off while unplugged at 20 % or less"
+            keywords: "blur frosted glass transparency battery"
+            Toggle {
+                anchors.verticalCenter: parent.verticalCenter
+                checked: page.blurOn
+                onToggled: v => Theme.exec(Theme.hypr + "/blur.sh set " + (v ? "on" : "off"))
+            }
+        }
+        SettingsRow {
             icon: "\u{f05b2}"
             title: "Windows"
             subtitle: "SUPER+SHIFT+Scroll over a window changes its transparency; its OSD can make that the app's default"
@@ -228,6 +241,17 @@ SettingsPage {
             last: true
         }
     }
+
+    // blur on/off: hypr/blur.sh writes blur.conf (sourced by hyprland.conf);
+    // low battery turns blur off without touching it (battery-saver.py)
+    FileView {
+        id: blurFile
+        path: Theme.hypr + "/blur.conf"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+    }
+    readonly property bool blurOn: !/^decoration:blur:enabled\s*=\s*(false|0)/m.test(blurFile.text() || "")
 
     // ── wallpaper ────────────────────────────────────────────────────────────
     FileView {

@@ -32,6 +32,8 @@ PanelWindow {
     id: picker
 
     property bool shown: false
+    // BarState keeps an open bar panel waiting (not closed) while this has the keyboard
+    onShownChanged: BarState.wsPickerShown = shown
     property var items: []            // the cards on screen (after search)
     property var all: []              // every stop, frozen at open
     property int curId: 1

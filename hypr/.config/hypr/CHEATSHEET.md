@@ -132,6 +132,7 @@ so it does nothing to them:
 | `SUPER + SHIFT + scroll` | Transparency of the window under the mouse (70–100%) |
 | ⤷ the OSD (top right) | shows the app's default as a mark on the bar; **Make NN% default** saves it for that app — new windows open at it, and its open windows still at the old default follow. Hover keeps the OSD up |
 | `SUPER + SHIFT + middle-click` | Reset that window to its app's default (92%, Ghostty 100%, yazi 96% — list in `~/.config/hypr/opacity-defaults.conf`) |
+| `SUPER + ALT + B` | Blur on/off — windows, bars, popups, dock (same as Settings › Appearance › Transparency › Blur) |
 | 3-finger swipe | Change workspace |
 | `SUPER + S` | Toggle scratchpad (floating hidden workspace) |
 | `SUPER + ALT + S` | Send window to scratchpad |

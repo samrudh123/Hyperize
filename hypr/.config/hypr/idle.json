@@ -1,0 +1,10 @@
+{
+  "battery": {
+    "screen": 300,
+    "sleep": 1800
+  },
+  "ac": {
+    "screen": 600,
+    "sleep": 1800
+  }
+}

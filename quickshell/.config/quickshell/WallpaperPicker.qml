@@ -86,6 +86,8 @@ PanelWindow {
 
     // ── state ──
     property bool shown: false
+    // BarState keeps an open bar panel waiting (not closed) while this has the keyboard
+    onShownChanged: BarState.wallPickerShown = shown
     property string mode: "desktop"
     readonly property bool lock: mode === "lock"
     property var lists: ({})          // last index per mode: {items, current, raw}
