@@ -209,7 +209,11 @@ Singleton {
     property bool wsPickerShown: false      // WorkspacePicker.qml sets it
     property bool wallPickerShown: false    // WallpaperPicker.qml sets it
     property bool settingsShown: false      // SettingsPanel.qml sets it
-    readonly property bool pickerShown: wsPickerShown || wallPickerShown || settingsShown
+    // a screenshot's region pick / save window is up (see shotLayers below):
+    // same deal — the panel stays on screen (so it's in the shot) and gets
+    // the grab back after Esc
+    readonly property bool shotUi: shotLayers > 0 || shotWindows.length > 0
+    readonly property bool pickerShown: wsPickerShown || wallPickerShown || settingsShown || shotUi
     property real overlayAt: 0               // when pickerShown last became true
     property var pausedPopup: null
     onPickerShownChanged: {
@@ -226,9 +230,38 @@ Singleton {
         interval: 60                         // the picker's layer lets go of the keyboard first
         onTriggered: if (p && p.isOpen && activePopup === p) regrab(p)
     }
+    // Screenshots (SUPER+SHIFT+S → screenshot.sh, the recorder's region pick):
+    // slurp's overlay (layer namespace "selection") takes the keyboard, which
+    // ends the grab — that used to close the open panel (and a right-click
+    // menu, MenuPopup.qml) before the overlay even showed. While it, or the
+    // "Save screenshot?" window after it, is up, the panel is paused as
+    // behind a picker; Esc in slurp (or closing the save window) gives the
+    // grab back. Hyprland's layer/window events and the grab's end race, so
+    // a grab end waits closeWait first (as for a workspace switch).
+    property int shotLayers: 0
+    property var shotWindows: []              // addresses of screenshot-save windows
+    onShotUiChanged: if (shotUi && pendingClose) {
+        pausedPopup = pendingClose;
+        pendingClose = null;
+        closeWait.stop();
+    }
     Connections {
         target: Hyprland
         function onRawEvent(ev) {
+            if (ev.name === "openlayer" || ev.name === "closelayer") {
+                if (ev.data === "selection")
+                    shotLayers = Math.max(0, shotLayers + (ev.name === "openlayer" ? 1 : -1));
+                return;
+            }
+            if (ev.name === "openwindow") {
+                const f = ev.data.split(",");         // ADDRESS,WORKSPACE,CLASS,TITLE
+                if (f[2] === "screenshot-save") shotWindows = shotWindows.concat([f[0]]);
+                return;
+            }
+            if (ev.name === "closewindow") {
+                if (shotWindows.includes(ev.data)) shotWindows = shotWindows.filter(a => a !== ev.data);
+                return;
+            }
             if (ev.name !== "workspacev2" && ev.name !== "activespecialv2") return;
             wsSwitchAt = Date.now();
             if (pendingClose) regrab(pendingClose);

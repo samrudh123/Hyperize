@@ -163,7 +163,8 @@ PanelWindow {
         Pill {
             id: submap
             property string name: ""
-            shown: name !== ""
+            // shotpick = screenshot.sh's region pick: internal, and it would be in the shot
+            shown: name !== "" && name !== "shotpick"
             label: "\u{f030c} " + name
             fg: Theme.peach
             interactive: false

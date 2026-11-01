@@ -37,11 +37,33 @@ PopupWindow {
     implicitWidth: Math.max(minWidth, column.naturalWidth) + 2 * 5
     implicitHeight: column.implicitHeight + 2 * 5
 
-    // bars included: see PanelPopup.qml
+    // bars included: see PanelPopup.qml. A screenshot's overlay ending the
+    // grab doesn't close the menu: it waits (paused) and takes the grab back
+    // once the screenshot UI is gone (BarState.shotUi)
+    property bool paused: false
+    onIsOpenChanged: if (!isOpen) { paused = false; endWait.stop(); }
     HyprlandFocusGrab {
-        active: menu.isOpen
+        active: menu.isOpen && !menu.paused
         windows: [menu].concat(BarState.bars)
-        onCleared: menu.close()
+        onCleared: if (menu.isOpen && !menu.paused) endWait.restart()
+    }
+    Timer {
+        id: endWait                            // the shot's layer event may come second
+        interval: 120
+        onTriggered: if (BarState.shotUi) menu.paused = true; else menu.close()
+    }
+    Connections {
+        target: BarState
+        enabled: menu.isOpen
+        function onShotUiChanged() {
+            if (BarState.shotUi && endWait.running) { endWait.stop(); menu.paused = true; }
+            else if (!BarState.shotUi && menu.paused) resume.restart();
+        }
+    }
+    Timer {
+        id: resume                             // slurp's layer lets go of the keyboard first
+        interval: 60
+        onTriggered: if (menu.isOpen && !BarState.shotUi) menu.paused = false
     }
     Connections {
         target: BarState

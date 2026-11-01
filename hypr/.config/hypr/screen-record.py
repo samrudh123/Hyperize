@@ -107,7 +107,15 @@ def slurp(boxes=None):
     cmd = ["slurp", "-d", "-b", crust + "aa", "-c", accent + "ff", "-s", "00000000", "-w", "2"]
     if boxes is not None:
         cmd.append("-r")
-    r = subprocess.run(cmd, input=boxes, capture_output=True, text=True)
+    # Escape goes through Hyprland's `shotpick` submap (hyprland.conf, shared
+    # with screenshot.sh): Hyprland eats it and kills slurp. Left to slurp,
+    # it quits on the PRESS and the RELEASE lands on whatever gets the
+    # keyboard back — nwg-drawer (SUPER+D) would close along with the pick.
+    subprocess.run(["hyprctl", "dispatch", "submap", "shotpick"], capture_output=True)
+    try:
+        r = subprocess.run(cmd, input=boxes, capture_output=True, text=True)
+    finally:
+        subprocess.run(["hyprctl", "dispatch", "submap", "reset"], capture_output=True)
     return r.stdout.strip() if r.returncode == 0 else None
 
 

@@ -27,7 +27,19 @@ region)
     # Catppuccin Mocha selection box: mauve border on a dimmed ground.
     # slurp exits non-zero when cancelled with Escape — that is a normal
     # outcome, not an error, so leave without writing or notifying.
-    GEOM=$(slurp -d -b 1e1e2eaa -c @@ACCENT@@ff -s 00000000 -w 2) || exit 0
+    #
+    # Escape goes through the `shotpick` submap (hyprland.conf): Hyprland
+    # eats the key there and kills slurp. Left to slurp itself, slurp quits
+    # on the PRESS, the keyboard goes back to whatever had it, and that gets
+    # the RELEASE — nwg-drawer (SUPER+D) closes on an Escape release, so one
+    # Esc closed both. A press Hyprland ate never has its release sent.
+    hyprctl dispatch submap shotpick >/dev/null
+    trap 'hyprctl dispatch submap reset >/dev/null' EXIT
+    GEOM=$(slurp -d -b 1e1e2eaa -c @@ACCENT@@ff -s 00000000 -w 2)
+    OK=$?
+    hyprctl dispatch submap reset >/dev/null
+    trap - EXIT
+    [ "$OK" -eq 0 ] || exit 0
     [ -n "$GEOM" ] || exit 0
     grim -g "$GEOM" "$FILE" || { notify -u critical "Screenshot failed" "grim could not capture the region"; exit 1; }
     LABEL="Region captured"
