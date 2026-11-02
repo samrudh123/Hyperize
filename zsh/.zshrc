@@ -139,10 +139,57 @@ if command -v fzf >/dev/null; then
 --color=marker:#a6e3a1,fg+:#cdd6f4,prompt:53,hl+:#f38ba8 \
 --color=border:#585b70 --prompt='  ' --pointer='▶'"
   command -v fdfind >/dev/null && export FZF_DEFAULT_COMMAND='fdfind --hidden --strip-cwd-prefix --exclude .git'
-  export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
-  command -v batcat >/dev/null && export FZF_CTRL_T_OPTS="--preview 'batcat -n --color=always --line-range :300 {}'"
   export FZF_ALT_C_OPTS="--preview 'eza --tree --color=always --icons {} | head -200'"
 fi
+
+# ─── Ctrl+T: yazi, for picking files or for moving around ──────────────────
+# yazi opens full-screen at $PWD with all of its keys (→ into a folder, ← back
+# out, Shift+←/→ and Shift+wheel to scroll the preview sideways, Space to
+# select several, `z` for a recursive fuzzy find …). On the way out:
+#
+#   Enter   picks the hovered file or folder (or the selection): its path is
+#           pasted at the cursor — relative when under $PWD, else ~/… or
+#           absolute. Picking only PDFs with nothing typed yet opens them in
+#           zathura instead, like yazi's own Enter.
+#   q       quits; with nothing typed yet, the shell cd's to the folder you
+#           were in (this replaced the old `y` function). With a half-typed
+#           command on the line it stays put, so the command's relative paths
+#           keep meaning what they did.
+#   Q       quits and stays put, always.
+_yazi_pick() {
+  local pick cwdf f cwd
+  pick="$(mktemp -t yazi-pick.XXXXXX)" || return 1
+  cwdf="$(mktemp -t yazi-cwd.XXXXXX)" || { rm -f -- "$pick"; return 1; }
+  zle -I
+  # through yazi-live.sh: reopens in place on an accent change, and gets the
+  # Shift+wheel translation
+  ~/.config/yazi/yazi-live.sh --chooser-file="$pick" --cwd-file="$cwdf" </dev/tty >/dev/tty
+  local -a picked=("${(@f)$(<$pick)}") words
+  cwd="$(<$cwdf)"
+  rm -f -- "$pick" "$cwdf"
+  picked=(${picked:#})                       # drop empty lines
+  if (( ${#picked} )); then
+    local all_pdf=1
+    for f in $picked; do [[ ${f:l} == *.pdf ]] || all_pdf=0; done
+    if [[ -z $BUFFER ]] && (( all_pdf )); then
+      for f in $picked; do setsid -f zathura -- "$f" >/dev/null 2>&1; done
+    else
+      for f in $picked; do
+        if [[ $f == $PWD/* ]]; then words+=("${(q)${f#$PWD/}}")
+        elif [[ $f == $HOME/* ]]; then words+=("~/${(q)${f#$HOME/}}")
+        else words+=("${(q)f}"); fi
+      done
+      LBUFFER+="${(j: :)words} "
+    fi
+  elif [[ -z $BUFFER && -n $cwd && -d $cwd && $cwd != $PWD ]]; then
+    builtin cd -- "$cwd"
+    # the prompt is built in precmd, which a widget doesn't re-run
+    (( $+functions[prompt_starship_precmd] )) && prompt_starship_precmd
+  fi
+  zle reset-prompt
+}
+zle -N _yazi_pick
+bindkey -M emacs '^T' _yazi_pick
 
 # Claude Code in VS Code: the classic renderer ("tui": "default" in
 # ~/.claude/settings.json) prints the transcript into the terminal's own
@@ -203,17 +250,6 @@ function git() {
     ~/.config/hypr/set-accent.sh --git-refresh 2>/dev/null
   fi
   command git "$@"
-}
-
-# ─── yazi: cd to the directory you quit in (press q) ───────────────────────
-function y() {
-  local tmp="$(mktemp -t yazi-cwd.XXXXXX)" cwd
-  # through yazi-live.sh so it reopens in place on an accent / theme change
-  ~/.config/yazi/yazi-live.sh "$@" --cwd-file="$tmp"
-  if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
-    builtin cd -- "$cwd"
-  fi
-  rm -f -- "$tmp"
 }
 
 # mkdir + cd in one go

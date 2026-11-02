@@ -6,6 +6,10 @@ linemode       = "size"
 show_hidden    = true          # dotfiles visible by default; `.` still toggles
 show_symlink   = true
 scrolloff      = 5
+# "touch" = horizontal wheel (touchpad sideways swipe, tilt wheel, and
+# Shift+wheel via yazi-shiftwheel.py) — scrolls text previews sideways
+# (plugins/hscroll.yazi). The preset leaves it out.
+mouse_events   = [ "click", "scroll", "touch", "drag" ]
 
 [preview]
 max_width  = 1200
@@ -28,12 +32,17 @@ prepend_rules = [
   { url = "*.{md,markdown,mdx}", use = [ "markdown", "edit", "reveal" ] },
 ]
 
-# Preview pane renders markdown through glow (plugins/md.yazi), and PDFs the
-# way zathura shows them — theme colours + statusbar (plugins/zathura-pdf.yazi).
+# Preview pane renders markdown through glow (plugins/md.yazi), PDFs the
+# way zathura shows them — theme colours + statusbar (plugins/zathura-pdf.yazi),
+# and text with sideways scrolling (plugins/hscroll.yazi).
 [plugin]
 prepend_previewers = [
   { url = "*.{md,markdown,mdx}", run = "md" },
   { mime = "application/pdf", run = "zathura-pdf" },
+  # same files the preset's `code` previewer takes; hscroll IS `code` until
+  # you scroll sideways (Shift+Left/Right, Shift+wheel)
+  { mime = "text/*", run = "hscroll" },
+  { mime = "application/{mbox,javascript,wine-extension-ini}", run = "hscroll" },
 ]
 prepend_preloaders = [
   { mime = "application/pdf", run = "zathura-pdf" },

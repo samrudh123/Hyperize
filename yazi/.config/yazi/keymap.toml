@@ -25,6 +25,27 @@ on   = "<S-Up>"
 run  = "seek -1"
 desc = "Preview: previous page"
 
+# …and sideways, for lines cut off at the pane's right edge (plugins/hscroll.yazi;
+# text previews only). Shift+wheel and a touchpad's sideways swipe do the same.
+[[mgr.prepend_keymap]]
+on   = "<S-Right>"
+run  = "plugin hscroll -- 8"
+desc = "Preview: scroll right"
+
+[[mgr.prepend_keymap]]
+on   = "<S-Left>"
+run  = "plugin hscroll -- -8"
+desc = "Preview: scroll left"
+
+# "Open with" menu: every app that can open the file, not just yazi's opener
+# rules; `/` in it searches all apps in the SUPER+D app grid and remembers the
+# pick for that file type (plugins/openwith.yazi). `O` is still yazi's own
+# opener menu.
+[[mgr.prepend_keymap]]
+on   = "<S-Enter>"
+run  = "plugin openwith"
+desc = "Open with…"
+
 [[mgr.prepend_keymap]]
 on   = "<A-o>"
 run  = 'shell -- nautilus %s'

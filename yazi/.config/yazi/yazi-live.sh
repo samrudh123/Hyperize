@@ -2,7 +2,7 @@
 # yazi that follows accent / theme changes — yazi reads its theme once at
 # startup and has no reload, so it is reopened in place instead.
 #
-#   yazi-live.sh [yazi args…]     run yazi (SUPER+E, and `y` in zsh)
+#   yazi-live.sh [yazi args…]     run yazi (SUPER+E, and Ctrl+T in zsh)
 #   yazi-live.sh --relaunch-all   ask every yazi started this way to reopen
 #                                 (set-accent.sh reload_apps, on each change)
 #
@@ -20,6 +20,13 @@
 set -u
 YAZI="$HOME/.local/bin/yazi"
 YA="$HOME/.local/bin/ya"
+# Shift+wheel → horizontal wheel, which yazi can't tell apart otherwise
+# (sideways preview scrolling — see the script)
+HERE="$(dirname -- "$(readlink -f -- "$0")")"
+WHEEL="$HERE/yazi-shiftwheel.py"
+# yazi's `z` (recursive fuzzy find) runs plain fzf — give it the same
+# yazi-style preview (pictures, PDFs like zathura, folder listings …)
+export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --preview '$HERE/fzf-preview.py {}'"
 RUN="${XDG_RUNTIME_DIR:-/tmp}/yazi-live"
 mkdir -p "$RUN"
 
@@ -59,7 +66,7 @@ trap 'rm -f "$RUN/$id.pid" "$YAZI_LIVE_STATE"' EXIT
 
 while :; do
     rm -f "$YAZI_LIVE_STATE"
-    "$YAZI" --client-id "$id" "${flags[@]}" "${entries[@]}"
+    "$WHEEL" "$YAZI" --client-id "$id" "${flags[@]}" "${entries[@]}"
     [ -s "$YAZI_LIVE_STATE" ] || break        # a normal quit: done
     # line 1: active tab (1-based); then per tab "folder<TAB>hovered"
     mapfile -t saved < "$YAZI_LIVE_STATE"

@@ -16,6 +16,22 @@ function Preview:scroll(event, step)
 	ya.emit("seek", { step > 0 and 1 or -1 })
 end
 
+-- Horizontal wheel over the preview pane (touchpad sideways swipe, and
+-- Shift+wheel, which yazi-shiftwheel.py turns into horizontal wheel events):
+-- scroll text previews sideways, 4 columns per event (plugins/hscroll.yazi).
+-- A touchpad swipe can deliver a burst of several horizontal events at once,
+-- so like the vertical wheel above, at most one step per 20 ms.
+require("hscroll"):setup()
+local last_touch = 0
+function Preview:touch(event, step)
+	local now = ya.time()
+	if now - last_touch < 0.02 then
+		return
+	end
+	last_touch = now
+	ya.emit("plugin", { "hscroll", tostring(step > 0 and 4 or -4) })
+end
+
 -- A selection belongs to the folder it was made in: changing directory clears
 -- it. yazi's default keeps it across folders, so an item selected by accident
 -- (Space right after launch selects whatever is first in ~) silently rode
