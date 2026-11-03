@@ -61,6 +61,13 @@ PopupWindow {
     property var enterAction: null
     property string navName: ""               // e.g. "audio" (startNav picks it)
     property var initialFocus: null
+    // the Dropdown whose list is open in this panel (Dropdown sets it): Esc
+    // and the arrow / Enter keys go to it first
+    property var dropdown: null
+    function escapeKey() {
+        if (dropdown && dropdown.open) { dropdown.close(); return; }
+        close();
+    }
     Component.onCompleted: BarState.addPopup(pop)
     Component.onDestruction: BarState.removePopup(pop)
 
@@ -97,6 +104,7 @@ PopupWindow {
     }
     // a key: from the popup itself (card's Keys) or forwarded by a bar
     function navKey(key, mods) {
+        if (dropdown && dropdown.open && dropdown.ddKey(key, mods)) return true;
         const ctrl = (mods & Qt.ControlModifier) !== 0;
         if (ctrl && (key === Qt.Key_Left || key === Qt.Key_Right || key === Qt.Key_Up || key === Qt.Key_Down)) {
             BarState.navPopup(key === Qt.Key_Left ? "left" : key === Qt.Key_Right ? "right" : key === Qt.Key_Up ? "up" : "down");
@@ -150,6 +158,7 @@ PopupWindow {
     }
     function close() {
         if (!isOpen) return;
+        if (dropdown) dropdown.close();
         if (BarState.activePopup === pop) BarState.activePopup = null;
         if (BarState.kbItem && inside(BarState.kbItem)) BarState.kbItem = null;
         isOpen = false;
@@ -181,7 +190,7 @@ PopupWindow {
     Connections {
         target: BarState
         enabled: pop.isOpen
-        function onEscapePressed() { pop.close(); }
+        function onEscapePressed() { pop.escapeKey(); }
         function onTabPressed(dir) { pop.cycleTab(dir); }
     }
     // the panel's menu (a Segmented of pages, if it has one): Ctrl+Tab /
@@ -209,7 +218,7 @@ PopupWindow {
         enabled: pop.isOpen
         sequences: ["Escape"]
         context: Qt.WindowShortcut
-        onActivated: pop.close()
+        onActivated: pop.escapeKey()
     }
     Connections {
         target: BarState
@@ -235,6 +244,7 @@ PopupWindow {
     Rectangle {
         id: card
         readonly property color panelTint: pop.tint     // Theme.tintOf finds it
+        readonly property var panelPopup: pop           // Dropdown finds it
         width: parent.width
         height: parent.height
         radius: 18
@@ -250,7 +260,7 @@ PopupWindow {
         Behavior on scale { NumberAnimation { duration: pop.isOpen ? 380 : 140; easing.type: pop.isOpen ? Easing.OutBack : Easing.InCubic; easing.overshoot: 1.1 } }
 
         focus: true
-        Keys.onEscapePressed: pop.close()
+        Keys.onEscapePressed: pop.escapeKey()
         // keys the focused control didn't take (Tab, Ctrl+arrows, arrows on
         // a button…) — see navKey
         Keys.onPressed: ev => { if (pop.navKey(ev.key, ev.modifiers)) ev.accepted = true; }

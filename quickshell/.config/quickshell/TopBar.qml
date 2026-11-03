@@ -72,7 +72,7 @@ PanelWindow {
                 }
                 return;
             }
-            if (ev.key === Qt.Key_Escape) { p.close(); ev.accepted = true; }
+            if (ev.key === Qt.Key_Escape) { if (typeof p.escapeKey === "function") p.escapeKey(); else p.close(); ev.accepted = true; }
             else if (ev.key === Qt.Key_Backtab || (ev.key === Qt.Key_Tab && (ev.modifiers & Qt.ShiftModifier)))
                 ev.accepted = p.navKey(Qt.Key_Backtab, 0);
             else if (ev.key === Qt.Key_Tab) ev.accepted = p.navKey(Qt.Key_Tab, 0);

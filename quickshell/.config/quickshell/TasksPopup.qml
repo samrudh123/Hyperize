@@ -12,7 +12,8 @@
 //              priority — shared with the GTK panel); TaskCard each
 //     Done     today's ticked-off ones (untick, edit, delete)
 //     Log      today's log: add an update, edit / delete lines
-//     History  the day files (~/notes/daily): Done · Still open · Log
+//     History  the day files (~/notes/daily): a day dropdown (‹ ›, "2 ✓" =
+//              ticked off that day), then Done · Still open · Log
 //
 // Data: `tasks.py json` (re-read whenever ~/notes/tasks.md or today's day
 // file changes); changes: `tasks.py op …` (one JSON answer each; every one
@@ -465,20 +466,41 @@ PanelPopup {
                         }
                     }
 
-                    // ── History ──
-                    Flow {
+                    // ── History ── pick a day (newest first; "2 ✓" = ticked off that day)
+                    Row {
+                        id: dayRow
                         visible: pop.tab === 3 && pop.days.length > 0
                         width: parent.width
                         spacing: 6
-                        Repeater {
-                            model: pop.tab === 3 ? pop.days.slice(0, 14) : []
-                            delegate: IconBtn {
-                                required property var modelData
-                                size: 26
-                                text: modelData.label + (modelData.done ? "  ·  " + modelData.done + " ✓" : "")
-                                active: pop.histDay === modelData.day
-                                onClicked: pop.loadDay(modelData.day)
-                            }
+                        readonly property int at: pop.days.findIndex(d => d.day === pop.histDay)
+                        IconBtn {
+                            size: 32
+                            iconSize: 14
+                            icon: "\u{f0141}"
+                            tip: "Older day"
+                            tipEdge: Edges.Top
+                            enabled: dayRow.at < pop.days.length - 1
+                            onClicked: pop.loadDay(pop.days[dayRow.at + 1].day)
+                        }
+                        Dropdown {
+                            id: dayDd
+                            width: parent.width - 2 * (32 + parent.spacing)
+                            height: 32
+                            icon: "\u{f00ed}"
+                            placeholder: "Pick a day"
+                            maxRows: 8
+                            options: pop.days.map(d => ({ label: d.label, hint: d.done ? d.done + " ✓" : "", hintColor: Theme.green }))
+                            currentIndex: dayRow.at
+                            onSelected: i => pop.loadDay(pop.days[i].day)
+                        }
+                        IconBtn {
+                            size: 32
+                            iconSize: 14
+                            icon: "\u{f0142}"
+                            tip: "Newer day"
+                            tipEdge: Edges.Top
+                            enabled: dayRow.at > 0
+                            onClicked: pop.loadDay(pop.days[dayRow.at - 1].day)
                         }
                     }
                     Rectangle {

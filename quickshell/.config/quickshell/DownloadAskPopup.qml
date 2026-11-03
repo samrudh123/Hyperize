@@ -4,9 +4,10 @@
 //
 //   header   download glyph · "New download" · name · size · site
 //   preview  PDFs: "Preview in Zathura" (nothing saved)
-//   form     Save to (path field, Browse… = yazi, recent folders) · Filename
-//            (aria2 only — JD names files itself) · Speed · Chunks ·
-//            Parallel · aria2 | JDownloader
+//   form     Save to (path field, recent folders ▾, Browse… = yazi) ·
+//            Filename (aria2 only — JD names files itself) · Speed ▾ ·
+//            Chunks [− n +] · Parallel [− n +] (typed numbers checked
+//            against dl-popup's limits, red if outside) · aria2 | JDownloader
 //   footer   Download · Let Zen download it · Cancel
 //
 // dl-popup writes the request (JSON, 0600) to a file and calls
@@ -69,6 +70,10 @@ PanelPopup {
     }
     function answer(action) {
         if (!reqPath || answered) return;
+        if (action === "go" && badNums) {               // fix the red number first
+            (chunksSt.invalid ? chunksSt : parSt).input.forceActiveFocus();
+            return;
+        }
         answered = true;
         const s = Object.assign({}, st, { dir: dirField.text.trim() || st.dir, filename: nameField.text.trim() });
         writer.command = ["sh", "-c", 'umask 077; printf "%s\\n" "$2" > "$1.tmp" && mv "$1.tmp" "$1"', "sh",
@@ -80,14 +85,15 @@ PanelPopup {
     function setSt(k, v) { const s = Object.assign({}, st); s[k] = v; st = s; }
     onClosed2: if (reqPath && !answered) answer("cancel")
 
-    // a number list with the current value in it (it may be a typed one)
-    function withCurrent(list, cur) {
-        const l = (list || []).slice();
-        if (cur !== undefined && !l.includes(cur)) { l.push(cur); l.sort((a, b) => a - b); }
-        return l;
-    }
-    readonly property var chunkOpts: withCurrent(req.chunks, st.chunks)
-    readonly property var parOpts: withCurrent(req.parallel, st.parallel)
+    // the limits dl-popup applies (it clamps the reply to these too)
+    readonly property int chunksMax: jd ? 20 : 16
+    readonly property int parMax: 20
+    readonly property var numErrors: [
+        chunksSt.invalid ? "\u{f0028}  Chunks must be a whole number from 1 to " + chunksMax
+                           + (jd ? " (JDownloader's limit)" : " (aria2's limit)") : "",
+        parSt.invalid ? "\u{f0028}  Parallel must be a whole number from 1 to " + parMax : ""
+    ].filter(m => m)
+    readonly property bool badNums: numErrors.length > 0
     readonly property var speeds: req.speeds || []
 
     function stage(k) { return Math.max(0, Math.min(1, (pop.intro - k * 0.12) / (1 - k * 0.12))); }
@@ -222,10 +228,28 @@ PanelPopup {
                     FieldLabel { text: "\u{f024b}  Save to" }
                     SettingsField {
                         id: dirField
-                        width: parent.width - 74 - browseBtn.width - 2 * parent.spacing
+                        width: parent.width - 74 - (recentDd.visible ? recentDd.width + parent.spacing : 0)
+                               - browseBtn.width - 2 * parent.spacing
                         height: 32
                         placeholder: "folder"
                         onAccepted: pop.answer("go")
+                    }
+                    // recent folders (the default first)
+                    Dropdown {
+                        id: recentDd
+                        readonly property var dirs: pop.req.dirs || []
+                        visible: dirs.length > 0
+                        width: 46
+                        height: 32
+                        showValue: false
+                        icon: "\u{f02da}"
+                        tip: "Recent folders"
+                        elide: Text.ElideMiddle
+                        maxRows: 8
+                        listWidth: form.width - 80 + 12        // from the path field to the panel's edge
+                        options: dirs.map((d, i) => ({ label: d.label, icon: "\u{f024b}", hint: i === 0 ? "default" : "" }))
+                        currentIndex: dirs.findIndex(d => d.label === dirField.text.trim())
+                        onSelected: i => dirField.text = dirs[i].label
                     }
                     IconBtn {
                         id: browseBtn
@@ -235,59 +259,6 @@ PanelPopup {
                         tip: "Pick a folder in yazi  (q = this folder, Q = cancel)"
                         tipEdge: Edges.Top
                         onClicked: pop.answer("browse")
-                    }
-                }
-                // recent folders
-                Flow {
-                    id: recentFlow
-                    visible: recents.count > 0
-                    x: 80
-                    width: parent.width - 80
-                    spacing: 5
-                    Repeater {
-                        id: recents
-                        model: (pop.req.dirs || []).filter(d => d.label !== dirField.text.trim()).slice(0, 4)
-                        // a folder chip, elided in the middle when long
-                        delegate: Rectangle {
-                            id: chip
-                            required property var modelData
-                            width: Math.min(chipRow.implicitWidth + 18, recentFlow.width)
-                            height: 24
-                            radius: 8
-                            color: chipMa.containsMouse ? Theme.alpha(Theme.surface1, 0.9) : Theme.alpha(Theme.surface0, 0.75)
-                            Behavior on color { ColorAnimation { duration: Theme.fast } }
-                            activeFocusOnTab: visible
-                            function kbActivate() { dirField.text = modelData.label; }
-                            Row {
-                                id: chipRow
-                                x: 9
-                                anchors.verticalCenter: parent.verticalCenter
-                                spacing: 6
-                                Text {
-                                    id: chipIcon
-                                    text: "\u{f024b}"
-                                    color: Theme.overlay1
-                                    font.family: Theme.font
-                                    font.pixelSize: 11
-                                }
-                                Text {
-                                    width: Math.min(implicitWidth, recentFlow.width - 18 - chipIcon.width - 6)
-                                    elide: Text.ElideMiddle
-                                    text: chip.modelData.label
-                                    color: chipMa.containsMouse ? Theme.text : Theme.subtext0
-                                    font.family: Theme.font
-                                    font.pixelSize: 11
-                                }
-                            }
-                            MouseArea {
-                                id: chipMa
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: chip.kbActivate()
-                            }
-                            FocusRing {}
-                        }
                     }
                 }
 
@@ -309,42 +280,42 @@ PanelPopup {
                     width: parent.width
                     spacing: 6
                     FieldLabel { text: "\u{f04c5}  Speed" }
-                    Segmented {
+                    Dropdown {
                         width: parent.width - 74 - parent.spacing
                         height: 30
                         fontSize: 11
                         accent: pop.tint
-                        options: pop.speeds.map(s => s.bps ? s.label : "\u{f06e4}")
+                        options: pop.speeds.map(s => s.bps
+                            ? { label: s.label.replace(/^([\d.]+)\s*([KMG])$/i, (m, n, u) => n + " " + u.toUpperCase() + "B/s") }
+                            : { label: "Unlimited", icon: "\u{f06e4}" })
                         currentIndex: Math.max(0, pop.speeds.findIndex(s => s.bps === pop.st.speed))
                         onSelected: i => pop.setSt("speed", pop.speeds[i].bps)
                     }
                 }
                 Row {
+                    id: numRow
                     width: parent.width
                     spacing: 6
+                    readonly property real stW: (width - 2 * 74 - 3 * spacing) / 2
                     FieldLabel { text: "\u{f00fb}  Chunks" }
-                    Segmented {
-                        width: parent.width - 74 - parent.spacing
-                        height: 30
-                        fontSize: 11
-                        accent: pop.tint
-                        options: pop.chunkOpts.map(String)
-                        currentIndex: Math.max(0, pop.chunkOpts.indexOf(pop.st.chunks))
-                        onSelected: i => pop.setSt("chunks", pop.chunkOpts[i])
+                    Stepper {
+                        id: chunksSt
+                        width: numRow.stW
+                        value: pop.st.chunks || 1
+                        min: 1
+                        max: pop.chunksMax
+                        onEdited: v => pop.setSt("chunks", v)
+                        onAccepted: pop.answer("go")
                     }
-                }
-                Row {
-                    width: parent.width
-                    spacing: 6
                     FieldLabel { text: "\u{f0328}  Parallel" }
-                    Segmented {
-                        width: parent.width - 74 - parent.spacing
-                        height: 30
-                        fontSize: 11
-                        accent: pop.tint
-                        options: pop.parOpts.map(String)
-                        currentIndex: Math.max(0, pop.parOpts.indexOf(pop.st.parallel))
-                        onSelected: i => pop.setSt("parallel", pop.parOpts[i])
+                    Stepper {
+                        id: parSt
+                        width: numRow.stW
+                        value: pop.st.parallel || 1
+                        min: 1
+                        max: pop.parMax
+                        onEdited: v => pop.setSt("parallel", v)
+                        onAccepted: pop.answer("go")
                     }
                 }
                 Row {
@@ -364,9 +335,11 @@ PanelPopup {
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: pop.jd ? "JDownloader names the file itself; parallel applies to all of JD."
-                                 : "Chunks = connections per file (aria2 caps it at 16); parallel = downloads at once."
-                    color: Theme.overlay1
+                    text: pop.badNums ? pop.numErrors.join("\n")
+                        : pop.jd ? "JDownloader names the file itself; chunks 1–20 per file; parallel (1–20) applies to all of JD."
+                                 : "Chunks = connections per file (1–16, aria2's cap); parallel = downloads at once (1–20)."
+                    color: pop.badNums ? Theme.red : Theme.overlay1
+                    font.weight: pop.badNums ? Font.DemiBold : Font.Normal
                     font.family: Theme.font
                     font.pixelSize: 10
                 }
@@ -383,6 +356,9 @@ PanelPopup {
                 iconSize: 15
                 icon: "\u{f01da}"
                 text: "Download"
+                enabled: !pop.badNums
+                tip: pop.badNums ? "Fix the number in red first" : ""
+                tipEdge: Edges.Top
                 active: true
                 activeFg: pop.tint
                 onClicked: pop.answer("go")
