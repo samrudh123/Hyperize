@@ -21,18 +21,30 @@ export LANG=en_US.UTF-8
 # reload resets the terminal to the stock xterm palette, where 53/54 are dark
 # purples (VS Code's contrast boost then shows both as the same muted mauve).
 # The config is only re-read when its mtime changes, so this costs one stat.
-# Skipped over SSH: the palette belongs to the terminal you're sitting at, so
-# a riced remote shell must not repaint it with ITS accent — its prompt then
-# shows in the local accent (it draws with the same slots).
-if [[ -z $SSH_CONNECTION && -z $GHOSTTY_RESOURCES_DIR && -t 1 && -r ~/.config/ghostty/config ]]; then
+# Over SSH the palette belongs to the terminal you're sitting at, so a riced
+# remote shell must not repaint it with ITS accent — its prompt then shows in
+# the local accent (it draws with the same slots). The exception is a VS Code
+# Remote-SSH terminal: there is no local shell in it to send the slots, so it
+# was left on the stock purples. The client's set-accent.sh pushes its palette
+# lines to ~/.cache/client-accent here (on connect and on every accent change,
+# see push_remote), and this sends those instead of our own.
+_accent_src=
+if [[ -t 1 && -z $GHOSTTY_RESOURCES_DIR ]]; then
+  if [[ -z $SSH_CONNECTION ]]; then
+    [[ -r ~/.config/ghostty/config ]] && _accent_src=~/.config/ghostty/config
+  elif [[ $TERM_PROGRAM == vscode ]]; then
+    _accent_src=~/.cache/client-accent     # may not exist yet: read once it does
+  fi
+fi
+if [[ -n $_accent_src ]]; then
   zmodload -F zsh/stat b:zstat
   autoload -Uz add-zsh-hook
   _accent_osc() {
     local -a m; local slot
-    zstat -A m +mtime ~/.config/ghostty/config 2>/dev/null || return 0
+    zstat -A m +mtime $_accent_src 2>/dev/null || return 0
     if [[ $m[1] != $_accent_mtime ]]; then
       _accent_mtime=$m[1] _accent_seq=
-      for slot in ${(f)"$(grep -o '^palette = 5[3-7]=#[0-9a-fA-F]\{6\}' ~/.config/ghostty/config)"}; do
+      for slot in ${(f)"$(grep -o '^palette = 5[3-7]=#[0-9a-fA-F]\{6\}' $_accent_src)"}; do
         slot=${slot#palette = }                     # 53=#rrggbb
         _accent_seq+=$'\e]4;'"${slot%%=*};${slot#*=}"$'\e\\'
       done
@@ -41,8 +53,9 @@ if [[ -z $SSH_CONNECTION && -z $GHOSTTY_RESOURCES_DIR && -t 1 && -r ~/.config/gh
   }
   _accent_osc
   add-zsh-hook precmd _accent_osc
+  # (not a remote one: this machine's set-accent.sh would retint it with ours)
   _accent_ttys=${XDG_RUNTIME_DIR:-/tmp}/accent-ttys
-  if mkdir -p $_accent_ttys 2>/dev/null && print -r -- $TTY > $_accent_ttys/$$; then
+  if [[ -z $SSH_CONNECTION ]] && mkdir -p $_accent_ttys 2>/dev/null && print -r -- $TTY > $_accent_ttys/$$; then
     _accent_tty_unregister() { rm -f $_accent_ttys/$$ }
     add-zsh-hook zshexit _accent_tty_unregister
   fi

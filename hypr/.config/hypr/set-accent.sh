@@ -12,6 +12,8 @@
 #                              current accent + theme (a target that did not
 #                              exist before, e.g. zen-import-firefox's profile)
 #   set-accent.sh --show       print the current accent
+#   set-accent.sh --push-remote [host…]  hand the terminal palette to a VS Code
+#                              Remote-SSH host's zsh (see push_remote)
 #   set-accent.sh --git-setup  (in ~/Hyperize) keep picks out of git — see
 #                              "git:" below
 #
@@ -293,7 +295,43 @@ retint_ttys() {
     return 0
 }
 
+# VS Code Remote-SSH terminals run zsh on the OTHER machine. Its .zshrc can't
+# use its own accent there (the terminal is this one's) and has no way to ask
+# this machine for ours, so it was left on xterm's stock palette, where 53-57
+# are purples. Instead we hand it ours: the palette lines go to the remote's
+# ~/.cache/client-accent, which its .zshrc sends as OSC 4 at every prompt and
+# focus-in (re-reading only when the file's mtime changes) — same as here.
+# Pushed to every host VS Code is connected to on an accent change, and to a
+# host on connect via its ~/.ssh/config block:
+#     PermitLocalCommand yes
+#     LocalCommand ~/.config/hypr/set-accent.sh --push-remote %n </dev/null >/dev/null 2>&1 &
+# A host whose .zshrc doesn't know the file is left untouched.
+push_remote() {   # [host…]; none = hosts VS Code Remote-SSH is connected to
+    local pal pid h
+    local -a hosts=("$@")
+    if [ ${#hosts[@]} -eq 0 ]; then
+        # its ssh: a child of remote-ssh's localServer.js, host = last argument
+        for pid in $(pgrep -x ssh); do
+            grep -qs remote-ssh "/proc/$(ps -o ppid= -p "$pid" | tr -d ' ')/cmdline" || continue
+            hosts+=("$(tr '\0' '\n' < "/proc/$pid/cmdline" | tail -n 1)")
+        done
+    fi
+    [ ${#hosts[@]} -gt 0 ] || return 0
+    pal=$(grep -o '^palette = 5[3-7]=#[0-9a-fA-F]\{6\}' "$HOME/.config/ghostty/config") || return 0
+    for h in $(printf '%s\n' "${hosts[@]}" | sort -u); do
+        # PermitLocalCommand=no: the LocalCommand above would call us again
+        printf '%s\n' "$pal" | timeout 15 ssh -o BatchMode=yes -o ConnectTimeout=5 \
+            -o PermitLocalCommand=no -T "$h" \
+            'grep -qs client-accent ~/.zshrc || exit 0; mkdir -p ~/.cache &&
+             cat > ~/.cache/client-accent.tmp && mv -f ~/.cache/client-accent.tmp ~/.cache/client-accent' \
+            >/dev/null 2>&1 &
+    done
+    wait
+    return 0
+}
+
 reload_apps() {
+    ( push_remote ) >/dev/null 2>&1 &
     retint_ttys
     # ...and again a little later: VS Code resets its terminals to the stock
     # palette when it applies the settings.json just rendered, which lands
@@ -464,6 +502,11 @@ case "${1:-}" in
         git_refresh
         exit 0
         ;;
+    --push-remote)
+        shift
+        push_remote "$@"
+        exit 0
+        ;;
     --show)
         init >/dev/null
         cat "$STATE" 2>/dev/null || echo "$ORIGINAL"
@@ -565,7 +608,7 @@ case "${1:-}" in
         say "Reverted to the original theme"
         ;;
     "")
-        echo "usage: set-accent.sh <hex> | --preview <hex> | --restore | --revert | --resync | --show | --git-setup" >&2
+        echo "usage: set-accent.sh <hex> | --preview <hex> | --restore | --revert | --resync | --show | --push-remote [host…] | --git-setup" >&2
         exit 2
         ;;
     *)
