@@ -55,8 +55,14 @@
       "keyColor": "38;5;53"
     },
     {
+      "type": "host",
+      "key": "  󰌢 host   ",
+      "keyColor": "38;5;53",
+      "format": "{name}"
+    },
+    {
       "type": "kernel",
-      "key": "   kernel ",
+      "key": "   kernel ",
       "keyColor": "38;5;53"
     },
     {
@@ -71,12 +77,32 @@
     },
     {
       "type": "shell",
-      "key": "   shell  ",
+      "key": "  󰆍 shell  ",
       "keyColor": "38;5;53"
     },
     {
       "type": "terminal",
-      "key": "   term   ",
+      "key": "  󰞷 term   ",
+      "keyColor": "38;5;53"
+    },
+    {
+      "type": "editor",
+      "key": "  󰏫 editor ",
+      "keyColor": "38;5;53"
+    },
+    {
+      "type": "initsystem",
+      "key": "  󰒓 init   ",
+      "keyColor": "38;5;53"
+    },
+    {
+      "type": "locale",
+      "key": "  󰗊 locale ",
+      "keyColor": "38;5;53"
+    },
+    {
+      "type": "datetime",
+      "key": "  󰃰 date   ",
       "keyColor": "38;5;53"
     },
     {
@@ -89,6 +115,11 @@
       "keyColor": "38;5;54"
     },
     {
+      "type": "lm",
+      "key": "  󰍂 login  ",
+      "keyColor": "38;5;54"
+    },
+    {
       "type": "theme",
       "key": "  󰉼 theme  ",
       "keyColor": "38;5;54"
@@ -96,6 +127,16 @@
     {
       "type": "icons",
       "key": "  󰀻 icons  ",
+      "keyColor": "38;5;54"
+    },
+    {
+      "type": "font",
+      "key": "  󰛖 font   ",
+      "keyColor": "38;5;54"
+    },
+    {
+      "type": "cursor",
+      "key": "  󰍽 cursor ",
       "keyColor": "38;5;54"
     },
     {
@@ -120,7 +161,12 @@
     },
     {
       "type": "memory",
-      "key": "   memory ",
+      "key": "  󰍛 memory ",
+      "keyColor": "38;5;57"
+    },
+    {
+      "type": "swap",
+      "key": "  󰓡 swap   ",
       "keyColor": "38;5;57"
     },
     {
@@ -131,6 +177,38 @@
     {
       "type": "battery",
       "key": "  󰂄 battery",
+      "keyColor": "38;5;57"
+    },
+    {
+      "type": "brightness",
+      "key": "  󰃟 bright ",
+      "keyColor": "38;5;57"
+    },
+    {
+      "type": "sound",
+      "key": "  󰕾 sound  ",
+      "keyColor": "38;5;57",
+      "format": "{name}"
+    },
+    {
+      "type": "sound",
+      "key": "           ",
+      "format": "{volume-percentage-bar}"
+    },
+    {
+      "type": "wifi",
+      "key": "  󰖩 wifi   ",
+      "keyColor": "38;5;57",
+      "format": "{ssid} · {band} GHz · {signal-quality}%"
+    },
+    {
+      "type": "localip",
+      "key": "  󰩟 ip     ",
+      "keyColor": "38;5;57"
+    },
+    {
+      "type": "processes",
+      "key": "  󰉹 procs  ",
       "keyColor": "38;5;57"
     },
     {

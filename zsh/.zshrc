@@ -282,46 +282,185 @@ function extract() {
 }
 
 # ─── Greeting ──────────────────────────────────────────────────────────────
-# fastfetch with `fortune | cowsay` (accent, colour 1) under the small Ubuntu
-# logo: both go in as one logo, so the cow sits in the logo column. The logo
-# is ~/.config/fastfetch/ubuntu-small.txt ($1/$2 = fastfetch logo colours);
-# `$` in the fortune is doubled so fastfetch doesn't read it as a colour code.
-# The cow is nudged 4 columns left so the logo column stays 27 wide and the
-# info (63 wide, the cpu line) still fits a half-screen ghostty (91 cols).
-function fortunefetch() {
-  local logo=~/.config/fastfetch/ubuntu-small.txt cow
-  if [[ ! -r $logo || ! -x /usr/games/fortune || ! -x /usr/games/cowsay ]]; then
-    fastfetch; return
+# fastfetch with `fortune | cowsay` (accent, colour 1) under a logo: both go
+# in as one logo, so the cow sits in the logo column. The logo, the cow and
+# fastfetch's details are picked in Settings › Terminal, which writes
+# ~/.config/fastfetch/greeting.env (FF_LOGO = a data logo file with $1/$2 =
+# fastfetch logo colours, "" = none; FF_LOGO_SMALL = its small version; FF_COW
+# = cow / random / "" = no fortune; FF_ARGS / FF_ARGS_SMALL = extra fastfetch
+# args) — greeting.py there; without it, the small rice logo + the default
+# cow. `$` in the fortune is doubled so fastfetch doesn't read it as a colour
+# code. The animal is nudged up to 4 columns left (greeting.py's preview does
+# the same) so with the default cow the logo column stays 27 wide and the info
+# (63 wide, the cpu line) still fits a half-screen ghostty (91 cols).
+#
+# FF_COMPACT=1 (greeting.env or here) turns on the compact layout: when the
+# full greeting is taller than the window (a top/bottom split, ~24 rows) the
+# small logo, a short fortune (the cow only if it fits) and
+# config-compact.jsonc (fewer details, ~19 rows) are drawn instead. Off: tiled
+# terminals show the same greeting as big ones.
+
+# $1 = cow, stdin = the fortune → REPLY = the cow as data-logo lines
+function _ff_cowsay() {
+  local -i i bub=0 shift=4
+  local -a lines
+  lines=("${(@f)$(/usr/games/cowsay -f "$1" -W 20 | expand)}")
+  # the animal (below the bubble's last " ----" line) moves up to 4 columns left
+  for i in {1..$#lines}; do [[ $lines[i] =~ '^ -+$' ]] && bub=$i; done
+  if (( bub && bub < $#lines )); then
+    for i in {$((bub + 1))..$#lines}; do
+      [[ -n ${lines[i]// } ]] && (( ${#${lines[i]%%[^ ]*}} < shift )) && shift=${#${lines[i]%%[^ ]*}}
+    done
+    for i in {$((bub + 1))..$#lines}; do lines[i]=${lines[i]:$shift}; done
   fi
-  cow=$(/usr/games/fortune -s | /usr/games/cowsay -W 20 | expand | sed "s/^        /    /")
-  cow=${cow//\$/\$\$}
-  _ff_logo="$(<$logo)"$'\n\n'"${(F)${(@)${(f)cow}/#/\$1}}"
-  _ff_draw
+  REPLY=${(F)lines}
+  REPLY=${REPLY//\$/\$\$}
+  REPLY="${(F)${(@)${(f)REPLY}/#/\$1}}"
 }
-function _ff_draw() {
-  fastfetch --logo-type data --logo "$_ff_logo"
-  _ff_size=$COLUMNS:$LINES
+function fortunefetch() {
+  local FF_LOGO=~/.config/fastfetch/ubuntu-small.txt FF_COW=default
+  local FF_LOGO_SMALL=~/.config/fastfetch/ubuntu-small.txt FF_COMPACT=${FF_COMPACT:-0}
+  local -a FF_ARGS FF_ARGS_SMALL cows
+  [[ -r ~/.config/fastfetch/greeting.env ]] && source ~/.config/fastfetch/greeting.env
+  _ff_args=("${FF_ARGS[@]}") _ff_args_small=("${FF_ARGS_SMALL[@]}") _ff_compact_on=$FF_COMPACT
+  _ff_art= _ff_art_small= _ff_cow= _ff_cow_small= _ff_size= _ff_shown= _ff_compact=
+  [[ -n $FF_LOGO && -r $FF_LOGO ]] && _ff_art="$(<$FF_LOGO)"
+  [[ -n $FF_LOGO_SMALL && -r $FF_LOGO_SMALL ]] && _ff_art_small="$(<$FF_LOGO_SMALL)"
+  _ff_cowname=
+  if [[ -n $FF_COW && -x /usr/games/fortune && -x /usr/games/cowsay ]]; then
+    if [[ $FF_COW == random ]]; then
+      cows=(/usr/share/cowsay/cows/*.cow(N:t:r))
+      FF_COW=${cows[RANDOM % $#cows + 1]:-default}
+    fi
+    _ff_cowname=$FF_COW
+    _ff_cowsay $FF_COW < <(/usr/games/fortune -s)
+    _ff_cow=$REPLY
+  fi
+  _ff_render && _ff_show $1
 }
 
-# The greeting is laid out for the window size it was printed at, so a
-# terminal that opens in a narrow tile and is then widened would keep the
-# squeezed version. Until the first command runs, a resize redraws it (same
-# fortune) at the new size; after that, resizing leaves the screen alone.
+# $1 = logo art, $2 = cow → REPLY = both as one logo (blank line between)
+function _ff_join() {
+  if [[ -n $1 && -n $2 ]]; then REPLY="$1"$'\n\n'"$2"; else REPLY="$1$2"; fi
+}
+# $1 = full | compact → REPLY = fastfetch's output (trailing newlines kept)
+function _ff_run() {
+  local -a args
+  if [[ $1 == compact ]]; then
+    args=(-c ~/.config/fastfetch/config-compact.jsonc "${_ff_args_small[@]}")
+    REPLY=$_ff_art_small
+    if [[ -n $_ff_cowname ]]; then
+      # a short fortune, made once per shell; the cow goes only if it fits
+      [[ -z $_ff_cow_small ]] && { _ff_cowsay $_ff_cowname < <(/usr/games/fortune -s -n 60); _ff_cow_small=$REPLY; }
+      (( ${#${(f)_ff_art_small}} + ${#${(f)_ff_cow_small}} + 1 <= LINES - 3 )) \
+        && _ff_join "$_ff_art_small" "$_ff_cow_small"
+    fi
+  else
+    args=("${_ff_args[@]}")
+    _ff_join "$_ff_art" "$_ff_cow"
+  fi
+  if [[ -n $REPLY ]]; then args+=(--logo-type data --logo "$REPLY"); else args+=(-l none); fi
+  REPLY="$(fastfetch --pipe false "${args[@]}"; print -n .)"
+  REPLY=${REPLY%.}
+}
+# $1 = fastfetch output → REPLY = rows it takes (it draws the logo, then goes
+# back up for the details)
+function _ff_rows() {
+  local s=$1
+  local -i rows=${#${s//[^$'\n']/}}
+  while [[ $s =~ $'\e\\[([0-9]+)A' ]]; do (( rows -= match[1] )); s=${s[MEND+1,-1]}; done
+  REPLY=$rows
+}
+# REPLY = the greeting for this window size: full, or (FF_COMPACT=1) compact
+# when the full one (+ the prompt) is taller than the window. Picked once per
+# size.
+function _ff_render() {
+  command -v fastfetch >/dev/null || return 1
+  if [[ $_ff_compact_on != 1 ]]; then
+    _ff_compact=; _ff_run full
+  elif [[ $COLUMNS:$LINES != $_ff_size ]]; then
+    _ff_run full
+    local out=$REPLY
+    _ff_rows "$out"
+    if (( REPLY + 3 > LINES )); then _ff_compact=1; _ff_run compact
+    else _ff_compact=; REPLY=$out; fi
+  else
+    _ff_run ${${_ff_compact:+compact}:-full}
+  fi
+}
+# print REPLY as one frame (synchronized output) and without line wrap, as
+# fastfetch itself does. $1: top = from the top of a cleared screen, clear =
+# also drop the scrollback
+function _ff_show() {
+  local cls
+  case $1 in top) cls=$'\e[H\e[2J' ;; clear) cls=$'\e[H\e[2J\e[3J' ;; esac
+  print -rn -- $'\e[?2026h'$cls$'\e[?7l'"$REPLY"$'\e[?7h\e[?2026l'
+  _ff_shown=$REPLY _ff_size=$COLUMNS:$LINES
+}
+
+# Until the first command runs, the greeting stays live:
+#  - a resize redraws it at the new size (a terminal that opens in a narrow
+#    tile and is then widened would otherwise keep the squeezed layout, and a
+#    top/bottom split gets the compact one);
+#  - ~/.config/fastfetch/live.py watches what it shows (brightness, battery,
+#    volume, network, the clock each minute) and pokes zsh through a pipe
+#    (zle -F); fastfetch runs again and, if anything changed, the greeting
+#    rows are rewritten in place — the cursor is saved and put back, so the
+#    prompt (and whatever is typed) is never touched. Only if the greeting's
+#    height changed is the screen cleared and the prompt redrawn under it.
+# The greeting is drawn from the top of the screen so its rows are known.
+# Running a command, an empty Enter (a second prompt) or Ctrl+L ends it;
+# after that the greeting is plain scrollback.
 if command -v fastfetch >/dev/null; then
-  fortunefetch
-  if [[ -n $_ff_logo ]]; then
-    TRAPWINCH() {
-      [[ $COLUMNS:$LINES == $_ff_size ]] && return
-      zle && zle -I                     # take the prompt down; zle redraws it after
-      print -n '\e[H\e[2J\e[3J'           # screen + scrollback hold only the greeting
-      _ff_draw
+  fortunefetch top
+  if [[ -n $_ff_size ]]; then
+    function _ff_redraw() {
+      _ff_render || return
+      [[ $REPLY == $_ff_shown && $COLUMNS:$LINES == $_ff_size ]] && return
+      local new=$REPLY clr
+      local -i old
+      _ff_rows "$_ff_shown"; old=$REPLY
+      _ff_rows "$new"
+      if [[ $COLUMNS:$LINES == $_ff_size ]] && (( old + 3 > LINES )); then
+        return                          # taller than the window: its top scrolled away
+      elif [[ $COLUMNS:$LINES == $_ff_size ]] && (( REPLY == old )); then
+        repeat $old clr+=$'\e[2K\e[B'
+        print -rn -- $'\e7\e[?2026h\e[H'$clr$'\e[H\e[?7l'"$new"$'\e[?7h\e8\e[?2026l'
+        _ff_shown=$new
+      else
+        REPLY=$new
+        zle && zle -I                   # take the prompt down; zle redraws it after
+        _ff_show clear
+      fi
+    }
+    TRAPWINCH() { [[ $COLUMNS:$LINES == $_ff_size ]] || _ff_redraw }
+    function _ff_live() {               # zle -F handler: live.py wrote a line
+      local l fd=$1
+      if ! read -r -u $fd l; then zle -F $fd; exec {fd}<&-; _ff_fd=; return; fi   # it quit
+      while read -t 0 -r -u $fd l; do :; done
+      _ff_redraw
+    }
+    function _ff_clear_screen() { _ff_greeting_done; zle .clear-screen }
+    function _ff_prompts() {            # the 2nd prompt (an empty Enter) ends it
+      (( ++_ff_nprompt > 1 )) && _ff_greeting_done
     }
     function _ff_greeting_done() {
       add-zsh-hook -d preexec _ff_greeting_done
-      unfunction TRAPWINCH _ff_greeting_done
+      add-zsh-hook -d precmd _ff_prompts
+      if [[ -n $_ff_fd ]]; then zle -F $_ff_fd 2>/dev/null; exec {_ff_fd}<&-; fi
+      zle -A .clear-screen clear-screen
+      unfunction TRAPWINCH _ff_greeting_done _ff_clear_screen _ff_live _ff_redraw _ff_prompts
+      unset _ff_fd _ff_nprompt
     }
+    if [[ -r ~/.config/fastfetch/live.py ]] && command -v python3 >/dev/null; then
+      exec {_ff_fd}< <(exec python3 ~/.config/fastfetch/live.py </dev/null 2>/dev/null)
+      zle -F $_ff_fd _ff_live
+    fi
+    zle -N clear-screen _ff_clear_screen
     autoload -Uz add-zsh-hook
     add-zsh-hook preexec _ff_greeting_done
+    typeset -gi _ff_nprompt=0
+    add-zsh-hook precmd _ff_prompts
   fi
 fi
 

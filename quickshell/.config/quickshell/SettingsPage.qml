@@ -9,6 +9,7 @@ Flickable {
 
     property string title
     property string subtitle
+    property bool showHead: true         // false: no title block (a page that draws its own)
     property string query
     default property alias content: col.data
     readonly property alias column: col
@@ -61,6 +62,7 @@ Flickable {
 
     Column {
         id: head
+        visible: page.showHead
         x: 28
         y: 24
         width: page.width - 56
@@ -86,7 +88,7 @@ Flickable {
     Column {
         id: col
         x: 28
-        y: head.y + head.height + 18
+        y: page.showHead ? head.y + head.height + 18 : 14
         width: page.width - 56
         spacing: 14
     }

@@ -7,7 +7,7 @@
 //   close:  Esc · click outside the card · ⚙ again
 //
 // TAB = keybinds pills display appearance sound network kdeconnect tailscale
-//       notifications power about. Each page is its own Settings<Tab>.qml,
+//       notifications power terminal about. Each page is its own Settings<Tab>.qml,
 //       loaded only while shown (nothing runs while the panel is closed).
 import QtQuick
 import Quickshell
@@ -58,6 +58,7 @@ Scope {
         { id: "tailscale",     name: "Tailscale",     icon: "\u{f0317}", keys: "vpn tailnet ssh peers machines" },
         { id: "notifications", name: "Notifications", icon: "\u{f009a}", keys: "do not disturb dnd mako alerts popups history phone notifications" },
         { id: "power",         name: "Power",         icon: "\u{f0425}", keys: "battery charge profile performance saver balanced keep awake caffeine idle lock suspend sleep shutdown power off restart reboot logout" },
+        { id: "terminal",      name: "Terminal",      icon: "\u{f018d}", keys: "terminal greeting fastfetch neofetch logo ubuntu cowsay cow fortune shell zsh ghostty details modules" },
         { id: "about",         name: "About",         icon: "\u{f02fd}", keys: "system version kernel host info os cpu processor memory ram disk storage gpu graphics" }
     ]
 
@@ -434,11 +435,12 @@ Scope {
                     Component { id: pTailscale; SettingsTailscale {} }
                     Component { id: pNotifications; SettingsNotifications {} }
                     Component { id: pPower; SettingsPower {} }
+                    Component { id: pTerminal; SettingsTerminal {} }
                     Component { id: pAbout; SettingsAbout {} }
                     readonly property var pages: ({
                         keybinds: pKeybinds, pills: pPills, display: pDisplay, appearance: pAppearance, sound: pSound,
                         network: pNetwork, kdeconnect: pKdeConnect, tailscale: pTailscale,
-                        notifications: pNotifications, power: pPower, about: pAbout
+                        notifications: pNotifications, power: pPower, terminal: pTerminal, about: pAbout
                     })
 
                     Loader {
