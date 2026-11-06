@@ -3,8 +3,10 @@
     // Catppuccin Mocha, the same palette ghostty and yazi already use — base
     // #1e1e2e, text #cdd6f4 — so the editor stops being the one window that
     // disagrees with the rest of the desktop.
-    "workbench.colorTheme": "Catppuccin Mocha",
-    "workbench.iconTheme": "catppuccin-mocha",
+    // Mocha in dark mode, Latte in light (both recoloured into the theme by
+    // the overrides below) — @@FLAVOUR@@ is filled by set-accent.sh.
+    "workbench.colorTheme": "Catppuccin @@FLAVOUR@@",
+    "workbench.iconTheme": "catppuccin-@@FLAVOUR_ID@@",
 
     // Left at the extension's default ON PURPOSE: that default is mauve, which
     // is the very colour set-accent.sh calls ORIGINAL — so when the
@@ -12,38 +14,70 @@
     // does NOT override still agree with the ones it does. See the block at
     // the bottom for why it is only some of them.
     "catppuccin.accentColor": "blue",
-    // Desktop THEMES (SUPER+SHIFT+T): Mocha's palette spelled out so set-accent.sh's
-    // palette substitution (rice-theme.py) turns it into the chosen theme's —
-    // the Catppuccin extension then recolours the whole editor, syntax
-    // included, with those colours. At Mocha it is a no-op.
+    // Desktop THEMES (SUPER+SHIFT+T): the theme's palette, both flavours at
+    // once — "mocha" = its dark palette, "latte" = its light one (tokens from
+    // rice-theme.py derive). The Catppuccin extension recompiles its theme
+    // files when THIS block changes (a theme switch: "Reload required"), but
+    // a dark <-> light switch (Settings › Appearance › Mode) only changes
+    // workbench.colorTheme below, between two already-compiled themes —
+    // VS Code applies that live, no reload. At Mocha the mocha block is the
+    // stock palette.
     "catppuccin.colorOverrides": {
         "mocha": {
-            "rosewater": "#f5e0dc",
-            "flamingo": "#f2cdcd",
-            "pink": "#f5c2e7",
-            "mauve": "#cba6f7",
-            "red": "#f38ba8",
-            "maroon": "#eba0ac",
-            "peach": "#fab387",
-            "yellow": "#f9e2af",
-            "green": "#a6e3a1",
-            "teal": "#94e2d5",
-            "sky": "#89dceb",
-            "sapphire": "#74c7ec",
-            "blue": "#89b4fa",
-            "lavender": "#b4befe",
-            "text": "#cdd6f4",
-            "subtext1": "#bac2de",
-            "subtext0": "#a6adc8",
-            "overlay2": "#9399b2",
-            "overlay1": "#7f849c",
-            "overlay0": "#6c7086",
-            "surface2": "#585b70",
-            "surface1": "#45475a",
-            "surface0": "#313244",
-            "base": "#1e1e2e",
-            "mantle": "#181825",
-            "crust": "#11111b"
+            "rosewater": "#@@DARK_ROSEWATER@@",
+            "flamingo": "#@@DARK_FLAMINGO@@",
+            "pink": "#@@DARK_PINK@@",
+            "mauve": "#@@DARK_MAUVE@@",
+            "red": "#@@DARK_RED@@",
+            "maroon": "#@@DARK_MAROON@@",
+            "peach": "#@@DARK_PEACH@@",
+            "yellow": "#@@DARK_YELLOW@@",
+            "green": "#@@DARK_GREEN@@",
+            "teal": "#@@DARK_TEAL@@",
+            "sky": "#@@DARK_SKY@@",
+            "sapphire": "#@@DARK_SAPPHIRE@@",
+            "blue": "#@@DARK_BLUE@@",
+            "lavender": "#@@DARK_LAVENDER@@",
+            "text": "#@@DARK_TEXT@@",
+            "subtext1": "#@@DARK_SUBTEXT1@@",
+            "subtext0": "#@@DARK_SUBTEXT0@@",
+            "overlay2": "#@@DARK_OVERLAY2@@",
+            "overlay1": "#@@DARK_OVERLAY1@@",
+            "overlay0": "#@@DARK_OVERLAY0@@",
+            "surface2": "#@@DARK_SURFACE2@@",
+            "surface1": "#@@DARK_SURFACE1@@",
+            "surface0": "#@@DARK_SURFACE0@@",
+            "base": "#@@DARK_BASE@@",
+            "mantle": "#@@DARK_MANTLE@@",
+            "crust": "#@@DARK_CRUST@@"
+        },
+        "latte": {
+            "rosewater": "#@@LIGHT_ROSEWATER@@",
+            "flamingo": "#@@LIGHT_FLAMINGO@@",
+            "pink": "#@@LIGHT_PINK@@",
+            "mauve": "#@@LIGHT_MAUVE@@",
+            "red": "#@@LIGHT_RED@@",
+            "maroon": "#@@LIGHT_MAROON@@",
+            "peach": "#@@LIGHT_PEACH@@",
+            "yellow": "#@@LIGHT_YELLOW@@",
+            "green": "#@@LIGHT_GREEN@@",
+            "teal": "#@@LIGHT_TEAL@@",
+            "sky": "#@@LIGHT_SKY@@",
+            "sapphire": "#@@LIGHT_SAPPHIRE@@",
+            "blue": "#@@LIGHT_BLUE@@",
+            "lavender": "#@@LIGHT_LAVENDER@@",
+            "text": "#@@LIGHT_TEXT@@",
+            "subtext1": "#@@LIGHT_SUBTEXT1@@",
+            "subtext0": "#@@LIGHT_SUBTEXT0@@",
+            "overlay2": "#@@LIGHT_OVERLAY2@@",
+            "overlay1": "#@@LIGHT_OVERLAY1@@",
+            "overlay0": "#@@LIGHT_OVERLAY0@@",
+            "surface2": "#@@LIGHT_SURFACE2@@",
+            "surface1": "#@@LIGHT_SURFACE1@@",
+            "surface0": "#@@LIGHT_SURFACE0@@",
+            "base": "#@@LIGHT_BASE@@",
+            "mantle": "#@@LIGHT_MANTLE@@",
+            "crust": "#@@LIGHT_CRUST@@"
         }
     },
 
@@ -195,7 +229,7 @@
     // deliberately the UI chrome you read as "the accent", and nothing that
     // carries meaning in the code itself.
     "workbench.colorCustomizations": {
-        "[Catppuccin Mocha]": {
+        "[Catppuccin Mocha][Catppuccin Latte]": {
             "focusBorder": "#@@ACCENT@@",
             "sash.hoverBorder": "#@@ACCENT@@",
             "button.background": "#@@ACCENT@@",

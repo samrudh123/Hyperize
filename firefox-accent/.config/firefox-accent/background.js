@@ -64,7 +64,10 @@ function themeFor(p, A) {
       ntp_background: p.base,
       ntp_text: p.text,
     },
-    properties: { color_scheme: "dark", content_color_scheme: "dark" },
+    // dark / light with the desktop (palette.json "mode", Settings ›
+    // Appearance › Mode): Firefox's own pages and websites' prefers-color-scheme
+    properties: { color_scheme: p.mode === "light" ? "light" : "dark",
+                  content_color_scheme: p.mode === "light" ? "light" : "dark" },
   };
 }
 

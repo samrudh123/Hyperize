@@ -88,7 +88,7 @@ SettingsPage {
             fArg = e && e.dispatcher !== "exec" ? arg : "";
             fMods = e ? e.curMods : ""; fKey = e ? e.curKey : "";
         } else {
-            fName = e ? (e.desc || "") : "";
+            fName = e ? (e.title || e.desc || "") : "";
             fMode = e ? (e.mode === "v" ? "x" : e.mode) : "n";
             fLhs = e ? e.lhs : "";
             fRhs = e && e.rhs !== "<Lua function>" ? e.rhs : "";
@@ -121,7 +121,7 @@ SettingsPage {
             if (!force && !nvimEditExisting) {
                 const clash = nvim.filter(x => x.mode === fMode && canon(x.lhs) === canon(lhs)
                                           && !(editing && x.mode === editing.mode && canon(x.lhs) === canon(editing.lhs)));
-                if (clash.length) { fConflict = clash.map(x => x.desc || x.rhs || x.lhs); return; }
+                if (clash.length) { fConflict = clash.map(x => x.title || x.desc || x.rhs || x.lhs); return; }
             }
             if (nvimEditExisting) {                // same keys, new action / description
                 fBusy = true;
@@ -162,7 +162,7 @@ SettingsPage {
             hyprProc.running = true;
         });
         else if (e.custom) run([Theme.hypr + "/settings-nvim.py", "remove", e.mode, e.lhs], () => { page.loading = true; nvimProc.running = true; });
-        else run([Theme.hypr + "/settings-nvim.py", "delete", e.mode, e.lhs, e.group, e.desc || "",
+        else run([Theme.hypr + "/settings-nvim.py", "delete", e.mode, e.lhs, e.group, e.title || e.desc || "",
                   e.rhs === "<Lua function>" ? "" : (e.rhs || "")], () => { page.loading = true; nvimProc.running = true; });
     }
     // recording the form's keys: a capture with a pseudo entry
@@ -316,7 +316,7 @@ SettingsPage {
             const e = capEntry;
             if (!force) {
                 const clash = nvim.filter(x => x.mode === e.mode && canon(x.lhs) === canon(lhs) && x !== e);
-                if (clash.length) { conflict = clash.map(x => x.desc || x.rhs || x.lhs); return; }
+                if (clash.length) { conflict = clash.map(x => x.title || x.desc || x.rhs || x.lhs); return; }
             }
             run([Theme.hypr + "/settings-nvim.py", "set", e.mode, e.orig, lhs], r => {
                 page.capId = ""; page.capEntry = null; page.conflict = [];
@@ -406,8 +406,9 @@ SettingsPage {
         let g = null;
         for (const e of list) {
             const hay = hy
-                ? (e.desc + " " + e.curMods + " " + e.curKey + " " + e.group + " " + e.dispatcher + " " + e.argExpanded).toLowerCase()
-                : (e.desc + " " + e.lhs + " " + e.rhs + " " + e.group + " " + (modeNames[e.mode] || "") + " neovim nvim").toLowerCase();
+                ? (e.desc + " " + (e.about || "") + " " + e.curMods + " " + e.curKey + " " + e.group + " " + e.dispatcher + " " + e.argExpanded).toLowerCase()
+                : ((e.title || "") + " " + (e.about || "") + " " + (e.cmd || "") + " " + (e.help || "") + " " + e.desc
+                   + " " + e.lhs + " " + e.rhs + " " + e.group + " " + (modeNames[e.mode] || "") + " neovim nvim").toLowerCase();
             if (q && !hay.includes(q)) continue;
             if (e.group !== g) { g = e.group; out.push({ header: tag + g, hy: hy }); }
             out.push(e);
@@ -527,7 +528,7 @@ SettingsPage {
             Row {
                 spacing: 12
                 width: parent.width
-                Text { width: 90; anchors.verticalCenter: parent.verticalCenter; text: page.mode === 0 ? "Name" : "Description"; color: Theme.subtext0; font.family: Theme.font; font.pixelSize: 12; font.weight: Font.DemiBold }
+                Text { width: 90; anchors.verticalCenter: parent.verticalCenter; text: "Name"; color: Theme.subtext0; font.family: Theme.font; font.pixelSize: 12; font.weight: Font.DemiBold }
                 SettingsField {
                     width: parent.width - 102
                     placeholder: page.mode === 0 ? "What it does, e.g. “System monitor”" : "e.g. “Save file”"
@@ -773,7 +774,12 @@ SettingsPage {
                 readonly property bool isCustom: !isHeader && e.custom === true
                 readonly property bool canEdit: !isHeader && !isDeleted && (rowItem.hy ? !e.mouse : !e.buffer)
                 width: parent.width
-                height: isHeader ? 40 : capturing ? (page.conflict.length ? 96 : 72) : 50
+                // the technical side, e.g. ":bprevious", "vim.lsp.buf.rename()"
+                readonly property string runs: isHeader || hy ? ""
+                    : e.cmd !== undefined ? e.cmd : e.rhs && e.rhs !== "<Lua function>" ? e.rhs : ""
+                // rows with a plain-English description get a line for it
+                readonly property int extra: !isHeader && !isDeleted && (e.about || "") !== "" ? 17 : 0
+                height: isHeader ? 40 : (capturing ? (page.conflict.length ? 96 : 72) : 50) + extra
                 Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
                 // group heading
@@ -834,7 +840,7 @@ SettingsPage {
                                 }
                                 Text {
                                     width: parent.width - 20
-                                    text: rowItem.isHeader ? "" : (rowItem.e.desc || rowItem.e.rhs || rowItem.e.lhs)
+                                    text: rowItem.isHeader ? "" : (rowItem.e.title || rowItem.e.desc || rowItem.e.rhs || rowItem.e.lhs)
                                     color: rowItem.isDeleted ? Theme.overlay1 : Theme.text
                                     font.strikeout: rowItem.isDeleted
                                     elide: Text.ElideRight
@@ -843,13 +849,25 @@ SettingsPage {
                                     font.weight: Font.DemiBold
                                 }
                             }
+                            // what it does, in words (hypr/keybind_docs.py, nvim/lua/keymap-docs.lua)
+                            Text {
+                                visible: rowItem.extra > 0
+                                width: parent.width
+                                text: visible ? rowItem.e.about : ""
+                                color: Theme.subtext0
+                                elide: Text.ElideRight
+                                font.family: Theme.font
+                                font.pixelSize: 12
+                            }
+                            // what it runs: Hyprland dispatcher / Neovim mode · command · :help tag
                             Text {
                                 width: parent.width
                                 text: rowItem.isHeader ? ""
                                     : rowItem.isDeleted ? "deleted  ·  Restore brings it back"
                                     : rowItem.hy ? rowItem.e.dispatcher + (rowItem.e.argExpanded ? "  " + rowItem.e.argExpanded : "")
                                     : (page.modeNames[rowItem.e.mode] || rowItem.e.mode) + " mode"
-                                      + (rowItem.e.rhs && rowItem.e.rhs !== "<Lua function>" ? "  ·  " + rowItem.e.rhs : "")
+                                      + (rowItem.runs ? "  ·  runs " + rowItem.runs : "")
+                                      + (rowItem.e.help ? "  ·  :help " + rowItem.e.help : "")
                                       + (rowItem.e.changed && rowItem.e.orig !== rowItem.e.lhs ? "  ·  was " + rowItem.e.orig : "")
                                 color: Theme.overlay1
                                 elide: Text.ElideRight

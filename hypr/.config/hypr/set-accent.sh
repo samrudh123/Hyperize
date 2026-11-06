@@ -483,7 +483,7 @@ git_refresh() {
     # neither the diff below nor the caller's `git status` filters them again
     git update-index -q --refresh >/dev/null 2>&1
     # stat-dirty (ls-files -m) but content-equal (absent from diff), ours only
-    comm -23 <(git ls-files -m | sort) <(git diff --name-only | sort) \
+    LC_ALL=C comm -23 <(git ls-files -m | LC_ALL=C sort) <(git diff --name-only | LC_ALL=C sort) \
         | git check-attr --stdin filter | awk -F': ' '$3 == "accent" { print $1 }' \
         | while IFS= read -r f; do git add -- "$f" 2>/dev/null; done
     return 0

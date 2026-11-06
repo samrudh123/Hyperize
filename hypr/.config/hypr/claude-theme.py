@@ -98,7 +98,9 @@ def main():
         "diffAddedWord": blend(p["green"], base, 0.45),
         "diffRemovedWord": blend(p["red"], base, 0.45),
     }
-    theme = {"name": "Rice", "base": "dark", "overrides": o}
+    # light themes (Settings › Appearance › Mode) start from Claude Code's
+    # light base, so anything not overridden above suits light paper too
+    theme = {"name": "Rice", "base": "light" if p.get("mode") == "light" else "dark", "overrides": o}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     tmp = OUT + ".tmp"
     with open(tmp, "w") as f:

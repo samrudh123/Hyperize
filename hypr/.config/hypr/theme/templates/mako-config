@@ -14,7 +14,7 @@ anchor=top-right
 layer=overlay
 width=380
 height=120
-icon-path=/usr/share/icons/Papirus-Dark
+icon-path=/usr/share/icons/@@ICONS_BASE@@
 
 [urgency=low]
 border-color=#89b4fa

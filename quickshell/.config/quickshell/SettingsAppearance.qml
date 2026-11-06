@@ -9,24 +9,29 @@ SettingsPage {
     title: "Appearance"
     subtitle: "Theme, accent colour, wallpaper and font — the whole desktop follows."
 
-    property var themes: []
+    // every theme, dark and light (rice-theme.py list); the grid shows the
+    // current mode's
+    property var allThemes: []
+    readonly property var themes: allThemes.filter(t => (t.mode || "dark") === Theme.mode)
     property string pendingTheme: ""
+    property string pendingMode: ""
     property string pendingAccent: ""
     Process {
         running: true
         command: ["/usr/bin/python3", Theme.hypr + "/rice-theme.py", "list"]
         stdout: StdioCollector {
-            onStreamFinished: { try { page.themes = JSON.parse(text); } catch (e) {} }
+            onStreamFinished: { try { page.allThemes = JSON.parse(text); } catch (e) {} }
         }
     }
     // a theme / accent switch takes a few seconds (it re-renders every app)
     onPendingThemeChanged: if (pendingTheme) pendTimer.restart()
+    onPendingModeChanged: if (pendingMode) pendTimer.restart()
     Connections {
         target: Theme
-        function onThemeIdChanged() { page.pendingTheme = ""; }
+        function onThemeIdChanged() { page.pendingTheme = ""; page.pendingMode = ""; }
         function onAccentChanged() { page.pendingAccent = ""; }
     }
-    Timer { id: pendTimer; interval: 15000; onTriggered: { page.pendingTheme = ""; page.pendingAccent = ""; } }
+    Timer { id: pendTimer; interval: 15000; onTriggered: { page.pendingTheme = ""; page.pendingAccent = ""; page.pendingMode = ""; } }
 
     readonly property var accentRoles: ["rosewater", "flamingo", "pink", "mauve", "red", "maroon", "peach",
                                         "yellow", "green", "teal", "sky", "sapphire", "blue", "lavender"]
@@ -37,10 +42,31 @@ SettingsPage {
         title: "Theme"
         icon: "\u{f050e}"
         SettingsRow {
+            icon: Theme.light ? "\u{f05a8}" : "\u{f0594}"
+            title: "Mode"
+            subtitle: (page.pendingMode ? "Switching to " + page.pendingMode + "…"
+                       : Theme.light ? "Light — light paper, dark ink" : "Dark — the default")
+                      + "  ·  each theme has both; bars, windows, terminal and apps follow"
+            keywords: "mode dark light day night latte dawn lotus contrast"
+            Segmented {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 200
+                height: 32
+                options: ["\u{f0594}  Dark", "\u{f05a8}  Light"]
+                currentIndex: Theme.light ? 1 : 0
+                onSelected: i => {
+                    const m = i === 1 ? "light" : "dark";
+                    if (m === Theme.mode) return;
+                    page.pendingMode = m;
+                    Theme.exec(Theme.hypr + "/set-theme.sh --mode " + m);
+                }
+            }
+        }
+        SettingsRow {
             icon: "\u{f03d8}"
             title: "Desktop theme"
             subtitle: Theme.themeName + (page.pendingTheme ? "  ·  switching…" : "") + "  ·  also SUPER+SHIFT+T"
-            keywords: "colours palette catppuccin tokyo gruvbox nord rose pine everforest dracula kanagawa"
+            keywords: "colours palette catppuccin tokyo gruvbox nord rose pine everforest dracula kanagawa latte dawn lotus alucard"
             last: true
             IconBtn {
                 text: "Open picker"
@@ -49,7 +75,7 @@ SettingsPage {
             }
         }
         Item {
-            visible: SettingsState.query === "" || "theme colours palette catppuccin tokyo gruvbox nord rose pine everforest dracula kanagawa".includes(SettingsState.query.toLowerCase())
+            visible: SettingsState.query === "" || "theme colours palette catppuccin tokyo gruvbox nord rose pine everforest dracula kanagawa latte dawn lotus alucard light dark mode".includes(SettingsState.query.toLowerCase())
             width: parent.width
             height: themeGrid.height + 14
                 Grid {

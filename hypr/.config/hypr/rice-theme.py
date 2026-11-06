@@ -10,8 +10,12 @@ every Mocha colour as a decimal long, becomes the theme's colour for that
 role. At Mocha the substitution is the identity, so the files come out
 byte-for-byte as before.
 
-    rice-theme.py list                     themes as JSON (for the picker)
+    rice-theme.py list [dark|light]        themes as JSON (for the picker); each
+                                           has "mode" and "family" (its dark id)
     rice-theme.py current                  the active theme's id
+    rice-theme.py mode [id]                dark | light
+    rice-theme.py variant MODE [id]        the same theme in MODE: rosepine ->
+                                           rosepine-light (Rosé Pine Dawn) …
     rice-theme.py palette [id]             {role: "#hex"} (+ "id", "name", "accent")
     rice-theme.py subst [id] [--ints]      stdin -> stdout, Mocha -> theme
     rice-theme.py subst-file [--ints] [--theme id] FILE...   in place
@@ -97,6 +101,82 @@ THEMES = {
 }
 ORDER = ["mocha", "tokyonight", "gruvbox", "nord", "rosepine", "everforest", "dracula", "kanagawa"]
 
+# LIGHT MODE (Settings › Appearance › Mode, `set-theme.sh --mode light`): each
+# theme's own light flavour, as `<id>-light`, in the same Mocha ROLES — base /
+# mantle / crust are the light paper, surfaces get darker as they rise, text
+# is dark, accents are the flavour's deeper inks. Everything themed passes
+# through the same substitution, so a light theme needs nothing else; the few
+# switches that are dark/light flags rather than colours (GTK colour-scheme,
+# icon inheritance, Claude Code / Neovim / LibreOffice base) read `mode`.
+LIGHT = {
+    "mocha": {
+        "name": "Catppuccin Latte",
+        "colors": "dc8a78 dd7878 ea76cb 8839ef d20f39 e64553 fe640b df8e1d 40a02b 179299 "
+                  "04a5e5 209fb5 1e66f5 7287fd 4c4f69 5c5f77 6c6f85 7c7f93 8c8fa1 9ca0b0 "
+                  "acb0be bcc0cc ccd0da eff1f5 e6e9ef dce0e8",
+    },
+    "tokyonight": {
+        "name": "Tokyo Night Day",
+        "colors": "b06a76 c4566d b74ba6 9854f1 f52a65 c64343 b15c00 8c6c3e 587539 118c74 "
+                  "007197 188092 2e7de9 7847bd 3760bf 4c62b0 6172b0 6f77a2 848cb5 9399bd "
+                  "a8aecb b6bbd2 c4c8da e1e2e7 d8dae3 d0d3de",
+    },
+    "gruvbox": {
+        "name": "Gruvbox Light",
+        "colors": "b0715a c26a5a b16286 8f3f71 9d0006 cc241d af3a03 b57614 79740e 427b58 "
+                  "689d6a 458588 076678 7c6f9e 3c3836 504945 665c54 7c6f64 928374 a89984 "
+                  "bdae93 d5c4a1 e3d4ab fbf1c7 f4e8bf ede0b8",
+    },
+    "nord": {
+        "name": "Nord Light",
+        "colors": "b07e72 b66a6a a8669c 9a6b96 bf616a a3545c c26a45 a87d1c 6b8f4e 4f8f8c "
+                  "3f8ea3 4f7aa8 3b6ea8 6f7cb8 2e3440 3b4252 4c566a 616e88 7b88a1 8e98aa "
+                  "a9b2c3 bdc5d3 d0d7e2 eceff4 e5e9f0 dde3ec",
+    },
+    "rosepine": {
+        "name": "Rosé Pine Dawn",
+        "colors": "c7958f d7827e c86a9e 907aa9 b4637a b8505a d98a52 ea9d34 4f8f6a 56949f "
+                  "5b9bb0 286983 3e7fa1 7a72b8 575279 676389 797593 8a86a0 9893a5 aaa5b6 "
+                  "cecacd dfdad9 e9e2dc faf4ed f4ede8 f2e9e1",
+    },
+    "everforest": {
+        "name": "Everforest Light",
+        "colors": "d78f7f e0727a e07a9a df69ba f85552 e66868 f57d26 dfa000 8da101 35a77c "
+                  "3aa5a0 3a94c5 4f86c6 8a7fc0 5c6a72 667680 708089 829181 939f91 a6b0a0 "
+                  "bdc3af d3d1bb e6e2cc fdf6e3 f4f0d9 efebd4",
+    },
+    "dracula": {
+        "name": "Alucard (Dracula Light)",
+        "colors": "b4677f c24f75 a3144d 644ac9 cb3a2a b03a3a a34d14 846e15 14710a 0b7a5a "
+                  "036a96 1a6fa8 3d5ec9 7a63d0 1f1f1f 3e3c35 5a5644 6c664b 8f8a70 aaa691 "
+                  "c9c6bb d9d6c8 e8e4d3 fffbeb f6f2e1 efebd9",
+    },
+    "kanagawa": {
+        "name": "Kanagawa Lotus",
+        "colors": "b8776a c25b6a b35b79 624c83 c84053 d7474b cc6d00 de9800 6f894e 597b75 "
+                  "4e8ca2 5a7785 4d699b 766b90 545464 5f5f6e 716e61 8a8980 9e9a8c b0ab95 "
+                  "c4bd94 d5cea3 dcd5ac f2ecbc e9e2b4 e5ddb0",
+    },
+}
+for _fam, _t in LIGHT.items():
+    THEMES[_fam]["mode"] = "dark"
+    THEMES[_fam + "-light"] = dict(_t, accent=THEMES[_fam]["accent"], mode="light")
+LIGHT_ORDER = [f + "-light" for f in ORDER]
+
+
+def mode_of(tid):
+    return THEMES.get(tid, {}).get("mode", "dark")
+
+
+def family(tid):
+    return tid[:-len("-light")] if tid.endswith("-light") else tid
+
+
+def variant(tid, mode):
+    """The same theme in `mode` ("dark" | "light")."""
+    f = family(tid)
+    return f + "-light" if mode == "light" else f
+
 # Mocha-derived shades that are not roles but turn up in themed files:
 # (mocha hex) -> (role a, role b, share of a). Carried across as the same mix.
 # eff1f5 is Catppuccin LATTE's base, which the Catppuccin GTK theme draws its
@@ -109,6 +189,9 @@ MIXES = {
 # Only for the GTK theme: elsewhere eff1f5 is Latte's own base (spicetify's
 # color.ini and similar files carry all four Catppuccin flavours).
 GTK_MIXES = {"eff1f5": ("text", "#ffffff", 0.45)}
+# ...in a LIGHT theme `text` is dark, and that light-on-accent foreground has
+# to stay light: the theme's paper, a touch whiter.
+GTK_MIXES_LIGHT = {"eff1f5": ("base", "#ffffff", 0.60)}
 
 
 def palette(tid):
@@ -146,15 +229,53 @@ def table(tid, gtk=False):
     out = {src[r]: dst[r] for r in ROLES}
     if tid == "mocha":
         return {}
-    for h, (a, b, t) in list(MIXES.items()) + (list(GTK_MIXES.items()) if gtk else []):
+    gmix = GTK_MIXES_LIGHT if mode_of(tid) == "light" else GTK_MIXES
+    for h, (a, b, t) in list(MIXES.items()) + (list(gmix.items()) if gtk else []):
         ta = dst[a] if a in dst else a.lstrip("#")
         tb = dst[b] if b in dst else b.lstrip("#")
         out[h] = mix(ta, tb, t)
     return {k: v for k, v in out.items() if k != v}
 
 
+# A template can hold BOTH modes of the theme at once, for an app that
+# switches between them by itself, live (GTK4's `@media (prefers-color-scheme)`
+# in gtk-4.0/gtk.css): lines between a `rice:mode dark` and a `rice:mode end`
+# marker are recoloured into the theme's dark flavour, between `rice:mode
+# light` and the end marker into its light one — whichever mode is current.
+# The marker lines (comments in the file's own syntax) stay in the output, so
+# --resync's diff of live file against template still lines up.
+MODE_MARK = re.compile(r"^[ \t]*(?:/\*|#|//)[ \t]*rice:mode (dark|light|end)[ \t]*(?:\*/)?[ \t]*$\n?", re.M)
+
+
 def subst(text, tid, ints=False, gtk=False):
-    m = table(tid, gtk)
+    if "rice:mode " not in text:
+        return _subst(text, tid, ints, gtk)
+    out, pos, cur = [], 0, tid
+    for mo in MODE_MARK.finditer(text):
+        out.append(_subst(text[pos:mo.start()], cur, ints, gtk))
+        out.append(mo.group(0))
+        cur = tid if mo.group(1) == "end" else variant(tid, mo.group(1))
+        pos = mo.end()
+    out.append(_subst(text[pos:], cur, ints, gtk))
+    return "".join(out)
+
+
+def _subst(text, tid, ints=False, gtk=False):
+    return apply_map(text, table(tid, gtk), ints)
+
+
+def latte_table(tid):
+    """{Catppuccin LATTE hex: theme hex} by role — for files that carry a
+    Latte half next to the Mocha one (Catppuccin's Discord CSS styles
+    .theme-light in Latte)."""
+    src, dst = palette("mocha-light"), palette(tid)
+    return {src[r]: dst[r] for r in ROLES if src[r] != dst[r]}
+
+
+def apply_map(text, m, ints=False):
+    """Every colour in `m` ({hex: hex}, lower-case, no #) replaced: hex (any
+    case, also the colour part of an 8-digit one), `r, g, b` triplets and,
+    with ints, LibreOffice decimal longs."""
     if not m:
         return text
 
@@ -208,7 +329,12 @@ def map_accent(hexc, src, dst):
             return pd[r]
     t = rgb(hexc)
     if max(t) - min(t) < 24:
-        return hexc                 # a grey has no role: it stays the same grey
+        # a grey has no role: it stays the same grey — mirrored in lightness
+        # across a dark <-> light switch, so a pale grey accent on the dark
+        # desktop becomes a deep one on the light paper (and back)
+        if mode_of(src) != mode_of(dst):
+            return hexof(255 - v for v in t)
+        return hexc
     return pd[nearest(hexc, src)]
 
 
@@ -287,16 +413,35 @@ def derive(hexc, tid):
     else:
         comp = hexof(v * 255 for v in colorsys.hls_to_rgb((h + 0.5) % 1.0, l, s))
         third = hexof(v * 255 for v in colorsys.hls_to_rgb((h + 0.25) % 1.0, l, s))
-    return {"ACCENT_COMP": comp, "ACCENT_THIRD": third,
+    out = {"ACCENT_COMP": comp, "ACCENT_THIRD": third,
             "ACCENT_MID": mix(a, s0, 0.40), "ACCENT_LOW": mix(a, s0, 0.20),
             "ACCENT_HI": mix(a, pal["text"], 0.55),
             "ACCENT_COMP_MID": mix(comp, s0, 0.40),
             "ACCENT_THIRD_MID": mix(third, s0, 0.40)}
+    # Both modes of the theme at once, for an app that holds a dark and a
+    # light theme side by side and so can flip between them live (VS Code's
+    # Catppuccin Mocha + Latte overrides): DARK_<ROLE> / LIGHT_<ROLE>, and
+    # FLAVOUR = the Catppuccin flavour of the current mode.
+    for m in ("dark", "light"):
+        for r, h in palette(variant(tid, m)).items():
+            out[f"{m.upper()}_{r.upper()}"] = h
+    light = mode_of(tid) == "light"
+    out["FLAVOUR"] = "Latte" if light else "Mocha"
+    out["FLAVOUR_ID"] = "latte" if light else "mocha"
+    # the plain icon set whose symbolic icons read on this mode's paper
+    # (mako's icon-path; Papirus-Mocha inherits the same — set-theme.sh)
+    out["ICONS_BASE"] = "Papirus-Light" if light else "Papirus-Dark"
+    # the accent in each mode (its role carried across), for a template that
+    # holds both (gtk4.css)
+    out["ACCENT_DARK"] = map_accent(a, tid, variant(tid, "dark"))
+    out["ACCENT_LIGHT"] = map_accent(a, tid, variant(tid, "light"))
+    return out
 
 
 def as_json(tid):
     p = {r: "#" + h for r, h in palette(tid).items()}
-    p.update({"id": tid, "name": THEMES[tid]["name"], "accent": THEMES[tid]["accent"]})
+    p.update({"id": tid, "name": THEMES[tid]["name"], "accent": THEMES[tid]["accent"],
+              "mode": mode_of(tid), "family": family(tid)})
     return p
 
 
@@ -306,7 +451,13 @@ def main(argv):
         return 2
     cmd, args = argv[0], argv[1:]
     if cmd == "list":
-        print(json.dumps([as_json(t) for t in ORDER]))
+        # dark themes, then their light flavours; `list dark|light` for one set
+        ids = {"dark": ORDER, "light": LIGHT_ORDER}.get(args[0] if args else "", ORDER + LIGHT_ORDER)
+        print(json.dumps([as_json(t) for t in ids]))
+    elif cmd == "mode":
+        print(mode_of(args[0] if args else current()))
+    elif cmd == "variant":
+        print(variant(args[1] if len(args) > 1 else current(), args[0]))
     elif cmd == "current":
         print(current())
     elif cmd == "palette":

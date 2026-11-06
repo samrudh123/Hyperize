@@ -54,7 +54,15 @@ vim.api.nvim_create_autocmd("LspAttach", {
 -- Space p e / :PythonEnv to pick a venv or conda env for the project.
 vim.api.nvim_create_user_command("PythonEnv", function() require("python-env").pick() end,
                                  { desc = "Pick the Python environment" })
-vim.keymap.set("n", "<leader>pe", "<cmd>PythonEnv<cr>", { desc = "Python environment" })
+vim.keymap.set("n", "<leader>pe", "<cmd>PythonEnv<cr>", { desc = "Choose Python environment" })
+
+-- Ctrl+V pastes the system clipboard like in other apps (p / P already do,
+-- via clipboard=unnamedplus; Ctrl+Shift+V is Ghostty's own paste). Vim's
+-- old Ctrl+V jobs live on Ctrl+Q: visual-block in normal mode, insert a
+-- literal key in insert / command-line mode.
+vim.keymap.set("n", "<C-v>", '"+P', { desc = "Paste from clipboard" })
+vim.keymap.set("i", "<C-v>", "<C-r><C-o>+", { desc = "Paste from clipboard" })
+vim.keymap.set("c", "<C-v>", "<C-r>+", { desc = "Paste from clipboard" })
 
 -- set-accent.sh rewrites theme/accent, set-theme.sh replaces palette.json;
 -- watch the directory (palette.json is mv'd into place, a file watch would

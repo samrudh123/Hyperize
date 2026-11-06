@@ -47,6 +47,12 @@ import re
 import subprocess
 import sys
 
+try:                                  # plain-English names (keybind_docs.py, next to this)
+    from keybind_docs import doc as _doc
+except ImportError:
+    def _doc(*_a, **_k):
+        return None
+
 HYPR = os.path.dirname(os.path.abspath(__file__))
 CONF = os.path.join(HYPR, "hyprland.conf")
 USER = os.path.join(HYPR, "keybinds-user.conf")
@@ -244,6 +250,7 @@ def parse():
             parts.append("")
         mods, key, disp, arg = parts
         emods = expand(mods, vars_)
+        d = _doc(disp, arg, expand(arg, vars_), key, kind)
         binds.append({
             "id": combo_id(emods, key),
             "kind": kind,
@@ -252,7 +259,9 @@ def parse():
             "dispatcher": disp,
             "arg": arg,                      # raw, with $vars, for the user file
             "argExpanded": expand(arg, vars_),
-            "desc": clean_comment(comment) or describe(disp, expand(arg, vars_), arg),
+            # title: keybind_docs.py's, else the bind's comment, else made up from the command
+            "desc": d[0] if d else (clean_comment(comment) or describe(disp, expand(arg, vars_), arg)),
+            "about": d[1] if d else "",       # what it does, in a sentence
             "comment": comment,
             "group": group or (classify(disp, arg) if section == "Keybinds" else section),
             "section": section,
@@ -315,10 +324,12 @@ def custom_entries(customs, vars_):
     """the customs as `list` rows, shaped like hyprland.conf's binds"""
     rows = []
     for c in customs:
+        d = _doc(c["dispatcher"], c["arg"], expand(c["arg"], vars_), c["key"])
         rows.append({
             "id": "custom:" + c["cid"], "kind": "bind", "custom": True, "name": c["name"],
             "mods": c["mods"], "key": c["key"], "dispatcher": c["dispatcher"], "arg": c["arg"],
-            "argExpanded": expand(c["arg"], vars_), "desc": c["name"] or describe(c["dispatcher"], expand(c["arg"], vars_), c["arg"]),
+            "argExpanded": expand(c["arg"], vars_), "desc": c["name"] or (d[0] if d else describe(c["dispatcher"], expand(c["arg"], vars_), c["arg"])),
+            "about": d[1] if d else "",
             "comment": "", "group": "Your own bindings", "section": "Custom", "mouse": False,
             "curMods": c["mods"], "curKey": c["key"], "changed": False,
             "curId": combo_id(c["mods"], c["key"]),
@@ -384,6 +395,9 @@ def effective(binds, ov, vars_=None):
             if "arg" in o:
                 b["arg"] = o["arg"].replace("#", "##")
                 b["argExpanded"] = expand(o["arg"], vars_)
+            if o.get("dispatcher") or "arg" in o:     # runs something else now: describe that
+                d = _doc(b["dispatcher"], b["arg"].replace("##", "#"), b["argExpanded"], b["key"], b["kind"])
+                b["about"] = d[1] if d else ""
             b["edited"] = any(k in o for k in ("name", "dispatcher", "arg"))
         else:
             b["curMods"], b["curKey"], b["changed"], b["edited"] = b["mods"], b["key"], False, False

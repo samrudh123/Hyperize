@@ -3,6 +3,8 @@
     // Catppuccin Mocha, the same palette ghostty and yazi already use — base
     // #1a1b26, text #c0caf5 — so the editor stops being the one window that
     // disagrees with the rest of the desktop.
+    // Mocha in dark mode, Latte in light (both recoloured into the theme by
+    // the overrides below) — Mocha is filled by set-accent.sh.
     "workbench.colorTheme": "Catppuccin Mocha",
     "workbench.iconTheme": "catppuccin-mocha",
 
@@ -12,10 +14,14 @@
     // does NOT override still agree with the ones it does. See the block at
     // the bottom for why it is only some of them.
     "catppuccin.accentColor": "blue",
-    // Desktop THEMES (SUPER+SHIFT+T): Mocha's palette spelled out so set-accent.sh's
-    // palette substitution (rice-theme.py) turns it into the chosen theme's —
-    // the Catppuccin extension then recolours the whole editor, syntax
-    // included, with those colours. At Mocha it is a no-op.
+    // Desktop THEMES (SUPER+SHIFT+T): the theme's palette, both flavours at
+    // once — "mocha" = its dark palette, "latte" = its light one (tokens from
+    // rice-theme.py derive). The Catppuccin extension recompiles its theme
+    // files when THIS block changes (a theme switch: "Reload required"), but
+    // a dark <-> light switch (Settings › Appearance › Mode) only changes
+    // workbench.colorTheme below, between two already-compiled themes —
+    // VS Code applies that live, no reload. At Mocha the mocha block is the
+    // stock palette.
     "catppuccin.colorOverrides": {
         "mocha": {
             "rosewater": "#f7c3c6",
@@ -44,6 +50,34 @@
             "base": "#1a1b26",
             "mantle": "#16161e",
             "crust": "#13131a"
+        },
+        "latte": {
+            "rosewater": "#b06a76",
+            "flamingo": "#c4566d",
+            "pink": "#b74ba6",
+            "mauve": "#9854f1",
+            "red": "#f52a65",
+            "maroon": "#c64343",
+            "peach": "#b15c00",
+            "yellow": "#8c6c3e",
+            "green": "#587539",
+            "teal": "#118c74",
+            "sky": "#007197",
+            "sapphire": "#188092",
+            "blue": "#2e7de9",
+            "lavender": "#7847bd",
+            "text": "#3760bf",
+            "subtext1": "#4c62b0",
+            "subtext0": "#6172b0",
+            "overlay2": "#6f77a2",
+            "overlay1": "#848cb5",
+            "overlay0": "#9399bd",
+            "surface2": "#a8aecb",
+            "surface1": "#b6bbd2",
+            "surface0": "#c4c8da",
+            "base": "#e1e2e7",
+            "mantle": "#d8dae3",
+            "crust": "#d0d3de"
         }
     },
 
@@ -195,7 +229,7 @@
     // deliberately the UI chrome you read as "the accent", and nothing that
     // carries meaning in the code itself.
     "workbench.colorCustomizations": {
-        "[Catppuccin Mocha]": {
+        "[Catppuccin Mocha][Catppuccin Latte]": {
             "focusBorder": "#7aa2f7",
             "sash.hoverBorder": "#7aa2f7",
             "button.background": "#7aa2f7",

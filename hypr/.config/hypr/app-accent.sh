@@ -7,8 +7,9 @@
 # These apps cannot use set-accent.sh's template trick (swap one hex token),
 # because two of them take an accent NAME, not a hex:
 #
-#   Discord (Vesktop)  Vencord QuickCSS @imports catppuccin-mocha-<name>.theme.css
-#                      — Vencord watches quickCss.css, so this is live.
+#   Discord (Vesktop)  Vencord QuickCSS = catppuccin-mocha-<name>.theme.css in
+#                      the theme's colours + exact accent (discord-theme.py);
+#                      written in place, so Vencord's watch picks it up live.
 #   Spotify            spicetify Themes/catppuccin/color.ini [mocha]: button +
 #                      button-active (play buttons, progress bar, toggles) set
 #                      to the hex. Needs `spicetify refresh` + a Spotify restart.
@@ -69,29 +70,10 @@ playing() { playerctl -l 2>/dev/null | grep -i "^$1" | while read -r p; do
     playerctl -p "$p" status 2>/dev/null; done | grep -qx Playing; }
 
 # ── Discord (Vesktop) ──────────────────────────────────────────────────────
-# Mocha: @import Catppuccin's hosted theme. Other themes: the same CSS,
-# fetched once (cached in theme/discord/), recoloured and inlined.
-if [ -d "$(dirname "$VESKTOP_QCSS")" ]; then
-    url="https://catppuccin.github.io/discord/dist/catppuccin-mocha-$name.theme.css"
-    if [ "$THEME_ID" = mocha ]; then
-        cat > "$VESKTOP_QCSS" <<EOF
-/* Written by ~/.config/hypr/app-accent.sh — follows the SUPER+ALT+C accent.
-   Edits here are overwritten on the next accent change. */
-@import url("$url");
-EOF
-    else
-        cache="$HOME/.config/hypr/theme/discord/catppuccin-mocha-$name.theme.css"
-        mkdir -p "${cache%/*}"
-        if [ ! -s "$cache" ]; then
-            curl -fsSL --max-time 20 "$url" -o "$cache.tmp" && [ -s "$cache.tmp" ] && mv -f "$cache.tmp" "$cache"
-        fi
-        if [ -s "$cache" ]; then
-            { printf '/* Written by ~/.config/hypr/app-accent.sh — %s theme, %s accent.\n   Edits here are overwritten on the next change. */\n' "$THEME_ID" "$name"
-              /usr/bin/python3 "$RICE" subst "$THEME_ID" < "$cache"; } > "$VESKTOP_QCSS.tmp" \
-                && mv -f "$VESKTOP_QCSS.tmp" "$VESKTOP_QCSS"
-        fi
-    fi
-fi
+# Catppuccin's Discord CSS in the current palette + exact accent, both its
+# dark and light halves, written IN PLACE into Vencord's QuickCSS so Vencord's
+# file watch survives — see discord-theme.py. Live.
+/usr/bin/python3 "$HOME/.config/hypr/discord-theme.py" "$hex" >/dev/null
 
 # ── YouTube Music ──────────────────────────────────────────────────────────
 if [ -f "$YTM_CSS" ]; then

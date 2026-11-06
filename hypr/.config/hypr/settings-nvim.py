@@ -109,18 +109,23 @@ def main(argv):
                     e["group"], e["changed"], e["edited"] = c.get("group") or e["group"], True, True
                 else:
                     e["custom"], e["group"] = True, "Your own mappings"
+                if c.get("desc") and c["desc"] != e.get("title"):
+                    e["title"], e["about"] = c["desc"], ""   # renamed: the old description may not fit
                 e["desc"] = c.get("desc") or e["desc"]
-                e["rhs"] = c["rhs"]
+                e["rhs"] = e["cmd"] = c["rhs"]
+                e["help"] = ""
                 seen.add((c["mode"], canon(c["lhs"])))
         for k, c in mine.items():                 # not in the dump (yet): still show it
             if c.get("deleted"):                  # deleted: show it, greyed, for Reset
                 maps.append({"mode": c["mode"], "lhs": c["lhs"], "rawLhs": c["lhs"], "desc": c.get("desc", ""),
+                             "title": c.get("desc", ""), "about": "", "cmd": c.get("rhs", ""), "help": "",
                              "rhs": c.get("rhs", ""), "buffer": False, "group": c.get("group") or "Your config",
                              "orig": back.get((c["mode"], canon(c["lhs"]))) or c["lhs"],
                              "changed": True, "deleted": True})
                 continue
             if k not in seen and not c.get("edited"):
                 maps.append({"mode": c["mode"], "lhs": c["lhs"], "rawLhs": c["lhs"], "desc": c.get("desc", ""),
+                             "title": c.get("desc", ""), "about": "", "cmd": c["rhs"], "help": "",
                              "rhs": c["rhs"], "buffer": False, "group": "Your own mappings",
                              "orig": c["lhs"], "changed": False, "custom": True})
         print(json.dumps(maps))

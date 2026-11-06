@@ -4,6 +4,10 @@
 #
 #   set-theme.sh <id>          mocha tokyonight gruvbox nord rosepine
 #                              everforest dracula kanagawa
+#   set-theme.sh <id>-light    the same themes' light flavours (mocha-light =
+#                              Catppuccin Latte, rosepine-light = Rosé Pine Dawn …)
+#   set-theme.sh --mode dark|light   the current theme in that mode
+#                              (Settings › Appearance › Mode; dark is the default)
 #   set-theme.sh --restore     re-apply the saved theme (login)
 #   set-theme.sh --show        print the current theme id
 #
@@ -38,6 +42,10 @@ current=$($PY "$RICE" current)
 case "${1:-}" in
     --show) echo "$current"; exit 0 ;;
     --restore) id="$current" ;;
+    --mode)
+        case "${2:-}" in dark|light) ;; *) echo "usage: set-theme.sh --mode dark|light" >&2; exit 2 ;; esac
+        id=$($PY "$RICE" variant "$2" "$current")
+        [ "$id" = "$current" ] && exit 0 ;;
     "") echo "usage: set-theme.sh <id> | --restore | --show" >&2; exit 2 ;;
     *) id="$1" ;;
 esac
@@ -55,6 +63,36 @@ RICE_PALETTE="$THEME/palette.json.tmp" $PY "$HYPR/dock-theme-icons.py" >/dev/nul
 
 printf '%s\n' "$id" > "$THEME/name"
 mv -f "$THEME/palette.json.tmp" "$THEME/palette.json"
+
+# Dark / light: the switches that are flags, not colours (everything with
+# colours follows the palette). Light themes are `<id>-light` (rice-theme.py).
+#   * GNOME colour-scheme — libadwaita apps, and through the portal every
+#     Electron / Chromium app's prefers-color-scheme
+#   * GTK3's prefer-dark (Hyprland runs no XSettings daemon; settings.ini)
+#   * Papirus-Mocha's base icons: Papirus-Dark's pale symbolic icons vanish on
+#     light paper, so it inherits Papirus-Light there (folders stay Catppuccin)
+# Claude Code, Neovim and LibreOffice read "mode" from palette.json /
+# rice-theme.py themselves.
+apply_mode() {
+    local mode scheme pd inh icons="$HOME/.local/share/icons/Papirus-Mocha/index.theme"
+    mode=$($PY "$RICE" mode "$1")
+    if [ "$mode" = light ]; then scheme=prefer-light; pd=0; inh="Papirus-Light,breeze,hicolor"
+    else scheme=prefer-dark; pd=1; inh="Papirus-Dark,breeze-dark,hicolor"; fi
+    gsettings set org.gnome.desktop.interface color-scheme "$scheme" 2>/dev/null
+    [ -f "$HOME/.config/gtk-3.0/settings.ini" ] && sed -i --follow-symlinks \
+        "s/^gtk-application-prefer-dark-theme=.*/gtk-application-prefer-dark-theme=$pd/" \
+        "$HOME/.config/gtk-3.0/settings.ini"
+    if [ -f "$icons" ] && ! grep -qx "Inherits=$inh" "$icons"; then
+        sed -i "s/^Inherits=.*/Inherits=$inh/" "$icons"
+        # running GTK apps cache icons: flip the theme away and back
+        if [ "$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null)" = "'Papirus-Mocha'" ]; then
+            gsettings set org.gnome.desktop.interface icon-theme "${inh%%,*}"
+            sleep 0.3
+            gsettings set org.gnome.desktop.interface icon-theme Papirus-Mocha
+        fi
+    fi
+}
+apply_mode "$id"
 
 # Re-render everything at the (carried-over) accent in the new palette.
 # app-accent.sh (run by set-accent.sh) skips when theme + accent are what it

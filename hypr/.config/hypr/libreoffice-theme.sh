@@ -12,7 +12,8 @@
 #     accents, kept in theme/libreoffice/) are added once, and the one for the
 #     nearest Mocha accent is made current — the document canvas becomes base,
 #     the area around it crust, grids/boundaries surface colours.
-#   * Appearance mode Dark, and the Colibre Dark icons (Yaru's are light).
+#   * Appearance mode Dark, and the Colibre Dark icons (Yaru's are light);
+#     Light + Colibre for a light theme (Settings › Appearance › Mode).
 #   * The Catppuccin colour palettes (.soc) for Format > Colours.
 #
 # LibreOffice rewrites registrymodifications.xcu when it quits, so an edit made
@@ -67,9 +68,13 @@ if [ "$THEME_ID" != mocha ]; then
     SRC="$TSRC"
 fi
 
-python3 - "$REG" "$SRC" "$hex" "$NAME" "$PREFIX" <<'EOF'
+# light themes: Appearance mode Light and the Colibre (dark-ink) icons
+MODE=$(/usr/bin/python3 "$RICE" mode "$THEME_ID")
+
+python3 - "$REG" "$SRC" "$hex" "$NAME" "$PREFIX" "$MODE" <<'EOF'
 import glob, os, re, shutil, sys
-reg, src, hexc, name, prefix = sys.argv[1:6]
+reg, src, hexc, name, prefix, mode = sys.argv[1:7]
+light = mode == "light"
 
 s = open(reg, encoding="utf-8").read()
 end = s.rindex("</oor:items>")
@@ -94,8 +99,8 @@ if add:
     s = s[:end] + "\n".join(add) + "\n" + s[end:]
 s = setprop(s, "/org.openoffice.Office.UI/ColorScheme", "CurrentColorScheme",
             f"{prefix} - {name}")
-s = setprop(s, "/org.openoffice.Office.Common/Appearance", "ApplicationAppearance", "2")
-s = setprop(s, "/org.openoffice.Office.Common/Misc", "SymbolStyle", "colibre_dark")
+s = setprop(s, "/org.openoffice.Office.Common/Appearance", "ApplicationAppearance", "1" if light else "2")
+s = setprop(s, "/org.openoffice.Office.Common/Misc", "SymbolStyle", "colibre" if light else "colibre_dark")
 
 if not os.path.exists(reg + ".pre-catppuccin"):
     shutil.copy2(reg, reg + ".pre-catppuccin")

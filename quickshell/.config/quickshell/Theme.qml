@@ -24,6 +24,12 @@ Singleton {
     }
     readonly property string themeId: pal.id || "mocha"
     readonly property string themeName: pal.name || "Catppuccin Mocha"
+    // Dark (default) or light — a light theme is `<id>-light`, the same roles
+    // with light paper and dark ink (Settings › Appearance › Mode,
+    // set-theme.sh --mode). Colours need no care; this is for the odd flag.
+    readonly property string mode: pal.mode || "dark"
+    readonly property bool light: mode === "light"
+    readonly property string themeFamily: pal.family || themeId
     function role(name, dflt) { return pal[name] || dflt; }
 
     readonly property color base: role("base", "#1e1e2e")

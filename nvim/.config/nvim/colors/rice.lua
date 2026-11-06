@@ -49,7 +49,7 @@ end
 
 vim.cmd("highlight clear")
 if vim.g.syntax_on then vim.cmd("syntax reset") end
-vim.o.background = "dark"
+vim.o.background = p.mode == "light" and "light" or "dark"   -- Settings › Appearance › Mode
 vim.g.colors_name = "rice"
 
 local NONE = "NONE"

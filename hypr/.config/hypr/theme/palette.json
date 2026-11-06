@@ -27,5 +27,7 @@
  "crust": "#13131a",
  "id": "tokyonight",
  "name": "Tokyo Night",
- "accent": "blue"
+ "accent": "blue",
+ "mode": "dark",
+ "family": "tokyonight"
 }

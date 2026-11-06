@@ -3,7 +3,15 @@
    (Nautilus), and the rest — to the palette of the bars, dock and panels.
    libadwaita 1.9 reads its colours from these CSS variables; this file loads
    at USER priority, after the built-in stylesheet, so it wins. Apps read it at
-   start-up: close and reopen a window to see a change.
+   start-up: close and reopen a window to see an accent or theme change.
+
+   DARK / LIGHT (Settings › Appearance › Mode): everything below is here
+   twice, once per mode, under @media (prefers-color-scheme) — GTK 4.20+
+   re-evaluates that when the desktop's colour-scheme flips, so OPEN apps
+   switch live. rice-theme.py recolours the `rice:mode dark` copy into the
+   theme's dark flavour and the `rice:mode light` copy into its light one,
+   whatever the current mode; the ACCENT_DARK / ACCENT_LIGHT tokens are
+   the accent in each. An edit to the colours belongs in BOTH copies.
 
    ACCENT: #7aa2f7 below is a set-accent.sh template token (the original
    accent) — the live file is rendered from theme/templates/gtk4.css with the
@@ -16,6 +24,15 @@
      window/view  base     #1a1b26   (content, header bars — flat, no seam)
      cards/rows   surface0 #24283b   (boxed lists, preference rows)
      popovers     crust    #13131a   (menus, like the bars' tooltips)        */
+
+:root {
+  /* same corner radius as Hyprland's windows (decoration:rounding = 10) */
+  --window-radius: 10px;
+  --monospace-font-family: "JetBrainsMono Nerd Font";
+}
+
+/* rice:mode dark */
+@media (prefers-color-scheme: dark) {
 
 :root {
   /* accent */
@@ -75,9 +92,6 @@
   --shade-color: rgba(19, 19, 26, 0.4);
   --scrollbar-outline-color: rgba(19, 19, 26, 0.6);
 
-  /* same corner radius as Hyprland's windows (decoration:rounding = 10) */
-  --window-radius: 10px;
-  --monospace-font-family: "JetBrainsMono Nerd Font";
 }
 
 /* The same colours under the pre-1.6 names, for GTK4 apps that read those. */
@@ -163,3 +177,156 @@ tooltip {
   border: 1px solid #343a52;
   border-radius: 9px;
 }
+
+}
+/* rice:mode end */
+
+/* rice:mode light */
+@media (prefers-color-scheme: light) {
+
+:root {
+  /* accent */
+  --accent-bg-color: #2e7de9;
+  --accent-fg-color: #d0d3de;
+  --accent-color: #2e7de9;
+
+  /* status colours: Mocha red / green / yellow, dark text on the fills */
+  --destructive-bg-color: #f52a65;
+  --destructive-fg-color: #d0d3de;
+  --destructive-color: #f52a65;
+  --success-bg-color: #587539;
+  --success-fg-color: #d0d3de;
+  --success-color: #587539;
+  --warning-bg-color: #8c6c3e;
+  --warning-fg-color: #d0d3de;
+  --warning-color: #8c6c3e;
+  --error-bg-color: #f52a65;
+  --error-fg-color: #d0d3de;
+  --error-color: #f52a65;
+
+  /* surfaces */
+  --window-bg-color: #e1e2e7;
+  --window-fg-color: #3760bf;
+  --view-bg-color: #e1e2e7;
+  --view-fg-color: #3760bf;
+  --headerbar-bg-color: #e1e2e7;
+  --headerbar-fg-color: #3760bf;
+  --headerbar-border-color: #3760bf;
+  --headerbar-backdrop-color: #e1e2e7;
+  --headerbar-shade-color: rgba(208, 211, 222, 0.6);
+  --headerbar-darker-shade-color: rgba(208, 211, 222, 0.8);
+  --sidebar-bg-color: #d8dae3;
+  --sidebar-fg-color: #3760bf;
+  --sidebar-backdrop-color: #d8dae3;
+  --sidebar-border-color: #d0d3de;
+  --sidebar-shade-color: rgba(208, 211, 222, 0.6);
+  --secondary-sidebar-bg-color: #e1e2e7;
+  --secondary-sidebar-fg-color: #3760bf;
+  --secondary-sidebar-backdrop-color: #e1e2e7;
+  --secondary-sidebar-border-color: #d0d3de;
+  --secondary-sidebar-shade-color: rgba(208, 211, 222, 0.6);
+  --card-bg-color: rgba(196, 200, 218, 0.75);
+  --card-fg-color: #3760bf;
+  --card-shade-color: rgba(208, 211, 222, 0.5);
+  --dialog-bg-color: #e1e2e7;
+  --dialog-fg-color: #3760bf;
+  --popover-bg-color: #d0d3de;
+  --popover-fg-color: #3760bf;
+  --popover-shade-color: rgba(0, 0, 0, 0.5);
+  --thumbnail-bg-color: #c4c8da;
+  --thumbnail-fg-color: #3760bf;
+  --overview-bg-color: #d8dae3;
+  --overview-fg-color: #3760bf;
+  --active-toggle-bg-color: rgba(55, 96, 191, 0.14);
+  --active-toggle-fg-color: #3760bf;
+  --shade-color: rgba(208, 211, 222, 0.4);
+  --scrollbar-outline-color: rgba(208, 211, 222, 0.6);
+
+}
+
+/* The same colours under the pre-1.6 names, for GTK4 apps that read those. */
+@define-color accent_bg_color #2e7de9;
+@define-color accent_fg_color #d0d3de;
+@define-color accent_color #2e7de9;
+@define-color destructive_bg_color #f52a65;
+@define-color destructive_fg_color #d0d3de;
+@define-color destructive_color #f52a65;
+@define-color success_color #587539;
+@define-color warning_color #8c6c3e;
+@define-color error_color #f52a65;
+@define-color window_bg_color #e1e2e7;
+@define-color window_fg_color #3760bf;
+@define-color view_bg_color #e1e2e7;
+@define-color view_fg_color #3760bf;
+@define-color headerbar_bg_color #e1e2e7;
+@define-color headerbar_fg_color #3760bf;
+@define-color headerbar_backdrop_color #e1e2e7;
+@define-color sidebar_bg_color #d8dae3;
+@define-color sidebar_fg_color #3760bf;
+@define-color sidebar_backdrop_color #d8dae3;
+@define-color card_bg_color rgba(196, 200, 218, 0.75);
+@define-color card_fg_color #3760bf;
+@define-color dialog_bg_color #e1e2e7;
+@define-color dialog_fg_color #3760bf;
+@define-color popover_bg_color #d0d3de;
+@define-color popover_fg_color #3760bf;
+
+/* ── details the variables don't reach ──────────────────────────────────── */
+
+/* Sidebar rows (Files' places, Settings' pages): a neutral surface0 pill
+   with an accent bar on its left edge and the icon in the accent — the same
+   "this one" mark as the dock's running bars. Not a tint OF the accent: yellow
+   at 16 % over mantle comes out brown. The label keeps the text colour:
+   Settings' sidebar labels ignore a CSS colour (probed — the icon takes it,
+   the label never does), so tinting labels only half-worked. */
+.navigation-sidebar > row:selected,
+.navigation-sidebar row:selected {
+  background-color: #c4c8da;
+  box-shadow: inset 3px 0 0 #2e7de9;
+}
+.navigation-sidebar row:selected image {
+  color: #2e7de9;
+}
+.navigation-sidebar > row:hover:not(:selected) {
+  background-color: rgba(196, 200, 218, 0.6);
+}
+
+/* Boxed lists / preference groups: a hairline surface1 edge, like the bars. */
+list.boxed-list,
+.boxed-list,
+list.content {
+  box-shadow: 0 0 0 1px rgba(182, 187, 210, 0.7);
+}
+
+/* Files: selected items get the accent tint rather than a solid block. */
+gridview > child:selected,
+columnview > listview > row:selected {
+  background-color: alpha(#2e7de9, 0.22);
+  color: #3760bf;
+}
+
+/* Search / path entries: surface0 pills with an accent focus ring. */
+entry,
+searchbar entry,
+.path-bar {
+  background-color: #c4c8da;
+}
+entry:focus-within {
+  outline-color: alpha(#2e7de9, 0.6);
+}
+
+/* Switches and check boxes read from the accent already; keep the knob dark
+   on the light accent so it stays visible. */
+switch:checked > slider {
+  background-color: #d0d3de;
+}
+
+/* Tooltips match waybar's: crust, surface1 hairline. */
+tooltip {
+  background-color: rgba(208, 211, 222, 0.97);
+  border: 1px solid #b6bbd2;
+  border-radius: 9px;
+}
+
+}
+/* rice:mode end */

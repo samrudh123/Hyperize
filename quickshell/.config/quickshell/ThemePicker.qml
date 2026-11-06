@@ -8,6 +8,8 @@
 //   ← → / h l / wheel   move              Enter / click centre   apply
 //   1-8                 jump to a theme    click a side card      move to it
 //   b                   bar style: classic ⇄ floating islands (applies at once)
+//   m                   show the dark ⇄ light flavours (Enter applies one;
+//                       Settings › Appearance › Mode flips the current theme)
 //   Esc / q / right click / click outside  close
 //
 // Palettes come from hypr/rice-theme.py (`list`), read once.
@@ -21,7 +23,10 @@ PanelWindow {
     id: picker
 
     property bool shown: false
-    property var themes: []
+    // every theme (dark, then the `-light` flavours); the carousel shows one mode
+    property var allThemes: []
+    property string showMode: "dark"
+    readonly property var themes: allThemes.filter(t => (t.mode || "dark") === showMode)
     property int target: 0
     property real pos: 0
     property real fade: 0
@@ -77,7 +82,8 @@ PanelWindow {
         const mon = Hyprland.focusedMonitor;
         for (const s of Quickshell.screens)
             if (mon && s.name === mon.name) screen = s;
-        if (!themes.length) listProc.running = true;
+        if (!allThemes.length) listProc.running = true;
+        showMode = Theme.mode;
         const i = themes.findIndex(t => t.id === Theme.themeId);
         target = Math.max(0, i);
         pos = target;
@@ -111,6 +117,16 @@ PanelWindow {
         close();
     }
 
+    // dark ⇄ light flavours, staying on the same theme
+    function toggleMode() {
+        const fam = sel ? (sel.family || sel.id) : Theme.themeFamily;
+        showMode = showMode === "light" ? "dark" : "light";
+        const i = themes.findIndex(t => (t.family || t.id) === fam);
+        target = Math.max(0, i);
+        pos = target;
+        tick.start();
+    }
+
     function toggleBar() {
         barFile.setText((barStyle === "islands" ? "classic" : "islands") + "\n");
     }
@@ -127,7 +143,8 @@ PanelWindow {
         command: ["/usr/bin/python3", Theme.hypr + "/rice-theme.py", "list"]
         stdout: StdioCollector {
             onStreamFinished: {
-                try { picker.themes = JSON.parse(text); } catch (e) { return; }
+                try { picker.allThemes = JSON.parse(text); } catch (e) { return; }
+                picker.showMode = Theme.mode;
                 const i = picker.themes.findIndex(t => t.id === Theme.themeId);
                 picker.target = Math.max(0, i);
                 picker.pos = picker.target;
@@ -379,6 +396,34 @@ PanelWindow {
                 width: 9; height: 44
                 Rectangle { x: 4; y: 12; width: 1; height: 20; color: Theme.surface1 }
             }
+            // dark ⇄ light flavours
+            Item {
+                id: modeBtn
+                width: 34
+                height: 44
+                readonly property bool on: picker.showMode === "light"
+                Rectangle {
+                    visible: modeBtn.on || modeMouse.containsMouse
+                    x: 2; y: 7
+                    width: parent.width - 4
+                    height: parent.height - 14
+                    radius: 9
+                    color: Theme.alpha(Theme.surface0, modeBtn.on ? 1 : 0.7)
+                }
+                Text {
+                    anchors.centerIn: parent
+                    text: modeBtn.on ? "\u{f05a8}" : "\u{f0594}"   // md-white_balance_sunny / md-weather_night
+                    color: modeBtn.on ? Theme.accent : modeMouse.containsMouse ? Theme.text : Theme.overlay2
+                    font.family: Theme.font
+                    font.pointSize: 14
+                }
+                MouseArea {
+                    id: modeMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: picker.toggleMode()
+                }
+            }
             // bar style: classic ⇄ floating islands
             Item {
                 id: barBtn
@@ -425,6 +470,7 @@ PanelWindow {
             if (t.id === Theme.themeId) bits.push("\u{f05e0} current");
             const r = picker.accentRole() || t.accent;
             bits.push("accent " + r);
+            bits.push((t.mode === "light" ? "light" : "dark") + "  (m)");
             bits.push("bar: " + (picker.barStyle === "islands" ? "floating islands" : "classic") + "  (b)");
             return bits.join("  ·  ");
         }
@@ -483,6 +529,7 @@ PanelWindow {
             else if (k === Qt.Key_End) picker.move(n);
             else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) picker.apply();
             else if (k === Qt.Key_B) picker.toggleBar();
+            else if (k === Qt.Key_M) picker.toggleMode();
             else if (k >= Qt.Key_1 && k <= Qt.Key_9 && k - Qt.Key_1 < n) picker.select(k - Qt.Key_1);
         }
     }

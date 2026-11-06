@@ -46,7 +46,7 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | ⤷ weather (bottom) | click: panel — now, 12 hours, 4 days, sunrise / sunset; right-click: change place |
 | ⤷ timer (bottom) | click: focus panel (right-click: start / pause / resume · middle: stop) — ring countdown, start / pause / +5 / stop, 25·50·90 lengths, pick the task (finished tasks drop off) |
 | ⤷ bottom player | **right-click** = music panel: cover, controls, **Equalizer** and synced **Lyrics** |
-| `SUPER + ALT + D` | Downloads menu — aria2 queue: pause / resume / remove / open, open JDownloader |
+| `SUPER + ALT + D` | Downloads panel (the bottom bar's downloads pill popup): pause / resume / remove / open, JDownloader |
 | `SUPER + E` | File manager (yazi) — press `q` to quit into that folder |
 | `SUPER + ALT + E` | Files (Nautilus) |
 | ⤷ in yazi | `Ctrl+T` terminal here · `Ctrl+O` VS Code · `Alt+O` Files · `Alt+G` grid view (thumbnails; `q` back) · `gw` Windows drive · `.` hidden files |
@@ -106,7 +106,7 @@ so it does nothing to them:
 | Keys | Does |
 |---|---|
 | `SUPER + Q` | Close window (not Alt+F4) |
-| `SUPER + SHIFT + T` | Theme picker — Catppuccin Mocha, Tokyo Night, Gruvbox Dark, Nord, Rosé Pine, Everforest, Dracula, Kanagawa; recolours the whole desktop (press again to close) |
+| `SUPER + SHIFT + T` | Theme picker — Catppuccin Mocha, Tokyo Night, Gruvbox Dark, Nord, Rosé Pine, Everforest, Dracula, Kanagawa; recolours the whole desktop (press again to close); `m` shows each theme's LIGHT flavour (Settings › Appearance › Mode flips the current one) |
 | ⤷ in the picker | `←/→` or wheel move · `Enter` apply · `1`–`8` jump · `b` bar style: classic ⇄ floating islands · `Esc` close |
 | Brightness pill (top bar) | scroll = brightness · click = 50 % · **right-click = night light** on/off · middle-click = warmer/cooler (4500 → 3500 → 2700 K) |
 | Display pill (top bar, only with an external monitor plugged in) | `dup` = duplicated, `ext` = extended. Click: **Duplicate** / **Extend** and which side the external screen sits on (right / left / above / below). Middle-click (or `SUPER + P`) flips duplicate ↔ extend. Both bars show on every screen. A monitor plugged in for the first time is **duplicated**; after that your choice is remembered per monitor and re-applied on replug (`hypr/display-mode.py`) |

@@ -663,6 +663,46 @@ One process, `~/.local/bin/qs` (exec-once), config in `~/.config/quickshell/`:
   Ghostty config is now in the manifest; set-theme sends SIGUSR2 (reload).
   Backups *.pre-themes. eff1f5 (Latte base) is mapped ONLY in GTK themes —
   spicetify's color.ini holds all four flavours.
+- LIGHT MODE (2026-11-07) — Settings › Appearance › Mode (Dark | Light),
+  `set-theme.sh --mode dark|light`, `m` in the theme picker. Each theme has a
+  light flavour `<id>-light` in rice-theme.py LIGHT (Latte, Tokyo Night Day,
+  Gruvbox Light, Nord Light, Rosé Pine Dawn, Everforest Light, Alucard,
+  Kanagawa Lotus) — same 26 roles, light base/mantle/crust, surfaces darker
+  as they rise, dark text, deeper accents; so the whole subst pipeline works
+  unchanged. palette.json gains "mode" + "family" (Theme.mode/light/
+  themeFamily); `list` returns all 16 (QML filters by mode), `mode`,
+  `variant MODE [id]`. Flags set by set-theme.sh apply_mode: gsettings
+  color-scheme, gtk-3.0 prefer-dark, Papirus-Mocha Inherits Papirus-Dark ⇄
+  Papirus-Light (+ icon-theme flip). claude-theme.py base, nvim rice.lua
+  background, libreoffice-theme.sh appearance/Colibre read the mode. GTK
+  eff1f5 mix uses base (not text) in light. A grey accent is mirrored in
+  lightness across a mode switch (map-accent). Dark is the default.
+  LIVE (later 2026-11-07): VS Code template holds BOTH Catppuccin flavours'
+  colorOverrides (mocha = DARK_<ROLE>, latte = LIGHT_<ROLE> derive tokens) and
+  colorTheme "Catppuccin @@FLAVOUR@@" — a mode flip only changes colorTheme
+  between two compiled themes = live (verified via state.vscdb
+  colorThemeData); a THEME switch still recompiles -> "Reload required".
+  gtk4.css template = common :root + the whole body twice under
+  `@media (prefers-color-scheme: dark|light)`, between `/* rice:mode dark|light */`
+  ... `/* rice:mode end */` marker lines; rice-theme.py subst recolours each
+  region into variant(tid, mode); ACCENT_DARK/ACCENT_LIGHT tokens. GTK 4.22
+  re-evaluates it live (verified with an Adw probe: fg #575279 -> #e0def4 on
+  flip). Edit colours in BOTH copies. mako icon-path = @@ICONS_BASE@@.
+  Zen rice-live.cfg applyMode(): ui.systemUsesDarkTheme always follows;
+  content-override / toolbar-theme / zen.view.window.scheme set only when the
+  mode changes (rice.mode.applied) - headless-tested both ways; needs a Zen
+  restart to load. Dark Reader (in Zen+Firefox) still darkens pages unless
+  its automation = system. Firefox Rice Accent 1.1.0 (color_scheme from
+  palette mode) built, NOT signed/installed (AMO). Not live: KDE/Qt apps,
+  LibreOffice, OBS (next start). Backups *.pre-light / *.pre-livelight.
+  DISCORD (Vesktop) live: new hypr/discord-theme.py (called by app-accent.sh,
+  replaces the @import / inline block). Catppuccin mocha-<role> CSS (cache
+  theme/discord/): Mocha (.theme-dark) AND Latte (.theme-light, latte_table)
+  -> current palette in one apply_map pass, role hex -> exact accent, `%23`
+  hexes in SVG data URIs handled. WRITTEN IN PLACE: Vencord fs.watch()es the
+  quickCss FILE, so the old temp+mv killed the watch after one change.
+  Verified on the running Vesktop: accent + light flips repaint in <1.5 s.
+  Also fixed set-accent.sh git_refresh comm/sort collation (LC_ALL=C).
 - Bar style (2026-10-11): theme/bar-style `classic|islands` (`b` in the theme
   picker), `Theme.islands`; `Island.qml` wraps module groups (classic: plain
   Row). Islands: bars 46 px, groups float as rounded glass.

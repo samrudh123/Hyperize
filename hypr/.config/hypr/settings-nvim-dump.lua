@@ -29,6 +29,9 @@ local function group_of(src, lhs, desc)
   return src == "" and "Neovim defaults" or "Your config"
 end
 
+local ok_docs, docs = pcall(require, "keymap-docs")
+if not ok_docs then docs = nil end
+
 local function dump()
   -- buffer-local LSP maps (init.lua's LspAttach) on a scratch buffer
   local buf = vim.api.nvim_create_buf(true, true)
@@ -45,8 +48,12 @@ local function dump()
     local lhs = d.lhs
     if leader == " " then lhs = lhs:gsub("^ ", "<leader>"):gsub("^<Space>", "<leader>") end
     local src = source_of(d)
+    -- plain-English title / description + the technical bit (nvim/lua/keymap-docs.lua)
+    local doc = docs and docs.lookup(d.mode, d.desc, d.rhs)
+      or { title = d.desc or "", about = "", cmd = d.rhs or "", help = "" }
     table.insert(res, {
       mode = d.mode, lhs = lhs, rawLhs = d.lhs, desc = d.desc or "",
+      title = doc.title, about = doc.about, cmd = doc.cmd, help = doc.help,
       rhs = d.rhs or (d.callback and "<Lua function>" or ""),
       buffer = buffer or false,
       group = buffer and "LSP (when a language server attaches)" or group_of(src, d.lhs, d.desc),
