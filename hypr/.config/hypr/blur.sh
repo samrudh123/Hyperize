@@ -21,7 +21,31 @@ PREF="$HYPR/blur.conf"
 MARK="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/blur-lowbat"
 
 pref() { grep -qE '^decoration:blur:enabled *= *(false|0)' "$PREF" 2>/dev/null && echo off || echo on; }
-apply() { hyprctl keyword decoration:blur:enabled "$([ "$1" = on ] && echo true || echo false)" >/dev/null; }
+POPS="$HYPR/blur-popups.conf"
+# The bars' popups (pill panels) are blurred by a layerrule, which Hyprland
+# applies even with decoration:blur off — and then to the popup's whole box
+# from its first frame (no ignore_alpha), so a frosted rectangle snapped in
+# and out around every panel's fade. The rule lives in its own sourced file
+# that follows the live state; rewriting it reloads Hyprland (autoreload),
+# so it's only written when it changes.
+popups() {
+    local want
+    if [ "$1" = on ]; then
+        want='# blur.sh — blur is ON: the pill panels (the bars'"'"' popups) are frosted too
+layerrule {
+    name = blur-qs-bar-popups
+    match:namespace = ^(qs-bar|qs-bottombar)$
+    blur_popups = true
+}'
+    else
+        want='# blur.sh — blur is OFF: no blur on the pill panels either'
+    fi
+    [ "$(cat "$POPS" 2>/dev/null)" = "$want" ] || printf '%s\n' "$want" > "$POPS"
+}
+apply() {
+    hyprctl keyword decoration:blur:enabled "$([ "$1" = on ] && echo true || echo false)" >/dev/null
+    popups "$1"
+}
 live() { hyprctl getoption decoration:blur:enabled -j 2>/dev/null | grep -q '"int": *1' && echo on || echo off; }
 
 save() {
@@ -45,7 +69,7 @@ case "$1" in
         elif [ -e "$MARK" ]; then
             rm -f "$MARK"; apply "$(pref)"
         fi ;;
-    reapply) [ -e "$MARK" ] && apply off ;;
+    reapply) if [ -e "$MARK" ]; then apply off; else popups "$(pref)"; fi ;;
     *) echo "usage: $0 get | set on|off | toggle | lowbat on|off | reapply" >&2; exit 2 ;;
 esac
 exit 0

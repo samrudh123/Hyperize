@@ -269,6 +269,8 @@ PanelPopup {
                     // month when it leaves it), Enter → the add field below
                     readonly property bool kb: activeFocus || BarState.kbItem === grid
                     activeFocusOnTab: true
+                    readonly property bool navArrows: true      // ← → ↑ ↓ = days / weeks
+                    property bool navSection: true              // Tab: month buttons → days → event field
                     function kbStep(d, key) {
                         const n = (key === Qt.Key_Up || key === Qt.Key_Down ? 7 : 1) * d;
                         pop.pick(new Date(pop.picked.getFullYear(), pop.picked.getMonth(), pop.picked.getDate() + n));

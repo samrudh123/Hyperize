@@ -36,6 +36,9 @@ PanelPopup {
     leftMargin: Theme.islands ? 10 : 6
     panelWidth: 860
     pad: 16
+    // the deck's own colour (header, Pause everything): the accent; each
+    // column's controls take their player's (PlayersColumn.panelTint)
+    tint: Theme.accent
 
     property var players: []
     property var last: null
@@ -130,7 +133,7 @@ PanelPopup {
                     anchors.verticalCenter: parent.verticalCenter
                     Text {
                         text: "Players"
-                        color: Theme.text
+                        color: Theme.accent
                         font.family: Theme.font
                         font.pixelSize: 18
                         font.weight: Font.Bold

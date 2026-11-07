@@ -58,7 +58,9 @@ PanelPopup {
         Theme.exec("/usr/bin/python3 " + Theme.hypr + "/clip-list.py delete " + e.id);
     }
     function move(d) {
-        sel = Math.max(0, Math.min(sel + d, shown.length - 1));
+        const n = shown.length;                 // round in a circle, like every panel's arrows
+        if (!n) return;
+        sel = ((sel + d) % n + n) % n;
         list.positionViewAtIndex(sel, ListView.Contain);
     }
 

@@ -3,9 +3,11 @@
 // recording (screen-record.py: wf-recorder, or OBS while OBS is open).
 //
 //   header   camera orb (red and pulsing while recording) · state · time
+//            (idle: "screenshots / recordings ask where to save", two lines)
 //   stop     while recording: a big stop card with the running time
 //   shoot    Region · Window · Screen
-//   record   Screen · Region · Window (wf-recorder) · In OBS (when OBS is open)
+//   record   Screen · Region · Window (wf-recorder) · Audio (sound only,
+//            ffmpeg → .m4a) · In OBS (when OBS is open)
 //   sound    Desktop · Microphone · None (wf-recorder; OBS has its own mixer)
 //   footer   Open OBS · Recordings folder
 import QtQuick
@@ -102,7 +104,7 @@ PanelPopup {
             Column {
                 anchors.verticalCenter: parent.verticalCenter
                 Text {
-                    text: pop.recording ? "Recording" + (pop.st.backend === "obs" ? " in OBS" : "") : "Capture"
+                    text: pop.recording ? "Recording" + (pop.st.backend === "obs" ? " in OBS" : pop.st.mode === "audio" ? " audio" : "") : "Capture"
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: 17
@@ -110,8 +112,17 @@ PanelPopup {
                 }
                 Text {
                     text: pop.recording ? (pop.st.state === "paused" ? "paused · " : "") + (pop.rec ? pop.rec.clock(pop.st.elapsed || 0) : "")
-                        : "screenshots ask where to save · videos go to Videos/Recordings"
+                        : "screenshots ask where to save"
                     color: pop.recording ? pop.tint : Theme.overlay1
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                }
+                // its own line: side by side it ran past the panel's edge
+                Text {
+                    visible: !pop.recording
+                    text: "recordings ask where to save when you stop"
+                    color: Theme.overlay1
                     font.family: Theme.font
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
@@ -186,10 +197,18 @@ PanelPopup {
                 id: recRow
                 width: parent.width
                 spacing: 8
-                readonly property int n: pop.st.obs ? 4 : 3
+                readonly property int n: pop.st.obs ? 5 : 4
                 Tile { width: (recRow.width - (recRow.n - 1) * 8) / recRow.n; tint: Theme.red; glyph: "\u{f0379}"; label: "Screen"; enabled_: pop.st.wf !== false; onActivated: pop.record("start screen") }
                 Tile { width: (recRow.width - (recRow.n - 1) * 8) / recRow.n; tint: Theme.red; glyph: "\u{f019f}"; label: "Region"; enabled_: pop.st.wf !== false; onActivated: pop.record("start region") }
                 Tile { width: (recRow.width - (recRow.n - 1) * 8) / recRow.n; tint: Theme.red; glyph: "\u{f05b2}"; label: "Window"; enabled_: pop.st.wf !== false; onActivated: pop.record("start window") }
+                // sound only — from what the Sound row picks (None = Desktop)
+                Tile {
+                    width: (recRow.width - (recRow.n - 1) * 8) / recRow.n
+                    tint: Theme.red
+                    glyph: "\u{f036c}"                  // md-microphone_variant
+                    label: "Audio"
+                    onActivated: pop.record("start audio")
+                }
                 Tile {
                     visible: pop.st.obs === true
                     width: (recRow.width - (recRow.n - 1) * 8) / recRow.n

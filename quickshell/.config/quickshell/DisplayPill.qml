@@ -58,6 +58,8 @@ Pill {
         // SUPER+P: toggle, with an OSD (also when there is nothing to switch)
         function cycle(): void { Displays.toggle(true); }
         function menu(): void { if (dp.count > 1 || panel.demo) dp.toggleMenu(); }
+        // SUPER+SHIFT+P: the panel; with one screen (pill hidden) the OSD says so
+        function panel(): void { if (dp.count > 1 || panel.demo) dp.toggleMenu(); else Displays.toggle(true); }
         // the panel with a made-up external screen (nothing changes)
         function demo(): void { panel.demo = true; Qt.callLater(panel.open); }
         // mirror | extend | right | left | above | below (= extend that way)

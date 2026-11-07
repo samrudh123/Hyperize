@@ -106,7 +106,8 @@ Rectangle {
     }
     function moveHi(d) {
         if (!options.length) return;
-        hi = Math.max(0, Math.min(options.length - 1, (hi < 0 ? currentIndex : hi) + d));
+        const n = options.length;               // the open list: round in a circle
+        hi = (((hi < 0 ? currentIndex : hi) + d) % n + n) % n;
         lv.positionViewAtIndex(hi, ListView.Contain);
     }
     onVisibleChanged: if (!visible) close()
@@ -133,11 +134,15 @@ Rectangle {
     // keyboard (Tab to it) — see PanelPopup.navKey
     activeFocusOnTab: enabled && visible && opacity > 0.05
     function kbActivate() { if (open) pick(hi); else openList(); }
+    // closed ← → past the last choice → the first (and back); default: stop
+    property bool wrap: false
     function kbStep(d) {
         if (open) { moveHi(d); return; }
         if (!options.length || !showValue) return;
-        const i = currentIndex < 0 ? (d > 0 ? 0 : options.length - 1)
-                                   : Math.max(0, Math.min(options.length - 1, currentIndex + d));
+        const n = options.length;
+        const i = currentIndex < 0 ? (d > 0 ? 0 : n - 1)
+                : wrap ? ((currentIndex + d) % n + n) % n
+                : Math.max(0, Math.min(n - 1, currentIndex + d));
         if (i !== currentIndex) selected(i);
     }
     Keys.onShortcutOverride: ev => { if (ev.key === Qt.Key_Escape && dd.open) ev.accepted = true; }
@@ -145,8 +150,9 @@ Rectangle {
         if (dd.open && dd.ddKey(ev.key, ev.modifiers)) { ev.accepted = true; return; }
         if (ev.modifiers & Qt.ControlModifier) return;
         if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
-        else if (ev.key === Qt.Key_Up || ev.key === Qt.Key_Left) { kbStep(-1); ev.accepted = true; }
-        else if (ev.key === Qt.Key_Down || ev.key === Qt.Key_Right) { kbStep(1); ev.accepted = true; }
+        // closed: ← → step the choice, ↑ ↓ go on to the panel (navKey)
+        else if (ev.key === Qt.Key_Left || (dd.open && ev.key === Qt.Key_Up)) { kbStep(-1); ev.accepted = true; }
+        else if (ev.key === Qt.Key_Right || (dd.open && ev.key === Qt.Key_Down)) { kbStep(1); ev.accepted = true; }
     }
 
     // ── the field ───────────────────────────────────────────────────────────

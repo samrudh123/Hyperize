@@ -76,6 +76,9 @@ PanelWindow {
             else if (ev.key === Qt.Key_Backtab || (ev.key === Qt.Key_Tab && (ev.modifiers & Qt.ShiftModifier)))
                 ev.accepted = p.navKey(Qt.Key_Backtab, 0);
             else if (ev.key === Qt.Key_Tab) ev.accepted = p.navKey(Qt.Key_Tab, 0);
+            // any other key (not typing into a text box): the panel's control may
+            // take it (TaskCard: 0–3 / ! = priority)
+            else if (!p.textTarget) ev.accepted = p.navKey(ev.key, ev.modifiers);
         }
     }
     MouseArea {
@@ -590,19 +593,31 @@ PanelWindow {
         function toggle(name: string, arg: string): void { BarState.panelRequested(name, arg); }
         // what Ctrl+Tab / Ctrl+Shift+Tab do in an open panel (1 / -1)
         function tab(dir: int): void { BarState.tabPressed(dir); }
+        // how the open panel's Tab sections came out (PanelPopup.describeSections)
+        function sections(): string { return BarState.activePopup ? BarState.activePopup.describeSections() : "no panel open"; }
+        // where the keyboard is, for debugging: qs app state (4 = a qs surface has it), grab, open panel
+        function kb(): string {
+            const a = BarState.activePopup;
+            return "app=" + Qt.application.state + " grab=" + BarState.grabHeld + " grabPopup=" + (BarState.grabPopup !== null)
+                 + " open=" + (a ? a.isOpen : false) + " picker=" + BarState.pickerShown;
+        }
         // keyboard navigation, for keybinds and testing:
         //   start            open the sound panel (or close the open one)
         //   left|right|up|down   the neighbouring panel (as Ctrl+arrows)
-        //   next|prev|enter|space|inc|dec   inside the open panel (Tab, Shift+Tab,
-        //                    Enter, Space, → / ←)
+        //   next|prev|enter|space|inc|dec|arrowup|arrowdown   inside the open panel
+        //                    (Tab, Shift+Tab, Enter, Space, → / ←, ↑ / ↓)
+        //   0 1 2 3 !        those keys (a task's priority)
         function nav(dir: string): void {
             if (dir === "start") { BarState.startNav(); return; }
             const p = BarState.activePopup;
             if (!p) return;
             const k = { next: [Qt.Key_Tab, 0], prev: [Qt.Key_Backtab, 0], enter: [Qt.Key_Return, 0],
                         space: [Qt.Key_Space, 0], inc: [Qt.Key_Right, 0], dec: [Qt.Key_Left, 0],
+                        arrowup: [Qt.Key_Up, 0], arrowdown: [Qt.Key_Down, 0],
                         left: [Qt.Key_Left, Qt.ControlModifier], right: [Qt.Key_Right, Qt.ControlModifier],
-                        up: [Qt.Key_Up, Qt.ControlModifier], down: [Qt.Key_Down, Qt.ControlModifier] }[dir];
+                        up: [Qt.Key_Up, Qt.ControlModifier], down: [Qt.Key_Down, Qt.ControlModifier],
+                        "0": [Qt.Key_0, 0], "1": [Qt.Key_1, 0], "2": [Qt.Key_2, 0], "3": [Qt.Key_3, 0],
+                        "!": [Qt.Key_Exclam, Qt.ShiftModifier] }[dir];
             if (k) p.navKey(k[0], k[1]);
         }
     }

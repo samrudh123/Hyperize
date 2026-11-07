@@ -37,7 +37,7 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | ⤷ window pill (top, next to the title) | click: float · right-click: window panel (float, pin, maximise / fullscreen, move to workspace, close — click twice) · middle: fullscreen |
 | ⤷ CPU / RAM / temp pills | click: panel — per-core bars + top processes by CPU · programs by memory (PSS, grouped) · every sensor, hottest outlined. Right-click: btop |
 | ⤷ battery pill | click: panel — charge, time left, draw, health, cycles, power mode |
-| `SUPER + .` | Keyboard mode: opens the sound panel with its first control focused (again: close). In any panel: Tab / Shift+Tab move, Enter / Space press, arrows change sliders and switches, Ctrl+← / Ctrl+→ the neighbouring pill's panel, Ctrl+↑ / Ctrl+↓ the other bar, Esc close |
+| `SUPER + .` | Keyboard mode: opens the sound panel with its first control focused (again: close). In any panel: **Tab / Shift+Tab jump section to section** (header buttons → tab bar → list → footer…, back to the control you last used there), **arrows move inside the section** (round in a circle — past the last back to the first; on a slider / tab bar / dropdown ← → adjust it and ↑ ↓ move on; the calendar's days take all four), Enter / Space press, Ctrl+← / Ctrl+→ the neighbouring pill's panel, Ctrl+↑ / Ctrl+↓ the other bar, Esc close |
 | ⤷ any panel with tabs | `Ctrl + Tab` / `Ctrl + Shift + Tab` steps through its tabs (tasks, sound, notifications, Wi-Fi, music, Tailscale, clipboard) |
 | ⤷ brightness pill | click: brightness panel — orb (scroll ±5 %), slider, 10–100 % picks, night light switch + 4500 / 3500 / 2700 K + Kelvin slider. Right-click: night light on/off · middle: warmer/cooler · scroll: ±5 % |
 | ⤷ ⏻ power pill / `SUPER + SHIFT + X` | power panel: Lock · Suspend · Log out · Restart · Power off (the last three: click twice) |
@@ -47,6 +47,9 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | ⤷ timer (bottom) | click: focus panel (right-click: start / pause / resume · middle: stop) — ring countdown, start / pause / +5 / stop, 25·50·90 lengths, pick the task (finished tasks drop off) |
 | ⤷ bottom player | **right-click** = music panel: cover, controls, **Equalizer** and synced **Lyrics** |
 | `SUPER + ALT + D` | Downloads panel (the bottom bar's downloads pill popup): pause / resume / remove / open, JDownloader |
+| `SUPER + ALT + N` | News panel (the bottom bar's news pill) — category ▾ ends in **More**: one grid of every category — the ones in your list highlighted with ✓ — built-in plus extras (Tech, Programming, Linux, Science, Space, Gaming, Movies, Business, Security, Tamil Nadu, Education, Health, Climate, Music, EVs, Long reads) with a few of its sub-categories; **+** adds it to the list, ✓ removes, a click opens it. Every headline shows **FREE** / **LIMITED** (a few free articles a month) / **PAID** (subscribers only) — hover the badge for why. Keyboard: **Tab** jumps section to section (category → Refresh → sub-category chips → headlines → category; Shift+Tab back), arrows step inside a section; on the category ▾, ← → go round the categories (past More back to the first) and the headlines cross-fade |
+| `SUPER + ALT + A` | Sound panel (the top bar's volume pill) |
+| `SUPER + ALT + W` | Wi-Fi panel (the top bar's network pill) |
 | `SUPER + E` | File manager (yazi) — press `q` to quit into that folder |
 | `SUPER + ALT + E` | Files (Nautilus) |
 | ⤷ in yazi | `Ctrl+T` terminal here · `Ctrl+O` VS Code · `Alt+O` Files · `Alt+G` grid view (thumbnails; `q` back) · `gw` Windows drive · `.` hidden files |
@@ -63,7 +66,7 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | ⤷ right-click it | quick-add a task without opening the panel |
 | ⤷ deadlines | end a task with `@fri 5pm`, `@tomorrow`, `@20/10 9:30am`, `@2h`… (a bare day = end of it, 23:59:59), or the 󰃳 calendar button on a row / next to Add (time: wheel up / touchpad fingers up = +, down = − — 2 hours / 10 minutes per notch, Shift+scroll = 1; +/−, ↑↓ or typing = 1; End of day is the default). Overdue + next 2 days sit in **Due soon** on top; `sort:` on the Remaining header cycles manual › deadline › priority. The pill turns yellow (due within a day) / red (overdue) |
 | ⤷ repeating | `@daily` `@weekdays` `@weekly` `@monthly` `@every mon,wed 17:00` `@every 3d` (or Repeat in the calendar picker): ticking one off brings back the next |
-| ⤷ priority | `!` `!!` `!!!` as a word in the text, or click the `!` in front of a task (cycles) |
+| ⤷ priority | `!` `!!` `!!!` as a word in the text, or click the `!` in front of a task (cycles). Keyboard: with a task (or its ✎ / 🗑) selected, `1` `2` `3` set it, `0` clears it, `!` cycles |
 | ⤷ reminders | 1 day, 6 h, 3 h, 1 h, 5 min before and when due (last three stay up, even in do-not-disturb). Left-click one: Open tasks · Mark done · Remind in 15 min / 1 hour · Tomorrow 9:00 · `Esc` (anywhere) dismisses them |
 | ⤷ clock calendar | click the clock (right-click: time ↔ date): month grid with deadline dots (colour = priority, red = overdue); ‹ › / Today / scroll to page; click a day for its deadlines and to add a task due that day |
 | `SUPER + T` | Open / close the tasks panel |
@@ -109,7 +112,7 @@ so it does nothing to them:
 | `SUPER + SHIFT + T` | Theme picker — Catppuccin Mocha, Tokyo Night, Gruvbox Dark, Nord, Rosé Pine, Everforest, Dracula, Kanagawa; recolours the whole desktop (press again to close); `m` shows each theme's LIGHT flavour (Settings › Appearance › Mode flips the current one) |
 | ⤷ in the picker | `←/→` or wheel move · `Enter` apply · `1`–`8` jump · `b` bar style: classic ⇄ floating islands · `Esc` close |
 | Brightness pill (top bar) | scroll = brightness · click = 50 % · **right-click = night light** on/off · middle-click = warmer/cooler (4500 → 3500 → 2700 K) |
-| Display pill (top bar, only with an external monitor plugged in) | `dup` = duplicated, `ext` = extended. Click: **Duplicate** / **Extend** and which side the external screen sits on (right / left / above / below). Middle-click (or `SUPER + P`) flips duplicate ↔ extend. Both bars show on every screen. A monitor plugged in for the first time is **duplicated**; after that your choice is remembered per monitor and re-applied on replug (`hypr/display-mode.py`) |
+| Display pill (top bar, only with an external monitor plugged in) | `dup` = duplicated, `ext` = extended. Click: **Duplicate** / **Extend** and which side the external screen sits on (right / left / above / below). Middle-click flips duplicate ↔ extend; `SUPER + SHIFT + P` opens the panel. Both bars show on every screen. A monitor plugged in for the first time is **duplicated**; after that your choice is remembered per monitor and re-applied on replug (`hypr/display-mode.py`) |
 | `SUPER + Tab` | Workspace picker — the wallpaper carousel, one card per workspace with windows plus the next empty one, each a miniature of the workspace (press again to close) |
 | ⤷ in the picker | `←/→` or wheel move (mouse wheel up / two-finger down = next) · `Enter` go there · `1`–`9` pick that workspace · `m` carry the focused window along (`Shift+Enter` = once) · `/` search window titles / apps · `Esc` close |
 | `SUPER + H/J/K/L` | Move focus left/down/up/right (arrows work too) — also into / out of floating popups (screenshot save, tasks, notifications, …) |
@@ -117,8 +120,9 @@ so it does nothing to them:
 | `SUPER + CTRL + arrows` | Resize the window |
 | `SUPER + F` | Fullscreen |
 | `SUPER + V` | Float this window |
-| `SUPER + P` | Displays: switch duplicate ↔ extend (with an external monitor plugged in) |
-| `SUPER + ALT + P` | Pseudotile — keep the slot, stop stretching to fill it |
+| `SUPER + P` | Phone panel (the bottom bar's phone pill) |
+| `SUPER + SHIFT + P` | Displays panel (the display pill; with only the laptop screen, an OSD says so) |
+| `SUPER + ALT + P` | CPU panel (the top bar's CPU pill) |
 | `SUPER + ALT + T` | Flip the split direction (was `SUPER + T`) |
 | `SUPER + drag` | Left button moves, right button resizes |
 
@@ -144,18 +148,23 @@ so it does nothing to them:
 | `SUPER + SHIFT + S` | Drag a region → clipboard + file |
 | `Print` | Whole screen → clipboard + file |
 | `SHIFT + Print` | Active window → clipboard + file |
+| `SUPER + R` | Capture panel (the top bar's camera pill): screenshot region / window / screen, record screen / region / window / **audio only** (+ OBS), sound source |
 | `SUPER + SHIFT + V` | Clipboard history (the top bar popup) |
 
-Every capture is saved to `~/Pictures/Screenshots/` with a timestamp *and* put on
-the clipboard; a notification confirms it. `Escape` cancels a region selection.
+Every capture is put on the clipboard and then a popup asks whether to keep it
+and where (Save… → folder picker, starts in the last folder used; Discard /
+Esc → gone, still on the clipboard). `Escape` cancels a region selection.
 
 Top bar, left of centre:
 - **Camera pill** — click: region screenshot · right-click: menu (screenshots,
   record screen / region / window, sound: desktop / mic / none, open OBS) ·
   middle-click: start recording. While recording it turns red with a timer;
   click to stop. If OBS is open, recording uses OBS (shows "OBS").
-  Files: `~/Videos/Recordings/` (OBS: its own folder); "Open recordings
-  folder" and the notification's "Show in folder" open yazi in grid view.
+  On stop the same save popup asks where the video goes — Save… is focused
+  (Enter → folder picker, starts in the last folder a video went to), Play
+  previews it, Discard deletes it, Esc keeps it in `~/Videos/Recordings/`
+  (OBS: its own folder). **Audio** records sound only (Desktop, or the Microphone if Sound says so) to an .m4a — same save popup, Esc keeps it in `~/Music/Recordings/`. "Recordings folder" and the notification's "Show in
+  folder" open yazi in grid view.
 - **Clipboard pill** — history with image previews: type to filter, ↑↓, Enter
   copies, Del / right-click removes, "Clear all" (click twice).
 

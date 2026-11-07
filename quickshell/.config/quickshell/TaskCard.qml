@@ -1,5 +1,5 @@
 // One task in the tasks panel (TasksPopup.qml): ○ tick · !! priority (click
-// cycles) · text · due / repeat / age · on hover ↑ ↓ (manual order), ✎ edit
+// cycles; keyboard: 0–3 or !) · text · due / repeat / age · on hover ↑ ↓ (manual order), ✎ edit
 // (text + deadline, with quick picks), 🗑 delete (click twice).
 //
 //     TaskCard { pop: panel; t: task; up: prevTask; down: nextTask }
@@ -14,6 +14,19 @@ Rectangle {
     function kbActivate() { if (pop) pop.op([t.done ? "undone" : "done", String(t.i), t.text]); }
     Keys.onPressed: ev => {
         if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
+        else if (kbKey(ev.key, ev.modifiers)) ev.accepted = true;
+    }
+    // priority from the keyboard (PanelPopup.navKey asks the focused task,
+    // or the task its focused button is on): 0 none · 1 ! · 2 !! · 3 !!!,
+    // ! cycles (as clicking the badge)
+    function kbKey(key, mods) {
+        if (!pop || t.done || editingMe || (mods & (Qt.ControlModifier | Qt.AltModifier))) return false;
+        let n = -1;
+        if (key >= Qt.Key_0 && key <= Qt.Key_3) n = key - Qt.Key_0;
+        else if (key === Qt.Key_Exclam) n = ((t.prio || 0) + 1) % 4;
+        if (n < 0) return false;
+        if (n !== (t.prio || 0)) pop.op(["prio", String(t.i), t.text, String(n)]);
+        return true;
     }
 
     property var pop: null
@@ -21,12 +34,15 @@ Rectangle {
     property var up: null                     // neighbours for ↑ ↓ (null = none)
     property var down: null
     readonly property string k: pop ? pop.key(t) : ""
+    // the keyboard finds this task (and its buttons) again after the list is
+    // rebuilt — moved, edited, ticked (PanelPopup.noteKb)
+    readonly property string navKey: "task:" + k
     readonly property bool editingMe: !!pop && pop.editing === k
 
     width: parent ? parent.width : 400
     height: editingMe ? editCol.height + 22 : Math.max(52, info.height + 20)
     radius: 12
-    color: cardMa.containsMouse || editingMe ? Theme.alpha(Theme.surface1, 0.5) : Theme.alpha(Theme.surface0, 0.55)
+    color: hovered || editingMe ? Theme.alpha(Theme.surface1, 0.5) : Theme.alpha(Theme.surface0, 0.55)
     border.width: 1
     border.color: t.level === "overdue" && !t.done ? Theme.alpha(Theme.red, 0.45)
                 : editingMe ? Theme.alpha(Theme.tintOf(parent), 0.6) : Theme.alpha(Theme.surface1, 0.4)
@@ -48,6 +64,18 @@ Rectangle {
         pop.editing = "";
         if (newText && newText !== t.text) pop.op(["rename", String(t.i), t.text, newText], doDue);
         else doDue();
+    }
+
+    // hover over the whole card, buttons included: a HoverHandler on the
+    // card keeps it while the pointer is on a child (cardMa alone lost it on
+    // the ✎ / 🗑 buttons — their own MouseAreas take the hover — so the
+    // buttons faded out right under the pointer)
+    HoverHandler { id: cardHover }
+    readonly property bool hovered: cardHover.hovered
+    // the keyboard is on this task or one of its buttons (Tab): show them too
+    readonly property bool kbIn: {
+        for (let x = BarState.kbItem; x; x = x.parent) if (x === card) return true;
+        return activeFocus;
     }
 
     MouseArea {
@@ -165,13 +193,14 @@ Rectangle {
         anchors.rightMargin: 10
         anchors.verticalCenter: parent.verticalCenter
         spacing: 4
-        opacity: cardMa.containsMouse || card.pop.delArmed === card.k ? 1 : 0
+        opacity: card.hovered || card.kbIn || card.pop.delArmed === card.k ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: Theme.fast } }
         IconBtn {
             visible: !!card.up
             size: 26
             iconSize: 13
             icon: "\u{f0143}"
+            readonly property string navKey: card.navKey + ":up"
             tip: "Move up"
             tipEdge: Edges.Top
             onClicked: card.pop.op(["move", String(card.t.i), card.t.text, String(card.up.i), card.up.text])
@@ -181,6 +210,7 @@ Rectangle {
             size: 26
             iconSize: 13
             icon: "\u{f0140}"
+            readonly property string navKey: card.navKey + ":down"
             tip: "Move down"
             tipEdge: Edges.Top
             onClicked: card.pop.op(["move", String(card.t.i), card.t.text, String(card.down.i), card.down.text])
@@ -189,6 +219,7 @@ Rectangle {
             size: 26
             iconSize: 13
             icon: "\u{f03eb}"
+            readonly property string navKey: card.navKey + ":edit"
             tip: card.t.done ? "Edit text (or double-click)" : "Edit text / deadline (or double-click)"
             tipEdge: Edges.Top
             onClicked: card.startEdit()
@@ -198,6 +229,7 @@ Rectangle {
             size: 26
             iconSize: 13
             icon: "\u{f0a7a}"
+            readonly property string navKey: card.navKey + ":del"
             text: armed ? "Delete?" : ""
             fg: Theme.red
             active: armed
@@ -215,6 +247,8 @@ Rectangle {
     // inline editor
     Column {
         id: editCol
+        // closing the editor hands the keyboard back to ✎ (PanelPopup.noteKb)
+        property bool navTransient: true
         visible: card.editingMe
         x: 12
         y: 11

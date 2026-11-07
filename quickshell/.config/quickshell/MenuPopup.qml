@@ -43,9 +43,28 @@ PopupWindow {
     property bool paused: false
     onIsOpenChanged: if (!isOpen) { paused = false; endWait.stop(); }
     HyprlandFocusGrab {
+        id: grab
         active: menu.isOpen && !menu.paused
-        windows: [menu].concat(BarState.bars)
+        windows: (kbFix.out ? [] : [menu]).concat(BarState.bars)
         onCleared: if (menu.isOpen && !menu.paused) endWait.restart()
+    }
+    // a layer surface unmapping can hand the keyboard back to the window
+    // behind while the grab is held (see BarState, kbCheck): take the menu
+    // out of the grab and back in, so Hyprland refocuses inside it
+    Connections {
+        target: Qt.application
+        enabled: menu.isOpen
+        function onStateChanged() { kbFix.restart(); }
+    }
+    Timer {
+        id: kbFix
+        property bool out: false
+        interval: 30
+        onTriggered: {
+            if (Qt.application.state === Qt.ApplicationActive || !grab.active || !menu.isOpen) return;
+            out = true;
+            Qt.callLater(() => { kbFix.out = false; });
+        }
     }
     Timer {
         id: endWait                            // the shot's layer event may come second

@@ -32,8 +32,9 @@ Item {
     }
     Keys.onPressed: ev => {
         if (ev.modifiers & Qt.ControlModifier) return;
-        if (ev.key === Qt.Key_Left || ev.key === Qt.Key_Down) { kbStep(-1); ev.accepted = true; }
-        else if (ev.key === Qt.Key_Right || ev.key === Qt.Key_Up) { kbStep(1); ev.accepted = true; }
+        // ↑ ↓ go on to the panel (PanelPopup.navKey: next control, or this)
+        if (ev.key === Qt.Key_Left) { kbStep(-1); ev.accepted = true; }
+        else if (ev.key === Qt.Key_Right) { kbStep(1); ev.accepted = true; }
     }
     property real wheelAt: -1
     Timer { id: wheelIdle; interval: 600; onTriggered: sl.wheelAt = -1 }

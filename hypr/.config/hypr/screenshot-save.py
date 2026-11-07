@@ -1,7 +1,22 @@
 #!/usr/bin/python3
-"""Ask what to do with a screenshot — run by screenshot.sh after every capture.
+"""Ask what to do with a screenshot or a screen recording — run by
+screenshot.sh after every capture, and by screen-record.py when a recording
+stops.
 
-    screenshot-save.py <captured.png> <label>
+    screenshot-save.py <captured.png|recording.mp4> <label>
+
+VIDEOS (by extension) are the same popup with a frame from the video, its
+length and size, a Play button, and safer defaults — a recording can be an
+hour of work:
+  Save…    is FOCUSED (Enter); starts in the last folder a video went to
+           (~/Videos/Recordings at first).
+  Discard  only by a click / Tab-to-it; deletes the file.
+  Escape / closing the window KEEPS it: moved to ~/Videos/Recordings (an OBS
+           recording, already in OBS's own folder, stays there).
+The saved path is printed on stdout, so screen-record.py can post its
+"Recording saved" notification (Play / Show in folder / Copy) for it.
+
+Screenshots:
 
 The capture is already on the clipboard by the time this opens; this only
 decides whether it is ALSO kept as a file, and where:
@@ -42,9 +57,21 @@ from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
 # The folder picker must go through the portal (→ yazi), not GTK's own dialog.
 os.environ["GTK_USE_PORTAL"] = "1"
 
-DEFAULT_DIR = os.path.expanduser("~/Pictures/Screenshots")
+VIDEO_EXT = (".mp4", ".mkv", ".webm", ".mov", ".flv", ".avi")
+AUDIO_EXT = (".m4a", ".ogg", ".opus", ".mp3", ".wav", ".flac")
+_ARG = sys.argv[1].lower() if len(sys.argv) > 1 else ""
+IS_AUDIO = _ARG.endswith(AUDIO_EXT)                # sound-only recordings
+IS_VIDEO = _ARG.endswith(VIDEO_EXT) or IS_AUDIO    # = any recording (same rules)
+KIND = "recording" if IS_VIDEO else "screenshot"
+APP = "Screen recorder" if IS_VIDEO else "Screenshot"
+DEFAULT_DIR = os.path.expanduser("~/Music/Recordings" if IS_AUDIO else
+                                 "~/Videos/Recordings" if IS_VIDEO else "~/Pictures/Screenshots")
 STATE = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")),
-                     "screenshot-last-dir")
+                     "audio-last-dir" if IS_AUDIO else
+                     "recording-last-dir" if IS_VIDEO else "screenshot-last-dir")
+# where Escape leaves a video: our own temp folder → the default folder;
+# anywhere else (OBS's output folder) → where it is
+PENDING_DIR = os.path.expanduser("~/.cache/screen-record")
 ACCENT_FILE = os.path.expanduser("~/.config/hypr/theme/accent")
 
 BASE, MANTLE, SURFACE0, SURFACE1 = "#1e1e2e", "#181825", "#313244", "#45475a"
@@ -115,13 +142,13 @@ def remember_dir(d):
 
 
 def notify(*args):
-    subprocess.run(["notify-send", "-a", "Screenshot", *args],
+    subprocess.run(["notify-send", "-a", APP, *args],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 class SavePopup(Gtk.Window):
     def __init__(self, path, label):
-        super().__init__(title="Save screenshot?")
+        super().__init__(title=f"Save {KIND}?")
         self.path = path
         self.set_resizable(False)
         self.set_border_width(16)
@@ -129,21 +156,27 @@ class SavePopup(Gtk.Window):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self.add(box)
 
-        title = Gtk.Label(label="Save screenshot?", xalign=0)
+        title = Gtk.Label(label=f"Save {KIND}?", xalign=0)
         title.get_style_context().add_class("title")
         box.pack_start(title, False, False, 0)
 
-        pix = GdkPixbuf.Pixbuf.new_from_file(path)
-        w, h = pix.get_width(), pix.get_height()
-        scale = min(1.0, 520 / w, 320 / h)
-        thumb = pix.scale_simple(max(1, int(w * scale)), max(1, int(h * scale)),
-                                 GdkPixbuf.InterpType.BILINEAR)
-        frame = Gtk.Box()
-        frame.get_style_context().add_class("preview")
-        frame.pack_start(Gtk.Image.new_from_pixbuf(thumb), True, True, 0)
-        box.pack_start(frame, False, False, 0)
+        if IS_VIDEO:
+            pix, w, h, info = video_preview(path)
+        else:
+            pix = GdkPixbuf.Pixbuf.new_from_file(path)
+            w, h = pix.get_width(), pix.get_height()
+            info = "already copied to clipboard"
+        if pix:
+            scale = min(1.0, 520 / pix.get_width(), 320 / pix.get_height())
+            thumb = pix.scale_simple(max(1, int(pix.get_width() * scale)), max(1, int(pix.get_height() * scale)),
+                                     GdkPixbuf.InterpType.BILINEAR)
+            frame = Gtk.Box()
+            frame.get_style_context().add_class("preview")
+            frame.pack_start(Gtk.Image.new_from_pixbuf(thumb), True, True, 0)
+            box.pack_start(frame, False, False, 0)
 
-        meta = Gtk.Label(label=f"{label} · {w}×{h} · already copied to clipboard", xalign=0)
+        size = f" · {w}×{h}" if w and h else ""
+        meta = Gtk.Label(label=f"{label}{size} · {info}", xalign=0)
         meta.get_style_context().add_class("meta")
         box.pack_start(meta, False, False, 0)
 
@@ -155,26 +188,54 @@ class SavePopup(Gtk.Window):
         save.get_style_context().add_class("save")
         save.connect("clicked", lambda *_: self.save())
         buttons.pack_end(save, False, False, 0)
+        if IS_VIDEO:
+            play = Gtk.Button(label="Play")
+            play.connect("clicked", lambda *_: subprocess.Popen(
+                ["xdg-open", self.path], start_new_session=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+            buttons.pack_end(play, False, False, 0)
         buttons.pack_end(discard, False, False, 0)
         box.pack_start(buttons, False, False, 0)
+        if IS_VIDEO:
+            hint = Gtk.Label(label="Esc keeps it in " + self.keep_dir().replace(os.path.expanduser("~"), "~", 1), xalign=0)
+            hint.get_style_context().add_class("meta")
+            box.pack_start(hint, False, False, 0)
 
         self.connect("key-press-event", self.on_key)
-        self.connect("delete-event", lambda *_: self.discard() or True)
-        # Discard is the default: it has focus on open, so Enter discards.
-        discard.set_can_default(True)
-        self.set_default(discard)
-        discard.grab_focus()
+        self.connect("delete-event", lambda *_: self.leave() or True)
+        # Screenshots: Discard is the default (focused, so Enter discards).
+        # Videos: Save… is — a reflexive Enter must not delete a recording.
+        first = save if IS_VIDEO else discard
+        first.set_can_default(True)
+        self.set_default(first)
+        first.grab_focus()
         self.set_focus_visible(True)
+
+    def keep_dir(self):
+        here = os.path.dirname(os.path.abspath(self.path))
+        return DEFAULT_DIR if os.path.realpath(here) == os.path.realpath(PENDING_DIR) else here
+
+    def leave(self):
+        """Escape / window closed: screenshots are discarded, videos kept."""
+        if not IS_VIDEO:
+            self.discard()
+            return
+        folder = self.keep_dir()
+        if os.path.realpath(folder) == os.path.realpath(os.path.dirname(os.path.abspath(self.path))):
+            print(self.path, flush=True)
+            Gtk.main_quit()
+            return
+        self.save_to(folder)
 
     def on_key(self, _w, event):
         if event.keyval == Gdk.KEY_Escape:
-            self.discard()
+            self.leave()
             return True
         return False                    # Enter / Space press the FOCUSED button
 
     def save(self):
         chooser = Gtk.FileChooserNative.new(
-            "Save screenshot in…", self, Gtk.FileChooserAction.SELECT_FOLDER, "Save here", "Cancel")
+            f"Save {KIND} in…", self, Gtk.FileChooserAction.SELECT_FOLDER, "Save here", "Cancel")
         start = last_dir()
         os.makedirs(start, exist_ok=True)
         chooser.set_current_folder(start)
@@ -183,6 +244,10 @@ class SavePopup(Gtk.Window):
         chooser.destroy()
         if not folder:
             return                              # picker cancelled: back to the popup
+        self.save_to(folder)
+
+    def save_to(self, folder):
+        os.makedirs(folder, exist_ok=True)
         name = os.path.basename(self.path)
         dest = os.path.join(folder, name)
         stem, ext = os.path.splitext(name)
@@ -193,10 +258,12 @@ class SavePopup(Gtk.Window):
         try:
             shutil.move(self.path, dest)
         except OSError as e:
-            notify("-u", "critical", "Screenshot not saved", str(e))
+            notify("-u", "critical", f"{KIND.capitalize()} not saved", str(e))
             return
         remember_dir(folder)
-        notify("-i", dest, "Screenshot saved", dest.replace(os.path.expanduser("~"), "~", 1))
+        print(dest, flush=True)
+        if not IS_VIDEO:                        # videos: screen-record.py says it
+            notify("-i", dest, "Screenshot saved", dest.replace(os.path.expanduser("~"), "~", 1))
         Gtk.main_quit()
 
     def discard(self):
@@ -204,19 +271,63 @@ class SavePopup(Gtk.Window):
             os.remove(self.path)
         except OSError:
             pass
-        notify("Screenshot discarded", "Still on the clipboard")
+        if IS_VIDEO:
+            notify("Recording discarded")
+        else:
+            notify("Screenshot discarded", "Still on the clipboard")
         Gtk.main_quit()
+
+
+def video_preview(path):
+    """(pixbuf of a frame or None, width, height, "1:23 · 45.6 MB")."""
+    w = h = 0
+    secs = 0.0
+    try:
+        out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                              "-show_entries", "stream=width,height:format=duration",
+                              "-of", "json", path], capture_output=True, text=True, timeout=5).stdout
+        import json
+        j = json.loads(out or "{}")
+        st = (j.get("streams") or [{}])[0]
+        w, h = int(st.get("width") or 0), int(st.get("height") or 0)
+        secs = float((j.get("format") or {}).get("duration") or 0)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    pix = None
+    thumb = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), f"rec-thumb-{os.getpid()}.png")
+    # a video: a frame from it; sound only: its waveform in the accent
+    grab = (["-filter_complex", f"showwavespic=s=520x110:split_channels=0:colors={ACCENT}", "-frames:v", "1"]
+            if IS_AUDIO else ["-frames:v", "1", "-vf", "scale=520:-2"])
+    try:
+        subprocess.run(["ffmpeg", "-v", "error", "-y"] + ([] if IS_AUDIO else ["-ss", f"{min(1.0, secs / 2):.2f}"])
+                       + ["-i", path] + grab + [thumb],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+        pix = GdkPixbuf.Pixbuf.new_from_file(thumb)
+    except (OSError, GLib.Error, subprocess.SubprocessError):
+        pix = None
+    finally:
+        try:
+            os.remove(thumb)
+        except OSError:
+            pass
+    s = int(round(secs))
+    length = f"{s // 3600}:{s // 60 % 60:02d}:{s % 60:02d}" if s >= 3600 else f"{s // 60}:{s % 60:02d}"
+    try:
+        mb = os.path.getsize(path) / 1e6
+    except OSError:
+        mb = 0
+    return pix, w, h, f"{length} · " + (f"{mb:.1f} MB" if mb >= 1 else f"{mb * 1000:.0f} KB")
 
 
 def main():
     if len(sys.argv) < 2 or not os.path.isfile(sys.argv[1]):
-        print("usage: screenshot-save.py <captured.png> [label]", file=sys.stderr)
+        print("usage: screenshot-save.py <captured.png|recording.mp4> [label]", file=sys.stderr)
         return 2
     provider = Gtk.CssProvider()
     provider.load_from_data(_rice_subst(CSS).encode())
     Gtk.StyleContext.add_provider_for_screen(
         Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-    win = SavePopup(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "Screenshot")
+    win = SavePopup(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else KIND.capitalize())
     win.show_all()
     Gtk.main()
     return 0

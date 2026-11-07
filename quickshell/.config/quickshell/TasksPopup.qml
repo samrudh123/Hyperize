@@ -386,7 +386,8 @@ PanelPopup {
                             width: list.width
                             height: editingMe ? 50 : Math.max(42, logText.implicitHeight + 20)
                             radius: 11
-                            color: logMa.containsMouse || editingMe ? Theme.alpha(Theme.surface1, 0.5) : Theme.alpha(Theme.surface0, 0.55)
+                            color: logHover.hovered || editingMe ? Theme.alpha(Theme.surface1, 0.5) : Theme.alpha(Theme.surface0, 0.55)
+                            HoverHandler { id: logHover }   // kept over the buttons too (see TaskCard)
                             MouseArea {
                                 id: logMa
                                 anchors.fill: parent
@@ -426,11 +427,12 @@ PanelPopup {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 4
                                 readonly property bool kbIn: { for (let x = BarState.kbItem; x; x = x.parent) if (x === logBtns) return true; return false; }
-                                opacity: logMa.containsMouse || pop.delArmed === logRow.k || kbIn ? 1 : 0
+                                opacity: logHover.hovered || pop.delArmed === logRow.k || kbIn ? 1 : 0
                                 IconBtn {
                                     size: 26
                                     iconSize: 13
                                     icon: "\u{f03eb}"
+                                    readonly property string navKey: logRow.k + ":edit"
                                     tip: "Edit (or double-click)"
                                     tipEdge: Edges.Top
                                     onClicked: { pop.editing = logRow.k; logEdit.text = logRow.modelData.text; logEdit.input.forceActiveFocus(); }
@@ -440,6 +442,7 @@ PanelPopup {
                                     size: 26
                                     iconSize: 13
                                     icon: "\u{f0a7a}"
+                                    readonly property string navKey: logRow.k + ":del"
                                     text: armed ? "Delete?" : ""
                                     fg: Theme.red
                                     active: armed
@@ -455,6 +458,7 @@ PanelPopup {
                             }
                             SettingsField {
                                 id: logEdit
+                                property bool navTransient: true   // closing it: back to ✎ (PanelPopup.noteKb)
                                 visible: logRow.editingMe
                                 x: 10
                                 anchors.verticalCenter: parent.verticalCenter

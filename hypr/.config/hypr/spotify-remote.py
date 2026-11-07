@@ -110,6 +110,139 @@ class ApiError(Exception):
         self.body = body
 
 
+# ── rate limit (HTTP 429), shared by every Web API user ────────────────────
+# Spotify answers 429 with Retry-After — once measured at 36979 s (~10 h,
+# "QUOTA_EXCEEDED") after the bar had polled shuffle / repeat every 1.5 s
+# all day. Asking again before then gets nothing but more 429s, so every
+# caller (this file's api(), media_modes.Api, the bridge, clicks) checks one
+# file first: until the time in it, requests fail at once, without the network.
+BACKOFF_FILE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "spotify-api-backoff")
+
+
+def backoff_left():
+    """-> seconds until the Web API may be asked again (0 = now)."""
+    try:
+        with open(BACKOFF_FILE) as f:
+            return max(0.0, float(f.read().strip() or 0) - time.time())
+    except (OSError, ValueError):
+        return 0.0
+
+
+def note_429(retry_after):
+    """A 429 came back: no requests for Retry-After seconds (60 if missing)."""
+    try:
+        wait = float(retry_after) if retry_after else 60.0
+    except ValueError:
+        wait = 60.0
+    try:
+        tmp = BACKOFF_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            f.write(str(time.time() + max(1.0, wait)))
+        os.replace(tmp, BACKOFF_FILE)
+    except OSError:
+        pass
+
+
+def check_backoff():
+    left = backoff_left()
+    if left > 0:
+        raise ApiError(429, f"rate limited by Spotify, {int(left)} s left")
+
+
+# ── request log (2026-11-08: how many requests really go out?) ─────────────
+# Every request that reaches Spotify — Web API and token refreshes, from any
+# process — is one line in API_LOG:
+#     2026-11-08T05:30:01.234  now-playing:remote  GET /me/player  200  142ms
+# (status "ERR" = no answer: offline / timeout). Requests stopped by the
+# backoff above never leave, so they aren't logged. Kept under ~2 MB (one
+# old copy, .1). `spotify-remote.py api-stats [HOURS]` sums it up.
+API_LOG = os.path.join(STATE_DIR, "api.log")
+API_LOG_MAX = 2_000_000
+
+
+def _caller():
+    name = os.path.basename(sys.argv[0]).removesuffix(".py") if sys.argv else "?"
+    if name == "now-playing" and "--scope" in sys.argv:
+        i = sys.argv.index("--scope")
+        return f"now-playing:{sys.argv[i + 1]}" if i + 1 < len(sys.argv) else name
+    if name == "spotify-remote" and len(sys.argv) > 1:
+        return "bridge" if sys.argv[1] == "mpris" else f"spotify-remote:{sys.argv[1]}"
+    return name
+
+
+def log_request(method, path, status, started):
+    ms = int((time.monotonic() - started) * 1000)
+    now = time.time()
+    stamp = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now)) + f".{int(now % 1 * 1000):03d}"
+    line = f"{stamp}  {_caller()}  {method} {path.split('?')[0]}  {status}  {ms}ms\n"
+    try:
+        os.makedirs(STATE_DIR, mode=0o700, exist_ok=True)
+        if os.path.exists(API_LOG) and os.path.getsize(API_LOG) > API_LOG_MAX:
+            os.replace(API_LOG, API_LOG + ".1")
+        fd = os.open(API_LOG, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        try:
+            os.write(fd, line.encode())             # one write: lines from several processes don't mix
+        finally:
+            os.close(fd)
+    except OSError:
+        pass
+
+
+def api_stats(hours=24.0):
+    """Print what API_LOG says about the last HOURS: totals per caller and
+    per hour, the busiest 30 s window (Spotify counts over a rolling 30 s),
+    and every 429."""
+    import collections
+    import datetime
+    since = time.time() - hours * 3600
+    rows = []
+    for path in (API_LOG + ".1", API_LOG):
+        try:
+            with open(path) as f:
+                for ln in f:
+                    parts = ln.split()
+                    if len(parts) < 6:
+                        continue
+                    try:
+                        t = datetime.datetime.strptime(parts[0], "%Y-%m-%dT%H:%M:%S.%f").timestamp()
+                    except ValueError:
+                        continue
+                    if t >= since:
+                        rows.append((t, parts[1], parts[2] + " " + parts[3], parts[4]))
+        except OSError:
+            pass
+    rows.sort()
+    if not rows:
+        print(f"No Spotify requests logged in the last {hours:g} h ({API_LOG}).")
+        return
+    span = max(rows[-1][0] - rows[0][0], 1)
+    print(f"Spotify requests, last {hours:g} h: {len(rows)}"
+          f"  (first {time.strftime('%F %T', time.localtime(rows[0][0]))},"
+          f" avg {len(rows) / span * 60:.1f}/min over the logged span)")
+    print("\nBy caller:")
+    for who, n in collections.Counter(r[1] for r in rows).most_common():
+        print(f"  {n:6d}  {who}")
+    print("\nBy request:")
+    for what, n in collections.Counter(r[2] for r in rows).most_common(8):
+        print(f"  {n:6d}  {what}")
+    print("\nPer hour:")
+    for h, n in sorted(collections.Counter(time.strftime("%F %H:00", time.localtime(r[0])) for r in rows).items()):
+        print(f"  {h}  {n:5d}")
+    best, j = (0, 0.0), 0
+    for i in range(len(rows)):
+        while rows[i][0] - rows[j][0] > 30:
+            j += 1
+        if i - j + 1 > best[0]:
+            best = (i - j + 1, rows[j][0])
+    print(f"\nBusiest 30 s: {best[0]} requests, from {time.strftime('%F %T', time.localtime(best[1]))}")
+    limited = [r for r in rows if r[3] == "429"]
+    print(f"429 (too many requests): {len(limited)}"
+          + (f", first {time.strftime('%F %T', time.localtime(limited[0][0]))}" if limited else ""))
+    left = backoff_left()
+    if left > 0:
+        print(f"Backoff now: {int(left)} s left (until {time.strftime('%T', time.localtime(time.time() + left))})")
+
+
 # ── tokens ─────────────────────────────────────────────────────────────────
 def load_token():
     try:
@@ -135,11 +268,17 @@ def token_request(fields):
     data = urllib.parse.urlencode({"client_id": CLIENT_ID, **fields}).encode()
     req = urllib.request.Request("https://accounts.spotify.com/api/token", data=data,
                                  headers={"Content-Type": "application/x-www-form-urlencoded"})
+    started = time.monotonic()
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
+            log_request("POST", "/api/token", r.status, started)
             return save_token(json.load(r))
     except urllib.error.HTTPError as e:
+        log_request("POST", "/api/token", e.code, started)
         raise ApiError(e.code, e.read().decode(errors="replace"))
+    except (urllib.error.URLError, TimeoutError, OSError):
+        log_request("POST", "/api/token", "ERR", started)
+        raise
 
 
 def access_token():
@@ -160,6 +299,7 @@ def access_token():
 
 
 def api(method, path, retry=True, body=None):
+    check_backoff()
     token = access_token()
     if not token:
         raise ApiError(401, "not logged in")
@@ -170,8 +310,10 @@ def api(method, path, retry=True, body=None):
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request("https://api.spotify.com/v1" + path, method=method,
                                  headers=headers, data=data)
+    started = time.monotonic()
     try:
         with urllib.request.urlopen(req, timeout=8) as r:
+            log_request(method, path, r.status, started)
             body = r.read()
             if method != "GET" or not body.strip():
                 # Commands (play/pause/next/seek) answer 2xx with a body that is
@@ -184,12 +326,18 @@ def api(method, path, retry=True, body=None):
             except ValueError:   # seen now and then: a GET 200 whose body isn't JSON
                 raise ApiError(r.status, "unparseable body: " + body[:80].decode(errors="replace"))
     except urllib.error.HTTPError as e:
+        log_request(method, path, e.code, started)
+        if e.code == 429:
+            note_429(e.headers.get("Retry-After"))
         if e.code == 401 and retry:          # revoked early — force a refresh once
             tok = load_token()
             tok["expires_at"] = 0
             save_token(tok)
             return api(method, path, retry=False, body=body)
         raise ApiError(e.code, e.read().decode(errors="replace"))
+    except (urllib.error.URLError, TimeoutError, OSError):
+        log_request(method, path, "ERR", started)
+        raise
 
 
 # ── login ──────────────────────────────────────────────────────────────────
@@ -1371,6 +1519,8 @@ def main():
         sys.exit(bridge())
     elif cmd == "login":
         sys.exit(login())
+    elif cmd == "api-stats":                 # the request log, summed up (see log_request)
+        api_stats(float(sys.argv[2]) if len(sys.argv) > 2 else 24.0)
     elif cmd == "click":                     # the bar's on-click
         sys.exit(login() if not load_token() else (control("toggle") and 0))
     elif cmd in ("toggle", "next", "prev"):

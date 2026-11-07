@@ -3,7 +3,7 @@
 // left:   this laptop's player (+ a small spectrum while it plays), the
 //         phone's player, "---" when neither has anything, the Spotify login
 //         prompt, the ⌃ chevron: the players deck (PlayersPopup — SUPER+M)
-// centre: focus timer, weather (slides aside, or hides, when the sides
+// centre: focus timer, weather, news (slides aside, or hides, when the sides
 //         leave no room)
 // right:  phone (KDE Connect), Tailscale | downloads (only while there are
 //         any), tasks, keep-awake, power profile, wallpaper
@@ -82,6 +82,9 @@ PanelWindow {
             else if (ev.key === Qt.Key_Backtab || (ev.key === Qt.Key_Tab && (ev.modifiers & Qt.ShiftModifier)))
                 ev.accepted = p.navKey(Qt.Key_Backtab, 0);
             else if (ev.key === Qt.Key_Tab) ev.accepted = p.navKey(Qt.Key_Tab, 0);
+            // any other key (not typing into a text box): the panel's control may
+            // take it (TaskCard: 0–3 / ! = priority)
+            else if (!p.textTarget) ev.accepted = p.navKey(ev.key, ev.modifiers);
         }
     }
     MouseArea {
@@ -167,16 +170,12 @@ PanelWindow {
     }
 
     // ── left: media ─────────────────────────────────────────────────────────
-    // The players' titles are cut short ("…") so the group ends left of
-    // where the centre island wants to sit — two players (with ⇄ ⏮ ⏭ ⟲ each)
-    // used to push the focus timer off centre, or off the bar. Shared fairly:
-    // a short title keeps all of its width, the other gets the rest.
+    // The players' titles are cut short ("…") so the group, with the timer /
+    // weather / news island that follows it, still ends left of the right
+    // group — two players (with ⇄ ⏮ ⏭ ⟲ each) used to push it off the bar.
+    // Shared fairly: a short title keeps all of its width, the other gets the rest.
     readonly property real minTitle: 90
-    readonly property real leftRoom: {
-        const c = centreGroup;
-        const want = Math.min((bar.width - c.width) / 2, rightGroup.x - 12 - c.width);
-        return want - 12 - leftGroup.x;
-    }
+    readonly property real leftRoom: rightGroup.x - 12 - centreGroup.width - 12 - leftGroup.x
     // the left group's width without the two titles — summed from where
     // each part is heading, not from the laid-out widths (those lag a frame
     // behind and fed back into the titles: the row jittered and overlapped)
@@ -254,9 +253,10 @@ PanelWindow {
         Pill {
             id: menuChevron
             label: "\u{f0143}"                     // md-chevron_up
-            fg: Theme.subtext0
-            hoverFg: Theme.text
-            hoverBg: Theme.alpha(Theme.surface0, 0.8)
+            // the accent (the deck spans both players); hover fills in it
+            fg: Theme.accent
+            hoverFg: Theme.crust
+            hoverBg: Theme.accent
             fontSize: 15
             padLeft: 8
             padRight: 8
@@ -272,15 +272,15 @@ PanelWindow {
         }
     }
 
-    // ── centre: focus timer · weather ───────────────────────────────────────
-    // Centred on the bar, but pushed aside by the side groups (two players
-    // and a long wallpaper name can take most of the width), and hidden
-    // when there is no room for it at all.
+    // ── centre: focus timer · weather · news ───────────────────────────────────────
+    // Right after the players (since 2026-11-08 — it was centred): it moves
+    // along as they grow (a second player, a longer title) and shrink.
+    // Hidden only when there is no room for it at all.
     Island {
         id: centreGroup
         readonly property real minX: leftGroup.x + leftGroup.width + 12
         readonly property real maxX: rightGroup.x - 12 - width
-        x: Math.round(Math.max(minX, Math.min((bar.width - width) / 2, maxX)))
+        x: Math.round(minX)
         visible: minX <= maxX
         anchors.verticalCenter: parent.verticalCenter
         spacing: 0
@@ -320,6 +320,58 @@ PanelWindow {
                 id: weatherPlace
                 command: [Theme.hypr + "/weather.py", "locate"]
                 onExited: weather.refresh()
+            }
+        }
+
+        // headlines (hypr/news.py: RSS, cached 20 min — the 10 min poll only
+        // fetches when the current category is stale).
+        ScriptPill {
+            id: news
+            command: [Theme.hypr + "/news.py", "status"]
+            interval: 600000
+            // accent, like the weather; grey only when there's nothing to show
+            defaultFg: Theme.accent
+            colors: ({ empty: Theme.overlay0 })
+            hoverFg: Theme.crust
+            hoverBg: fg
+            padLeft: 9
+            padRight: 11
+            marginH: 2
+            tipEdge: Edges.Top
+            // click: the news panel (NewsPopup.qml) — category ▾ + sub-category chips
+            pillId: "news"
+            onClicked: button => PillClicks.dispatch("news", button, {
+                panel: () => newsPop.toggle(),
+                refresh: () => { if (!newsFetch.running) newsFetch.running = true; }
+            })
+            NewsPopup { id: newsPop; pill: news; pillRef: news }
+            // unseen headlines: a dot on the icon's top-right corner (a 0×0
+            // holder, so the pill doesn't grow)
+            Item {
+                x: news.labelItem.implicitWidth
+                y: 11
+                width: 0
+                height: 0
+                Rectangle {
+                    readonly property bool on: news.classes.includes("fresh")
+                    x: -width / 2
+                    y: -height / 2
+                    width: 8
+                    height: 8
+                    radius: 4
+                    color: Theme.red
+                    border.width: 1.5
+                    border.color: Theme.crust
+                    opacity: on ? 1 : 0
+                    scale: on ? 1 : 0.3
+                    Behavior on opacity { NumberAnimation { duration: 200 } }
+                    Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutBack } }
+                }
+            }
+            Process {
+                id: newsFetch
+                command: [Theme.hypr + "/news.py", "refresh", ""]
+                onExited: news.refresh()
             }
         }
     }

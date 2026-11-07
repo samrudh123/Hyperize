@@ -169,6 +169,18 @@ Singleton {
             if (x.panelTint !== undefined) return x.panelTint;
         return accent;
     }
+    // a grey of the palette (not a colour of its own)?
+    function isGrey(c) {
+        return [text, subtext1, subtext0, overlay2, overlay1, overlay0, surface2, surface1,
+                surface0, base, mantle, crust].some(g => Qt.colorEqual(g, Qt.rgba(c.r, c.g, c.b, 1)));
+    }
+    // IconBtn hover: filled in colour (like the bars' fillHover pills) when
+    // an ancestor says `panelFillHover: true` (PlayersColumn), else soft grey
+    function fillHoverOf(item) {
+        for (let x = item; x; x = x.parent)
+            if (x.panelFillHover !== undefined) return x.panelFillHover;
+        return false;
+    }
 
     // Bar style: "classic" (edge-to-edge panels) or "islands" (floating
     // rounded groups) — theme/bar-style, toggled with `b` in the theme picker.

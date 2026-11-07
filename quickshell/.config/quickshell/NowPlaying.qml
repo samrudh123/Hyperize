@@ -154,9 +154,10 @@ Row {
     component SkipButton: Pill {
         required property string dir
         label: dir === "prev" ? "\u{f04ae}" : "\u{f04ad}"
-        fg: Theme.subtext0
-        hoverFg: Theme.text
-        hoverBg: Theme.alpha(Theme.surface0, 0.8)
+        // the player's colour; hover: filled in it, like the title pill
+        fg: np.tint
+        hoverFg: Theme.crust
+        hoverBg: np.tint
         fontSize: 15
         padLeft: 8
         padRight: 8
@@ -168,7 +169,7 @@ Row {
         }
     }
 
-    // ⇄ / ⟲: dim while off, the player's colour while on
+    // ⇄ / ⟲: the player's colour, dimmed while off; hover fills in it
     component ModeButton: Pill {
         required property string mode         // "shuffle" | "repeat"
         readonly property bool isOn: mode === "shuffle" ? np.shuffle === "1"
@@ -176,9 +177,9 @@ Row {
         shown: mode === "shuffle" ? np.shuffle !== "" : np.loop !== ""
         label: mode === "shuffle" ? (isOn ? "\u{f049d}" : "\u{f049e}")
              : np.loop === "Track" ? "\u{f0458}" : isOn ? "\u{f0456}" : "\u{f0457}"
-        fg: isOn ? np.tint : Theme.overlay1
-        hoverFg: isOn ? np.tint : Theme.text
-        hoverBg: Theme.alpha(Theme.surface0, 0.8)
+        fg: isOn ? np.tint : Theme.alpha(np.tint, 0.45)
+        hoverFg: Theme.crust
+        hoverBg: np.tint
         fontSize: 15
         padLeft: 7
         padRight: 7
@@ -215,7 +216,10 @@ Row {
             width: label.width + 24
             height: 32
             radius: 8
-            color: mouse.containsMouse && !mouse.inZone ? Theme.alpha(Theme.surface0, 0.9) : Theme.alpha(Theme.surface0, 0)
+            // hover on the title (not the seek zone): filled in the player's
+            // colour with dark text, like the other pills' fillHover
+            readonly property bool lit: mouse.containsMouse && !mouse.inZone && !mouse.dragging
+            color: lit ? np.tint : Theme.alpha(np.tint, 0)
             Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Easing.OutQuint } }
             Behavior on width { NumberAnimation { duration: Theme.normal; easing.type: Easing.OutCubic } }
 
@@ -228,11 +232,11 @@ Row {
                 textFormat: Text.StyledText
                 width: Math.min(implicitWidth, Math.max(40, np.maxTextWidth))
                 elide: Text.ElideRight
-                color: np.tint
+                color: body.lit ? Theme.crust : np.tint
                 font.family: Theme.font
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
-                Behavior on color { ColorAnimation { duration: Theme.normal } }
+                Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Easing.OutQuint } }
             }
 
             // progress line: dim track + elapsed in the player's colour;
@@ -252,13 +256,15 @@ Row {
                 Rectangle {
                     anchors.fill: parent
                     radius: height / 2
-                    color: Theme.alpha(Theme.surface1, 0.9)
+                    color: body.lit ? Theme.alpha(Theme.crust, 0.25) : Theme.alpha(Theme.surface1, 0.9)
+                    Behavior on color { ColorAnimation { duration: Theme.fast } }
                 }
                 Rectangle {
                     width: parent.width * line.shownFrac
                     height: parent.height
                     radius: height / 2
-                    color: np.tint
+                    color: body.lit ? Theme.alpha(Theme.crust, 0.75) : np.tint
+                    Behavior on color { ColorAnimation { duration: Theme.fast } }
                 }
                 Rectangle {
                     visible: line.big

@@ -4,13 +4,20 @@
 Two backends:
   wf-recorder  quick recordings: the screen, a region or a window, with the
                desktop sound, the microphone or no audio. VAAPI H.264 on the
-               Intel GPU, libx264 if that fails. Files go to ~/Videos/Recordings.
+               Intel GPU, libx264 if that fails. It records into
+               ~/.cache/screen-record; on stop the save popup
+               (screenshot-save.py, as for screenshots) asks where the
+               video goes — Esc there keeps it in ~/Videos/Recordings.
   OBS          when OBS is running its own recording is driven through
                obs-websocket (Tools -> WebSocket Server Settings; the password
                is read from OBS's config, never stored here). Scenes, output
-               folder and format stay whatever OBS is set to.
+               folder and format stay whatever OBS is set to; on stop the
+               same popup asks where to move it (Esc leaves it in OBS's folder).
 
   screen-record.py start [screen|region|window]   wf-recorder
+  screen-record.py start audio                    sound only (ffmpeg from PulseAudio:
+                                                  the Sound choice — Desktop, or
+                                                  Microphone; None = Desktop) → .m4a
   screen-record.py obs [start|stop|toggle]        OBS
   screen-record.py stop                           whichever is recording
   screen-record.py toggle                         stop, else OBS if open, else screen
@@ -40,7 +47,9 @@ RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
 STATE = RUN / "screen-record.json"          # {pid, started, file, mode}
 LOG = RUN / "screen-record.log"
 AUDIO_FILE = HYPR / "screen-record-audio"   # desktop | mic | none
-OUT_DIR = HOME / "Videos/Recordings"
+OUT_DIR = HOME / "Videos/Recordings"         # the default (Esc in the save popup)
+PENDING = HOME / ".cache/screen-record"       # until the save popup says where
+SAVE_POPUP = HYPR / "screenshot-save.py"
 OBS_WS = HOME / ".config/obs-studio/plugin_config/obs-websocket/config.json"
 RENDER_NODE = "/dev/dri/renderD128"
 
@@ -82,7 +91,7 @@ def wf_state():
         st = json.loads(STATE.read_text())
         os.kill(st["pid"], 0)
         with open(f"/proc/{st['pid']}/comm") as f:
-            if "wf-recorder" not in f.read():
+            if ("ffmpeg" if st.get("mode") == "audio" else "wf-recorder") not in f.read():
                 raise ProcessLookupError
         return st
     except (OSError, ValueError, KeyError, ProcessLookupError):
@@ -137,8 +146,34 @@ def focused_output():
     return next((m["name"] for m in mons if m.get("focused")), mons[0]["name"] if mons else None)
 
 
+def audio_start():
+    """Sound only: ffmpeg reads the desktop's sink monitor (or the mic) from
+    PulseAudio (pipewire-pulse) into AAC; SIGINT on stop finalises it."""
+    am = audio_mode()
+    if am == "mic":
+        src = "default"
+    else:
+        sink = wp_node_name("@DEFAULT_AUDIO_SINK@")
+        src = f"{sink}.monitor" if sink else "default"
+    PENDING.mkdir(parents=True, exist_ok=True)
+    file = PENDING / f"{datetime.now():%Y-%m-%d_%H-%M-%S}.m4a"
+    with open(LOG, "w") as log:
+        p = subprocess.Popen(["/usr/bin/ffmpeg", "-hide_banner", "-nostdin", "-y", "-f", "pulse", "-i", src,
+                              "-c:a", "aac", "-b:a", "192k", str(file)],
+                             stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+    time.sleep(0.6)
+    if p.poll() is None:
+        STATE.write_text(json.dumps({"pid": p.pid, "started": time.time(), "file": str(file),
+                                     "mode": "audio", "audio": "mic" if am == "mic" else "desktop"}))
+        return
+    notify("Audio recording failed to start", f"see {LOG}", "-u", "critical")
+
+
 def wf_start(mode):
     if wf_state() or obs_recording():
+        return
+    if mode == "audio":
+        audio_start()
         return
     wf = wf_binary()
     if not wf:
@@ -167,8 +202,8 @@ def wf_start(mode):
     elif am == "mic":
         audio = ["--audio"]             # PulseAudio's default source
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    file = OUT_DIR / f"{datetime.now():%Y-%m-%d_%H-%M-%S}.mp4"
+    PENDING.mkdir(parents=True, exist_ok=True)
+    file = PENDING / f"{datetime.now():%Y-%m-%d_%H-%M-%S}.mp4"
     encoders = []
     if os.path.exists(RENDER_NODE):
         encoders.append(["-c", "h264_vaapi", "-d", RENDER_NODE])
@@ -199,8 +234,30 @@ def wf_stop():
         except ProcessLookupError:
             break
     STATE.unlink(missing_ok=True)
-    saved(Path(st["file"]))
+    label = "Audio recording" if st.get("mode") == "audio" else f"{st.get('mode', 'screen').capitalize()} recording"
+    ask_save(Path(st["file"]), label)
     return True
+
+
+def ask_save(file, label):
+    """The save popup: Save… (folder picker) / Play / Discard; then the
+    'Recording saved' notification for wherever it ended up."""
+    if not file.exists():
+        notify("Recording stopped", "no file was written")
+        return
+    r = subprocess.run(["/usr/bin/python3", str(SAVE_POPUP), str(file), label],
+                       capture_output=True, text=True)
+    dest = (r.stdout.strip().splitlines() or [""])[-1]
+    if r.returncode != 0 and file.exists() and not dest:
+        # the popup failed (no display?): ours go to Videos/Recordings as
+        # before, OBS's stay where OBS put them
+        dest = str(file)
+        if file.parent == PENDING:
+            OUT_DIR.mkdir(parents=True, exist_ok=True)
+            dest = str(OUT_DIR / file.name)
+            shutil.move(str(file), dest)
+    if dest:
+        saved(Path(dest))
 
 
 def saved(file):
@@ -210,7 +267,7 @@ def saved(file):
         return
     size = file.stat().st_size / 1e6
     shown = str(file).replace(str(HOME), "~", 1)
-    r = subprocess.run(["notify-send", "-a", "Screen recorder", "-i", "video-x-generic",
+    r = subprocess.run(["notify-send", "-a", "Screen recorder", "-i", "audio-x-generic" if file.suffix in (".m4a", ".ogg", ".opus", ".mp3", ".wav", ".flac") else "video-x-generic",
                         "-A", "play=Play", "-A", "folder=Show in folder", "-A", "copy=Copy file",
                         "Recording saved", f"{shown}  ·  {size:.1f} MB"],
                        capture_output=True, text=True)
@@ -316,7 +373,7 @@ def obs_cmd(action):
             if path:
                 o.close()
                 o = None
-                saved(Path(path))
+                ask_save(Path(path), "OBS recording")
     finally:
         if o:
             o.close()

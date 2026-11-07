@@ -56,9 +56,12 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "spotify-modes.json")
-TTL_PLAYING = 1.5              # s between Web API reads while a Spotify pill plays
-TTL_PAUSED = 4.0               # ...a paused one
-STALE = 30.0                   # API unreachable this long: the state is unknown
+# Shuffle / repeat seldom change, and a new song or play / pause reads again
+# at once (the key changes) — so these can be slow. They were 1.5 s / 4 s,
+# and that much polling, all day, got the app rate limited for ~10 hours.
+TTL_PLAYING = 15.0             # s between Web API reads while a Spotify pill plays
+TTL_PAUSED = 30.0              # ...a paused one
+STALE = 90.0                   # API unreachable this long: the state is unknown (> TTL_PLAYING × a few)
 HOLD = 5.0                     # s after an accepted PUT that stale reads are ignored (API lag measured up to ~4 s)
 FRESH = 3.0                    # a click may step from a read this recent
 BACKOFF = 30.0                 # s without reads after HTTP 429 (rate limited)
@@ -119,6 +122,7 @@ class Api:
         return bool(self.sr.load_token())
 
     def __call__(self, method, path):
+        self.sr.check_backoff()               # rate limited: don't even ask (spotify-remote.py)
         token = self.sr.access_token()
         if not token:
             raise self.ApiError(401, "not logged in")
@@ -126,19 +130,24 @@ class Api:
         for attempt in (1, 2):
             if self.conn is None:
                 self.conn = http.client.HTTPSConnection("api.spotify.com", timeout=8)
+            started = time.monotonic()
             try:
                 self.conn.request(method, "/v1" + path, headers=headers,
                                   body=None if method == "GET" else b"")
                 r = self.conn.getresponse()
                 body = r.read()
+                self.sr.log_request(method, path, r.status, started)     # spotify-remote's api.log
                 break
             except (http.client.HTTPException, OSError):
                 self.conn.close()
                 self.conn = None
                 if attempt == 2:
+                    self.sr.log_request(method, path, "ERR", started)
                     raise OSError("Spotify Web API unreachable")
         if r.status == 401:
             return self.sr.api(method, path)
+        if r.status == 429:
+            self.sr.note_429(r.getheader("Retry-After"))
         if r.status >= 400:
             raise self.ApiError(r.status, body.decode(errors="replace"))
         if method != "GET" or not body.strip():

@@ -192,6 +192,52 @@ Singleton {
             p = null;
         }
     }
+    // The keyboard can slip out of a HELD grab (Hyprland 0.53): starting a
+    // grab moves the keyboard to a bar with a bare seat call, so Hyprland's
+    // own "focused surface" stays the window you were in. When any layer
+    // surface unmaps meanwhile (a notification expiring, an OSD), Hyprland
+    // hands the keyboard back to that window without asking the grab — the
+    // panel stays open but Esc and typing go to the window behind. Qt sees the
+    // keyboard leave (application state), so: take a surface out of the grab
+    // and put it back. Hyprland then refocuses inside the grab the proper
+    // way, which also makes the bar its focused surface, so later unmaps
+    // leave the keyboard where it is. If that didn't bring it back, start
+    // the grab over.
+    Connections {
+        target: Qt.application
+        function onStateChanged() { kbCheck.restart(); }
+    }
+    function kbStray() {
+        const p = activePopup;
+        return Qt.application.state !== Qt.ApplicationActive
+            && grabHeld && !!p && p.isOpen && grabPopup === p && !pickerShown;
+    }
+    Timer {
+        id: kbCheck
+        interval: 30                         // let a leave + enter pair settle
+        onTriggered: {
+            if (!kbStray()) return;
+            const p = activePopup;
+            console.warn("BarState: keyboard left the open panel; refocusing the grab");
+            grabPopup = null;                // surface out (commit: Hyprland refocuses a bar)
+            Qt.callLater(() => {
+                if (!grabHeld || grabPopup || !p.isOpen || activePopup !== p) return;
+                grabPopup = p;               // and back in
+                p.card.forceActiveFocus();
+                kbRetake.p = p;
+                kbRetake.restart();
+            });
+        }
+    }
+    Timer {
+        id: kbRetake
+        property var p: null
+        interval: 200
+        onTriggered: {
+            if (p && kbStray() && activePopup === p) { console.warn("BarState: keyboard still out; restarting the grab"); retake(p); }
+            p = null;
+        }
+    }
     Timer {
         id: closeWait
         interval: 120

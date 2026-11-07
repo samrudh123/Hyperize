@@ -21,6 +21,7 @@ import Quickshell.Services.Mpris
 
 Rectangle {
     id: col
+    property bool navSection: true        // Tab: laptop column ⇄ phone column (PanelPopup sections)
 
     property var deck: null
     property string scope: "local"            // local | remote
@@ -63,6 +64,11 @@ Rectangle {
     readonly property bool heroPlaying: heroIsNp ? np.playing : mp ? mp.isPlaying : !!hero && hero.state === "playing"
     readonly property bool anyPlaying: heroPlaying || others.some(p => playingOf(p))
     readonly property color tint: hero ? colourOf(hero.colour) : Theme.overlay1
+    // the highlight for this column's controls (IconBtn, FocusRing… find it
+    // via Theme.tintOf): its own player's colour, not the deck's
+    readonly property color panelTint: hero ? tint : Theme.accent
+    // its buttons' hover fills in that colour (IconBtn via Theme.fillHoverOf)
+    readonly property bool panelFillHover: true
     readonly property string title: (mp && mp.trackTitle) || (hero ? hero.title : "")
     readonly property string artist: (mp && mp.trackArtist) || (hero ? hero.artist : "")
     readonly property string art: mp ? (mp.trackArtUrl || "") : ""
@@ -406,7 +412,7 @@ Rectangle {
                 width: inner.width
                 height: 46
                 radius: 11
-                color: rowMa.containsMouse ? Theme.alpha(Theme.surface1, 0.55) : Theme.alpha(Theme.surface0, 0.55)
+                color: rowMa.containsMouse ? Theme.alpha(col.panelTint, 0.18) : Theme.alpha(Theme.surface0, 0.55)
                 border.width: 1
                 border.color: Theme.alpha(c, mini.playing ? 0.35 : 0.12)
                 Behavior on color { ColorAnimation { duration: Theme.fast } }
