@@ -7,7 +7,7 @@ import Quickshell.Io
 SettingsPage {
     id: page
     title: "Appearance"
-    subtitle: "Theme, accent colour, wallpaper and font — the whole desktop follows."
+    subtitle: "Theme, accent colour, transparency, top bar, wallpaper and font — the whole desktop follows."
 
     // every theme, dark and light (rice-theme.py list); the grid shows the
     // current mode's
@@ -265,6 +265,28 @@ SettingsPage {
             subtitle: "SUPER+SHIFT+Scroll over a window changes its transparency; its OSD can make that the app's default"
             keywords: "transparency opacity window app"
             last: true
+        }
+    }
+
+    // ── top bar ──────────────────────────────────────────────────────────────
+    SettingsCard {
+        title: "Top bar"
+        icon: "\u{f0570}"
+        SettingsRow {
+            icon: "\u{f0570}"
+            title: "Workspaces always shown"
+            subtitle: (Theme.wsShown === 1 ? "Workspace 1" : "Workspaces 1–" + Theme.wsShown)
+                    + " stay in the bar even when empty; others appear while they have windows"
+            keywords: "workspaces persistent count number top bar empty"
+            last: true
+            Stepper {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 130
+                value: Theme.wsShown
+                min: 1
+                max: 10
+                onEdited: v => Theme.setWsShown(v)
+            }
         }
     }
 

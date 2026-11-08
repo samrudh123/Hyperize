@@ -213,7 +213,22 @@ Row {
         Rectangle {
             id: body
             x: 2
-            width: label.width + 24
+            // shrinks at once, grows animated: when the right side of the bar
+            // gets wider (a download starting) the titles must be out of the
+            // way before the timer / weather / news island moves in — an
+            // animated shrink slid the player under it for a moment
+            readonly property real targetWidth: label.width + 24
+            width: targetWidth
+            onTargetWidthChanged: {
+                if (targetWidth < width) { grow.stop(); width = targetWidth; }
+                else { grow.to = targetWidth; grow.restart(); }
+            }
+            NumberAnimation on width {
+                id: grow
+                running: false
+                duration: Theme.normal
+                easing.type: Easing.OutCubic
+            }
             height: 32
             radius: 8
             // hover on the title (not the seek zone): filled in the player's
@@ -221,7 +236,6 @@ Row {
             readonly property bool lit: mouse.containsMouse && !mouse.inZone && !mouse.dragging
             color: lit ? np.tint : Theme.alpha(np.tint, 0)
             Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Easing.OutQuint } }
-            Behavior on width { NumberAnimation { duration: Theme.normal; easing.type: Easing.OutCubic } }
 
             Text {
                 id: label

@@ -115,11 +115,6 @@
       "keyColor": "38;5;54"
     },
     {
-      "type": "lm",
-      "key": "  󰍂 login  ",
-      "keyColor": "38;5;54"
-    },
-    {
       "type": "theme",
       "key": "  󰉼 theme  ",
       "keyColor": "38;5;54"

@@ -84,6 +84,17 @@ Singleton {
     function setPanelOpacity(pct) {
         panelOpacityFile.setText(Math.round(Math.max(35, Math.min(100, pct))) + "\n");
     }
+    // How many workspaces the top bar always shows (1…N, even when empty;
+    // others appear while they exist): theme/workspaces-shown, written by
+    // Settings › Appearance › Top bar. Default 7 (waybar's persistent ones).
+    readonly property int wsShown: {
+        const n = parseInt((wsShownFile.text() || "").trim());
+        return isNaN(n) ? 7 : Math.max(1, Math.min(10, n));
+    }
+    function setWsShown(n) {
+        wsShownFile.setText(Math.max(1, Math.min(10, Math.round(n))) + "\n");
+    }
+
     // a panel surface at that opacity (k scales it for layered surfaces)
     function panel(c, k) {
         return alpha(c, Math.min(1, panelOpacity * (k === undefined ? 1 : k)));
@@ -213,6 +224,14 @@ Singleton {
     FileView {
         id: panelOpacityFile
         path: root.hypr + "/theme/panel-opacity"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+    }
+
+    FileView {
+        id: wsShownFile
+        path: root.hypr + "/theme/workspaces-shown"
         watchChanges: true
         printErrors: false
         onFileChanged: reload()

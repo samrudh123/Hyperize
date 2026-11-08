@@ -1,5 +1,5 @@
-// Workspaces 1–7 always (waybar's persistent-workspaces), plus any other
-// that exists. The accent pill SLIDES to the focused workspace and stretches
+// Workspaces 1–N always (N = Theme.wsShown, Settings › Appearance › Top
+// bar; default 7), plus any other that exists. The accent pill SLIDES to the focused workspace and stretches
 // on the way, instead of jumping. Numbers are in the accent, faded when the
 // workspace is empty; urgent ones turn red.
 //
@@ -22,7 +22,7 @@ import Quickshell.Hyprland
 Item {
     id: root
 
-    readonly property int persistent: 7
+    readonly property int persistent: Theme.wsShown
     readonly property var wsList: Hyprland.workspaces.values
     readonly property int focusedId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1
     readonly property var ids: {

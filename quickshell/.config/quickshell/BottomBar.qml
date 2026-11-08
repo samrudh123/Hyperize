@@ -184,11 +184,24 @@ PanelWindow {
         + (local.visible && remote.visible ? 6 : 0)
         + (remote.visible ? remote.chromeWidth : 0)
         + nothingPill.implicitWidth + spotifyLogin.implicitWidth + menuChevron.implicitWidth
+    // the titles at their shortest (minTitle each)
+    readonly property real titleFloor: (local.visible ? minTitle : 0) + (remote.visible ? minTitle : 0)
+    // the timer / weather / news island stays when the titles can shrink
+    // enough to make room for it; only when even the shortest titles can't
+    // (a busy right side — a download's speed, the phone, Tailscale) does it
+    // fade out, and the titles take its place back. Decided from the
+    // predicted widths, never the laid-out ones: the island's laid-out width
+    // collapsed while hidden, which freed room for the titles, which kept it
+    // hidden (it only came back after a big change on the right)
+    readonly property bool centreFits: leftRoom - leftFixed >= titleFloor
     readonly property var titleWidths: {
         const a = local.visible ? local.naturalTextWidth : 0;
         const b = remote.visible ? remote.naturalTextWidth : 0;
-        const room = Math.max(leftRoom - leftFixed,
-                              (local.visible ? minTitle : 0) + (remote.visible ? minTitle : 0));
+        // no island: the titles may go below minTitle, down to the 40 px
+        // NowPlaying allows, before they'd run into the right group
+        const room = centreFits ? leftRoom - leftFixed
+                   : Math.max(leftRoom + centreGroup.width + 12 - leftFixed,
+                              (local.visible ? 40 : 0) + (remote.visible ? 40 : 0));
         if (a + b <= room) return [a, b];
         if (!remote.visible) return [room, 0];
         if (!local.visible) return [0, room];
@@ -280,8 +293,14 @@ PanelWindow {
         id: centreGroup
         readonly property real minX: leftGroup.x + leftGroup.width + 12
         readonly property real maxX: rightGroup.x - 12 - width
-        x: Math.round(minX)
-        visible: minX <= maxX
+        // never over the right group, even while the titles animate shorter
+        x: Math.round(Math.min(minX, maxX))
+        // faded out, not visible: false — a hidden island measures 0 wide
+        // (its pills read as invisible), which is what kept it away.
+        // Disabled too: no hover / clicks / keyboard stops while gone.
+        opacity: bar.centreFits ? 1 : 0
+        enabled: bar.centreFits
+        Behavior on opacity { NumberAnimation { duration: Theme.normal; easing.type: Easing.OutCubic } }
         anchors.verticalCenter: parent.verticalCenter
         spacing: 0
 
@@ -411,7 +430,27 @@ PanelWindow {
                 // idle (nothing downloading): just the download glyph, dimmed —
                 // the pill stays, so the panel (finished ones too) is a click away
                 readonly property bool idle: rawText === "" || classes.includes("hidden") || classes.includes("idle")
-                textFilter: t => idle ? "\u{f01da}" : t.replace(/\s*[▰▱]+/, "")
+                textFilter: t => idle ? "\u{f01da}" : downloads.fit(t.replace(/\s*[▰▱]+/, ""))
+                // At most maxLen characters (~265 px), so the players, the
+                // timer / weather / news island and the other pills all stay
+                // readable however busy the downloads get. Over the limit, the
+                // wordy part (the "pip install" / "conda env create" label)
+                // is shortened with "…" first, so the numbers — size, speed,
+                // ×N — stay; only if that isn't enough is the end cut. The
+                // tooltip always has the whole thing.
+                readonly property int maxLen: 34
+                function fit(t) {
+                    const maxLen = downloads.maxLen;
+                    if (t.length <= maxLen) return t;
+                    const parts = t.split("  ");
+                    let i = 0;
+                    for (let k = 1; k < parts.length; k++)
+                        if (parts[k].length > parts[i].length) i = k;
+                    const keep = parts[i].length - (t.length - maxLen) - 1;
+                    if (keep >= 3) parts[i] = parts[i].slice(0, keep).replace(/\s+$/, "") + "…";
+                    const out = parts.join("  ");
+                    return out.length <= maxLen ? out : out.slice(0, maxLen - 1).replace(/\s+$/, "") + "…";
+                }
                 defaultFg: idle ? Theme.overlay1 : Theme.sapphire
                 colors: ({ paused: Theme.subtext0 })
                 // hover fills the pill in its text colour with dark text

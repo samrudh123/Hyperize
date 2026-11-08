@@ -14,7 +14,7 @@
     "locale": true,
     "datetime": true,
     "wm": true,
-    "lm": true,
+    "lm": false,
     "theme": true,
     "icons": true,
     "font": true,

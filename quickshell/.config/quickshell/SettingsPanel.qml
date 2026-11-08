@@ -51,7 +51,7 @@ Scope {
         { id: "keybinds",      name: "Keybindings",   icon: "\u{f030c}", keys: "keyboard shortcuts hyprland neovim nvim vim binds hotkeys key combo workspace window focus move resize screenshot terminal browser launcher leader" },
         { id: "pills",         name: "Pills",         icon: "\u{f037d}", keys: "pills pill bar click right-click middle-click mouse buttons left right middle top bottom panel action" },
         { id: "display",       name: "Display",       icon: "\u{f0379}", keys: "monitor screen resolution refresh scale brightness night light kelvin mirror extend duplicate external bar bottom bar islands classic dock" },
-        { id: "appearance",    name: "Appearance",    icon: "\u{f03d8}", keys: "theme accent colour color wallpaper lock screen font typeface look transparency opacity blur glass" },
+        { id: "appearance",    name: "Appearance",    icon: "\u{f03d8}", keys: "theme accent colour color wallpaper lock screen font typeface look transparency opacity blur glass top bar workspaces" },
         { id: "sound",         name: "Sound",         icon: "\u{f057e}", keys: "audio volume output input speaker microphone mic headphones mute mixer pavucontrol" },
         { id: "network",       name: "Network",       icon: "\u{f05a9}", keys: "wifi wi-fi bluetooth internet wireless ethernet wired ip address devices pair blueman" },
         { id: "kdeconnect",    name: "KDE Connect",   icon: "\u{f011c}", keys: "phone android ring ping send files clipboard" },

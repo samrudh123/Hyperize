@@ -77,7 +77,7 @@ Singleton {
     function barPopups(root) {
         const out = [];
         for (const p of popups) {
-            if (!p.pill || !p.navigable || rootOf(p.pill) !== root || !p.pill.visible) continue;
+            if (!p.pill || !p.navigable || rootOf(p.pill) !== root || !p.pill.visible || !p.pill.enabled) continue;
             // a hidden ancestor (the island of a pill that is shown: false…)
             let ok = true;
             for (let it = p.pill; it; it = it.parent) if (!it.visible) { ok = false; break; }
