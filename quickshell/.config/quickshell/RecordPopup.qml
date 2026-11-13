@@ -35,6 +35,7 @@ PanelPopup {
         property string glyph
         property string label
         property color tint: Theme.flamingo
+        readonly property color panelTint: tint       // its focus ring (Theme.tintOf)
         property bool enabled_: true
         signal activated()
         readonly property bool lit: enabled_ && (tma.containsMouse || activeFocus || BarState.kbItem === tile)
@@ -190,6 +191,8 @@ PanelPopup {
             visible: !pop.recording
             width: parent.width
             spacing: 6
+            // red section: its Sound switch's focus ring too
+            readonly property color panelTint: Theme.red
             opacity: pop.stage(2)
             transform: Translate { y: 12 * (1 - pop.stage(2)) }
             Text { text: "RECORD"; color: Theme.overlay1; font.family: Theme.font; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1.2 }

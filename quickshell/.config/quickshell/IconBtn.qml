@@ -19,10 +19,17 @@ Rectangle {
     property int tipEdge: Edges.Bottom
     property bool enabled: true
     readonly property bool hovered: ma.containsMouse
-    // hover fill (Theme.fillHoverOf): the panel's tint — in the players deck,
-    // the column's player colour
+    // its own colour: a coloured `fg` (Spotify green, YouTube mauve…) is the
+    // button's; a grey one takes the section's tint — not activeFg, which may
+    // be a state colour (red = muted) meant only for the filled state. Hover
+    // and the keyboard ring (FocusRing → Theme.tintOf finds panelTint) use it.
+    readonly property bool coloured: !Theme.isGrey(fg)
+    readonly property color own: coloured ? Qt.rgba(fg.r, fg.g, fg.b, 1) : Theme.tintOf(parent)
+    readonly property color panelTint: active ? activeFg : own
+    // hover fill (Theme.fillHoverOf: the players deck): filled in that colour;
+    // elsewhere a soft wash of it (coloured buttons) or the grey (plain ones)
     readonly property bool fillHover: Theme.fillHoverOf(parent)
-    readonly property color hoverFill: activeFg
+    readonly property color hoverFill: own
 
     signal clicked(int button)
 
@@ -41,7 +48,8 @@ Rectangle {
     radius: Math.min(10, height / 2)
     opacity: enabled ? 1 : 0.4
     color: active ? (hovered ? Qt.lighter(activeFg, 1.08) : activeFg)
-         : hovered ? (fillHover ? hoverFill : Theme.alpha(Theme.surface1, 0.9)) : Theme.alpha(Theme.surface0, 0.75)
+         : hovered ? (fillHover ? hoverFill : coloured ? Theme.alpha(own, 0.22) : Theme.alpha(Theme.surface1, 0.9))
+         : Theme.alpha(Theme.surface0, 0.75)
     Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Easing.OutQuint } }
 
     scale: ma.pressed ? 0.92 : 1
@@ -55,7 +63,7 @@ Rectangle {
             visible: btn.icon !== ""
             anchors.verticalCenter: parent.verticalCenter
             text: btn.icon
-            color: btn.active ? Theme.crust : btn.hovered ? (btn.fillHover ? Theme.crust : Theme.text) : btn.fg
+            color: btn.active ? Theme.crust : btn.hovered ? (btn.fillHover ? Theme.crust : btn.coloured ? btn.own : Theme.text) : btn.fg
             font.family: Theme.font
             font.pixelSize: btn.iconSize
         }
@@ -63,7 +71,7 @@ Rectangle {
             visible: btn.text !== ""
             anchors.verticalCenter: parent.verticalCenter
             text: btn.text
-            color: btn.active ? Theme.crust : btn.hovered ? (btn.fillHover ? Theme.crust : Theme.text) : btn.fg
+            color: btn.active ? Theme.crust : btn.hovered ? (btn.fillHover ? Theme.crust : btn.coloured ? btn.own : Theme.text) : btn.fg
             font.family: Theme.font
             font.pixelSize: 12
             font.weight: Font.DemiBold

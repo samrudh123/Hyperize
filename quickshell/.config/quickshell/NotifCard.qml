@@ -13,6 +13,57 @@ Item {
     property bool expanded: false
     property bool leaving: false
     property bool replying: false
+    // the PanelPopup (NotifPopup sets it): the reply box's ↑ ↓ move on
+    property var panel: null
+    // the ListView and this card's row in it, for ↑ ↓ between cards
+    property var listView: null
+    property int index: -1
+    readonly property bool isNotifCard: true
+    readonly property alias focusItem: body
+
+    // ── keyboard ────────────────────────────────────────────────────────────
+    // Tab reaches the list; on a card (or one of its buttons):
+    //   ↑ ↓      the previous / next notification (round in a circle)
+    //   ← →      this card's own stops: the card, ×, the app's buttons,
+    //            Reply (or the reply box and Send)
+    //   Enter    the card: what a click does (open it / expand) · a button: press it
+    //   Delete   dismiss it
+    // (PanelPopup.navKey asks kbKey of the focused control's card)
+    readonly property bool kbIn: {
+        for (let x = BarState.kbItem; x; x = x.parent) if (x === card) return true;
+        return false;
+    }
+    function stops() {
+        if (!panel) return [];
+        return panel.focusables().filter(i => { for (let x = i; x; x = x.parent) if (x === card) return true; return false; });
+    }
+    function toCard(d) {
+        if (!listView || !panel || index < 0 || listView.count < 2) return;
+        const i = (index + d + listView.count) % listView.count;
+        listView.positionViewAtIndex(i, ListView.Contain);
+        const row = listView.itemAtIndex(i);
+        if (!row) return;
+        for (let j = 0; j < row.children.length; j++)
+            if (row.children[j].isNotifCard) { panel.kbFocus(row.children[j].focusItem); return; }
+    }
+    function kbKey(key, mods) {
+        if (mods & (Qt.ControlModifier | Qt.AltModifier)) return false;
+        if (key === Qt.Key_Up || key === Qt.Key_Down) { toCard(key === Qt.Key_Down ? 1 : -1); return true; }
+        if (key === Qt.Key_Left || key === Qt.Key_Right) {
+            const l = stops();
+            if (!l.length) return true;
+            let cur = panel.current(), k = l.indexOf(cur);
+            if (k < 0) k = 0;
+            panel.kbFocus(l[(k + (key === Qt.Key_Right ? 1 : -1) + l.length) % l.length]);
+            return true;
+        }
+        if (key === Qt.Key_Delete && n.dismissable !== false) { leave(); return true; }
+        return false;
+    }
+    function activate() {
+        if (card.canClick) card.invoke("default");
+        else card.expanded = !card.expanded;
+    }
 
     signal dismiss()
     signal invoke(string action)              // "default" or an action key
@@ -20,6 +71,8 @@ Item {
 
     readonly property bool isPhone: n.kind === "phone"
     readonly property color tint: n.critical ? Theme.red : Theme.tintOf(parent)   // the popup's
+    // a critical card's ring / buttons / reply box are red too (Theme.tintOf)
+    readonly property color panelTint: tint
     readonly property bool canClick: !!n.hasDefault
 
     function ago(t) {
@@ -79,6 +132,15 @@ Item {
         opacity: 1 - Math.min(0.7, Math.abs(card.dx) / (card.width * 0.9))
         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
+        // the card itself is a keyboard stop (see kbKey above)
+        activeFocusOnTab: true
+        readonly property string navKey: "notif:" + (card.n.uid || card.n.path || card.n.id || "")
+        function kbActivate() { card.activate(); }
+        Keys.onPressed: ev => {
+            if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
+        }
+        FocusRing {}
+
         // unread / critical marker
         Rectangle {
             visible: card.n.unread || card.n.critical
@@ -104,10 +166,7 @@ Item {
             }
         }
         TapHandler {
-            onTapped: {
-                if (card.canClick) card.invoke("default");
-                else card.expanded = !card.expanded;
-            }
+            onTapped: card.activate()
         }
 
         // icon
@@ -170,19 +229,29 @@ Item {
                     font.pixelSize: 11
                 }
                 Rectangle {
+                    id: xBtn
                     visible: card.n.dismissable !== false
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     width: 22
                     height: 22
                     radius: 7
-                    opacity: hover.hovered ? 1 : 0
+                    // a keyboard stop too (shown while the keyboard is on the card)
+                    activeFocusOnTab: true
+                    readonly property string navKey: "notif:x:" + (card.n.uid || card.n.path || card.n.id || "")
+                    function kbActivate() { card.leave(); }
+                    Keys.onPressed: ev => {
+                        if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter || ev.key === Qt.Key_Space) { kbActivate(); ev.accepted = true; }
+                    }
+                    readonly property bool kbHot: activeFocus || BarState.kbItem === xBtn
+                    opacity: hover.hovered || card.kbIn ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: Theme.fast } }
-                    color: xMa.containsMouse ? Theme.alpha(Theme.red, 0.9) : Theme.alpha(Theme.surface1, 0.8)
+                    color: xMa.containsMouse || kbHot ? Theme.alpha(Theme.red, 0.9) : Theme.alpha(Theme.surface1, 0.8)
+                    FocusRing {}
                     Text {
                         anchors.centerIn: parent
                         text: "\u{f0156}"
-                        color: xMa.containsMouse ? Theme.crust : Theme.subtext0
+                        color: xMa.containsMouse || xBtn.kbHot ? Theme.crust : Theme.subtext0
                         font.family: Theme.font
                         font.pixelSize: 13
                     }
@@ -245,6 +314,7 @@ Item {
                     }
                 }
                 IconBtn {
+                    id: replyBtn
                     visible: !!card.n.replyable && !card.replying
                     size: 26
                     icon: "\u{f045a}"                 // md-reply
@@ -274,7 +344,23 @@ Item {
                     readonly property bool typing: activeFocus || (focus && BarState.typing === field)
                     onFocusChanged: if (focus) BarState.typing = field
                     cursorVisible: typing
-                    Keys.onEscapePressed: { card.replying = false; text = ""; }
+                    // in the Tab / arrow round and findable by name: when the
+                    // popup window loses the keyboard to a bar, PanelPopup
+                    // puts it back on this box (not the list's first button)
+                    activeFocusOnTab: true
+                    readonly property string navKey: "notif:reply:" + (card.n.uid || card.n.path || card.n.id || "")
+                    // Esc: cancel the reply, not close the panel (PanelPopup
+                    // asks the box being typed in first) — back to Reply
+                    function textEscape() {
+                        card.replying = false;
+                        text = "";
+                        if (card.panel) Qt.callLater(() => { if (replyBtn.visible) card.panel.kbFocus(replyBtn); });
+                    }
+                    Keys.onEscapePressed: ev => { ev.accepted = true; textEscape(); }
+                    // ↑ = back to the card, ↓ = Send (from there ↑ ↓ are the
+                    // notifications again); ← → still move the text cursor
+                    Keys.onUpPressed: if (card.panel) card.panel.kbFocus(body)
+                    Keys.onDownPressed: if (card.panel) card.panel.kbFocus(send)
                     onAccepted: if (text.trim()) { card.reply(text); text = ""; card.replying = false; }
                     Text {
                         visible: !parent.text

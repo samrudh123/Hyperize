@@ -24,7 +24,7 @@ do they move — and only if the OTHER device is playing then:
     headphones exactly as they are — the phone only gets them if the
     headphones switch over by themselves. What it did:
     RELEASE, to the phone: a phone player is Playing (KDE Connect's
-    kdeconnect.mpris_*, or spotify-remote.py's Spotify bridge), the laptop
+    kdeconnect.mpris_*), the laptop
     has played nothing for QUIET s, and a Bluetooth audio device is
     connected here with its audio on -> switch the laptop's AUDIO for it off
     (its PipeWire card profile -> "off"). It STAYS CONNECTED (since

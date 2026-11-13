@@ -156,7 +156,8 @@ PanelPopup {
                         icon: pop.muted ? (pop.inputs ? "\u{f036d}" : "\u{f075f}")
                                         : (pop.inputs ? "\u{f036c}" : "\u{f057e}")
                         active: pop.muted
-                        activeFg: Theme.red
+                        // red only as the muted fill; unmuted, hover/ring = the panel's
+                        activeFg: pop.muted ? Theme.red : pop.tint
                         tip: pop.muted ? "Unmute" : "Mute"
                         onClicked: if (pop.ok) pop.dev.audio.muted = !pop.dev.audio.muted
                     }

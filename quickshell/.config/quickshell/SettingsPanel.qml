@@ -1,5 +1,5 @@
-// Settings — a Serpantinum-style settings panel: a big centred card over a
-// dimmed screen, tabs down the left (with a search that filters tabs and
+// Settings — a Serpantinum-style settings panel: a big centred card over the
+// screen (no dim), tabs down the left (with a search that filters tabs and
 // rows), the tab's page on the right.
 //
 //   open:   top bar ⚙ pill · `qs ipc call settings toggle|open TAB` (TAB "" = the last one; the arg is required) ·
@@ -78,7 +78,7 @@ Scope {
         else open(t);
     }
 
-    Timer { id: hideTimer; interval: 220; onTriggered: { root.shown = false; SettingsState.query = ""; } }
+    Timer { id: hideTimer; interval: 220; onTriggered: { root.shown = false; SettingsState.query = ""; SettingsState.auth = null; } }
 
     Connections {
         target: BarState
@@ -120,7 +120,7 @@ Scope {
             // is created with root.isOpen already true, so the card's
             // Behaviors had nothing to animate and only Hyprland's layer fade
             // (now off for qs-settings) brought it in. `up` flips once the
-            // window's first frames are out, so the dim and the card ease in.
+            // window's first frames are out, so the card eases in.
             property bool up: false
             readonly property bool showing: root.isOpen && up
             readonly property real createdAt: Date.now()
@@ -143,15 +143,10 @@ Scope {
                                        : root.popupOver ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive
             color: "transparent"
 
-            // dim + click outside closes
-            Rectangle {
+            // click outside closes (no dim: the screen behind stays as it is)
+            MouseArea {
                 anchors.fill: parent
-                color: Qt.rgba(0, 0, 0, win.showing ? 0.38 : 0)
-                Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: root.close()
-                }
+                onClicked: root.close()
             }
 
             Rectangle {
@@ -170,7 +165,7 @@ Scope {
                 Behavior on opacity { NumberAnimation { duration: win.showing ? 170 : 150; easing.type: Easing.OutCubic } }
                 Behavior on scale { NumberAnimation { duration: win.showing ? 260 : 150; easing.type: win.showing ? Easing.OutBack : Easing.InCubic; easing.overshoot: 0.7 } }
 
-                // swallow clicks so they don't reach the dim layer
+                // swallow clicks so they don't reach the click-outside area
                 MouseArea { anchors.fill: parent }
 
                 focus: true
@@ -489,6 +484,11 @@ Scope {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.close()
                     }
+                }
+
+                // password prompt over the card (SettingsState.auth)
+                SettingsAuth {
+                    onOpenChanged: if (!open) card.forceActiveFocus()
                 }
             }
         }

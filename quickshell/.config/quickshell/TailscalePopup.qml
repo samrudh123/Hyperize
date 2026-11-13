@@ -269,7 +269,8 @@ PanelPopup {
                                     iconSize: 14
                                     icon: pop.copied === pop.tsp.ip(card.p) ? "\u{f012c}" : "\u{f018f}"
                                     active: pop.copied === pop.tsp.ip(card.p)
-                                    activeFg: Theme.green
+                                    // green only once copied; else the panel's teal (hover/ring)
+                                    activeFg: active ? Theme.green : pop.tint
                                     tip: "Copy IP  " + pop.tsp.ip(card.p)
                                     tipEdge: Edges.Top
                                     onClicked: {

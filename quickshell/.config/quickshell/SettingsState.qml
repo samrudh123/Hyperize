@@ -9,4 +9,6 @@ import Quickshell
 Singleton {
     property string query: ""
     signal closeRequested()
+    // a password prompt over the card (SettingsAuth): { title, message, onSuccess, onCancel }
+    property var auth: null
 }

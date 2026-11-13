@@ -106,6 +106,8 @@ PanelPopup {
                 model: [["Floating", "\u{f10ac}", "float"], ["Pinned", "\u{f0403}", "pin"]]
                 delegate: Item {
                     required property var modelData
+                    // its switch's colour: the switch and its focus ring (Theme.tintOf)
+                    readonly property color panelTint: modelData[2] === "pin" ? Theme.yellow : Theme.accent
                     width: parent.width
                     height: 30
                     Row {
@@ -130,7 +132,6 @@ PanelPopup {
                     Toggle {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        accent: modelData[2] === "pin" ? Theme.yellow : Theme.accent
                         checked: pop.valid && (modelData[2] === "pin" ? pop.w.pinned : pop.w.floating)
                         onToggled: v => {
                             if (modelData[2] === "float") pop.d("togglefloating " + pop.w.addr);
@@ -148,6 +149,7 @@ PanelPopup {
                 options: ["\u{f0574}  Normal", "\u{f05af}  Maximised", "\u{f0293}  Fullscreen"]
                 currentIndex: pop.valid ? Math.min(2, pop.w.fs) : 0
                 accent: Theme.peach
+                readonly property color panelTint: Theme.peach     // its focus ring
                 onSelected: i => pop.setSize(i)
             }
         }

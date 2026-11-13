@@ -141,6 +141,7 @@ PanelPopup {
         property string label
         property string hint
         property color tint: pop.tint
+        readonly property color panelTint: tint     // its focus ring in its own colour
         property bool armed: false
         signal activated()
         readonly property bool lit: tma.containsMouse || activeFocus || BarState.kbItem === tile
@@ -477,7 +478,7 @@ PanelPopup {
                         : risky ? "\u{f099b}" : "\u{f035c}"           // md-restore / md-menu
                     text: isArmed ? "Again to " + name.toLowerCase() : name
                     active: isArmed
-                    activeFg: Theme.red
+                    activeFg: risky ? Theme.red : pop.tint     // only risky ones arm
                     fg: risky ? Theme.red : Theme.subtext0
                     tipEdge: Edges.Top
                     onClicked: {

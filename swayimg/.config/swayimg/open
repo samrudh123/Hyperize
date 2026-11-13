@@ -1,0 +1,107 @@
+#!/usr/bin/python3
+"""Open images in swayimg with the zathura-style recolour toggle (`w`).
+
+    open [FILE|DIR]...
+
+What the swayimg.desktop override (default app for images) runs.
+
+One file   -> every image in its folder, starting at that file (←/→ browse).
+One folder -> every image in it.
+Several    -> exactly those.
+
+Each image is handed over as exec://<file> so it loads through ./shell,
+which serves it as is or recoloured — see the comment there. Paths are
+relative to the folder whenever possible, so the title/info read
+"exec://photo.jpg". The list is rotated to start at the opened file
+(swayimg always starts at the first entry; it loops, so ←/→ still walk the
+folder in order).
+"""
+import os
+import re
+import shutil
+import subprocess
+import sys
+
+HERE = os.path.dirname(os.path.realpath(__file__))
+STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "swayimg-recolor")
+EXTS = {"png", "jpg", "jpeg", "jpe", "webp", "gif", "bmp", "tif", "tiff", "tga",
+        "pnm", "pbm", "pgm", "ppm", "heic", "heif", "avif", "jxl", "svg", "exr",
+        "qoi", "dng", "cr2", "cr3", "nef", "arw", "orf", "raf", "rw2"}
+
+
+def is_image(name):
+    return name.rsplit(".", 1)[-1].lower() in EXTS and "." in name
+
+
+def natural(name):
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", name)]
+
+
+def images_in(d):
+    try:
+        names = [e.name for e in os.scandir(d)
+                 if e.is_file() and is_image(e.name) and not e.name.startswith(".")]
+    except OSError:
+        return []
+    return sorted(names, key=natural)
+
+
+def plan(args):
+    """-> (cwd, [entries relative to cwd or absolute])"""
+    paths = [os.path.abspath(a[7:] if a.startswith("file://") else a) for a in args] or [os.getcwd()]
+    if len(paths) == 1:
+        p = paths[0]
+        if os.path.isdir(p):
+            return p, images_in(p)
+        d, name = os.path.split(p)
+        names = images_in(d)
+        if name in names:
+            i = names.index(name)
+            return d, names[i:] + names[:i]
+        return d, [name]
+    files = []
+    for p in paths:
+        if os.path.isdir(p):
+            files += [os.path.join(p, n) for n in images_in(p)]
+        else:
+            files.append(p)
+    dirs = {os.path.dirname(f) for f in files}
+    if len(dirs) == 1:
+        d = dirs.pop()
+        return d, [os.path.basename(f) for f in files]
+    return os.getcwd(), files
+
+
+def main():
+    exe = shutil.which("swayimg")
+    if not exe:
+        subprocess.run(["notify-send", "-a", "Images", "swayimg is not installed",
+                        "sudo apt install swayimg"])
+        os.execvp("loupe", ["loupe", *sys.argv[1:]])
+    cwd, entries = plan(sys.argv[1:])
+    if not entries:
+        subprocess.run(["notify-send", "-a", "Images", "No images here", cwd])
+        return 1
+    env = dict(os.environ,
+               SWAYIMG_REAL_SHELL=os.environ.get("SHELL", "/bin/sh"),
+               SHELL=os.path.join(HERE, "shell"))
+    os.makedirs(STATE, exist_ok=True)
+    for name in os.listdir(STATE):          # windows that died without cleanup
+        if name.isdigit() and not os.path.exists(f"/proc/{name}"):
+            try:
+                os.unlink(os.path.join(STATE, name))
+            except OSError:
+                pass
+    proc = subprocess.Popen([exe, "--order=none", *("exec://" + e for e in entries)],
+                            cwd=cwd, env=env)
+    try:
+        return proc.wait()
+    finally:
+        try:
+            os.unlink(os.path.join(STATE, str(proc.pid)))
+        except OSError:
+            pass
+
+
+if __name__ == "__main__":
+    sys.exit(main())

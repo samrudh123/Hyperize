@@ -16,22 +16,24 @@ Two sources:
     follower, which prints {{shuffle}} {{loop}} for exactly that.
   * Spotify whose MPRIS has neither — KDE Connect's copy of the phone's
     Spotify (KDE Connect relays no Shuffle / LoopStatus, and its mprisremote
-    interface has none either) and spotify-remote.py's bridge: the Spotify
-    Web API. GET /me/player has shuffle_state / repeat_state ("off" /
-    "context" / "track"); PUT /me/player/shuffle|repeat sets them (Premium,
-    which the user has). The PHONE is the truth, so:
-      - shown: read in now-playing.py's background thread every
-        TTL_PLAYING / TTL_PAUSED s and at once on a new song / play / pause
-        (`key`), into CACHE, shared by both bar pills; now-playing.py wakes
-        for it even while paused (web_shown). One kept-alive HTTPS
-        connection (Api) — a GET /me/player is still ~0.7 s, Spotify's own
-        time. A change made on the phone shows in ~2-3 s.
+    interface has none either): the Spotify Web API. GET /me/player has
+    shuffle_state / repeat_state ("off" / "context" / "track"); PUT
+    /me/player/shuffle|repeat sets them (Premium, which the user has). The
+    PHONE is the truth, so:
+      - shown (= KDE Connect has the phone's Spotify; when it hasn't, or KDE
+        Connect is disconnected, nothing is asked): read in now-playing.py's
+        background thread ONLY when the song or play state changes (`key`)
+        — no polling since 2026-11-09 (every 1.5 s, then 15 s, got the app
+        rate limited for hours) — into CACHE, shared by both bar pills. One
+        kept-alive HTTPS connection (Api) — a GET /me/player is still
+        ~0.7 s, Spotify's own time. A change made ON THE PHONE mid-song
+        shows at the next song / pause.
       - Spotify reporting no player (asleep on the phone: /me/player 204),
         no login, or no good read for STALE s: UNKNOWN, and the buttons hide
         — never a stale guess the phone doesn't match.
       - a click (now-playing.py stdin from the bar, or this CLI) steps from
-        a read no older than FRESH s — the bar's own polling keeps one that
-        fresh while it plays; otherwise it GETs first — shows the new state
+        a read no older than FRESH s — otherwise (the usual case now) it GETs
+        first, so a change made on the phone isn't stepped over — shows the new state
         AT ONCE and PUTs it. Spotify takes 0.6-2.4 s to answer a PUT and
         0.7-1.6 s a GET (measured, its own time), so waiting for them was
         what made a click take 4-5 s. The PUT sets an ABSOLUTE state, so
@@ -56,22 +58,19 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "spotify-modes.json")
-# Shuffle / repeat seldom change, and a new song or play / pause reads again
-# at once (the key changes) — so these can be slow. They were 1.5 s / 4 s,
-# and that much polling, all day, got the app rate limited for ~10 hours.
-TTL_PLAYING = 15.0             # s between Web API reads while a Spotify pill plays
-TTL_PAUSED = 30.0              # ...a paused one
-STALE = 90.0                   # API unreachable this long: the state is unknown (> TTL_PLAYING × a few)
+# No periodic reads (see the docstring): a read happens when `key` (play
+# state + song) changes. STALE: a failed read this long after the last good
+# one makes the state unknown.
+STALE = 90.0
 HOLD = 5.0                     # s after an accepted PUT that stale reads are ignored (API lag measured up to ~4 s)
 FRESH = 3.0                    # a click may step from a read this recent
-BACKOFF = 30.0                 # s without reads after HTTP 429 (rate limited)
 LOCK = CACHE + ".lock"
 LOOPS = ["None", "Playlist", "Track"]                  # the ⟲ cycle
 TO_API = {"None": "off", "Playlist": "context", "Track": "track"}
 FROM_API = {v: k for k, v in TO_API.items()}
 
 on_change = None               # now-playing.py: called when a Web API read changed something
-web_shown = False              # the last state() came from the Web API: keep re-reading it
+web_shown = False              # the last state() came from the Web API
 _fetching = threading.Lock()
 
 
@@ -226,7 +225,7 @@ def _fetch(key):
             new["ok_at"] = now
         else:
             if getattr(err, "status", 0) == 429:
-                new["at"] = now + BACKOFF - TTL_PAUSED
+                new["at"] = now
             if now - new.get("ok_at", 0) > STALE:       # a blip keeps the last read
                 new.update(shuffle=None, loop=None)
         save(new)
@@ -253,12 +252,12 @@ def as_fields(d):
 
 
 def web(key, playing):
-    """-> (shuffle, loop) as last read from the Web API; reads again in the
-    background when that is older than the TTL or was for another `key`
-    (song and play state)."""
+    """-> (shuffle, loop) as last read from the Web API; reads again (in the
+    background) only when that read was for another `key` (song and play
+    state). A failed read counts too: it is tried again at the next change,
+    not in a loop."""
     d = load()
-    ttl = TTL_PLAYING if playing else TTL_PAUSED
-    if time.time() - d.get("at", 0) > ttl or d.get("key") != key:
+    if d.get("key") != key:
         _fetch_bg(key)
     return as_fields(d)
 

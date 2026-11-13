@@ -1,0 +1,16 @@
+[Desktop Entry]
+# Overrides /usr/share/applications/swayimg.desktop: images open through
+# ~/.config/swayimg/open (via the ~/.local/bin/swayimg-open shim — xdg-open
+# can't handle quoted Exec arguments), which adds the whole folder to the list and the
+# zathura-style recolour on `w` (see the comments in that folder).
+Type=Application
+Name=Swayimg
+GenericName=Image viewer
+Comment=Image viewer — w recolours like zathura
+Icon=swayimg
+Exec=swayimg-open %F
+Terminal=false
+Categories=Graphics;Viewer;
+StartupNotify=false
+MimeType=image/avif;image/bmp;image/gif;image/heif;image/heic;image/jpeg;image/jpg;image/jxl;image/pbm;image/pjpeg;image/png;image/svg+xml;image/tiff;image/webp;image/x-bmp;image/x-exr;image/x-png;image/x-portable-anymap;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;image/x-targa;image/x-tga;image/qoi;
+NoDisplay=true

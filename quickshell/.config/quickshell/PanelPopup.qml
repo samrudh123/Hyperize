@@ -72,8 +72,16 @@ PopupWindow {
     // the Dropdown whose list is open in this panel (Dropdown sets it): Esc
     // and the arrow / Enter keys go to it first
     property var dropdown: null
+    // optional function(): Esc steps back inside the panel first (Weather:
+    // the place picker → the forecast); return false to close as usual
+    property var escapeAction: null
     function escapeKey() {
         if (dropdown && dropdown.open) { dropdown.close(); return; }
+        // a text box being typed in may cancel itself instead (a reply, a
+        // password): `function textEscape()` on the TextInput
+        const tt = textTarget;
+        if (tt && typeof tt.textEscape === "function") { tt.textEscape(); return; }
+        if (escapeAction && escapeAction()) return;
         close();
     }
     Component.onCompleted: BarState.addPopup(pop)
@@ -111,7 +119,20 @@ PopupWindow {
     // the control with the keyboard, if it's in this panel and on screen
     function focusedInside() {
         const w = card.winFocus;
-        return w && w !== card && w.visible && inside(w) ? w : null;
+        if (w && w !== card && w.visible && inside(w)) return w;
+        return card.winActive ? null : inactiveFocus();
+    }
+    // Keys coming through a bar (pointer over the panel): this popup's
+    // window isn't the active one, so Window.activeFocusItem is null even
+    // though a control here has the focus — read its `focus` flag instead
+    // (the text box being typed in, else the control the keyboard was put
+    // on). Without this the panel thought the keyboard had fallen out and
+    // kept "restoring" it every ~80 ms, undoing any other focus change.
+    function inactiveFocus() {
+        const t = BarState.typing;
+        if (t && t.focus && t.visible && inside(t)) return t;
+        const k = kbTrack;
+        return k && k.focus && k.visible && inside(k) ? k : null;
     }
     function noteKb(it) {
         if (!it || it === card || !inside(it)) return;
@@ -176,6 +197,9 @@ PopupWindow {
     function current() {
         const w = card.winFocus;
         if (w && w !== card && inside(w)) return w;
+        // a text box clicked into while the keys come through a bar
+        const t = card.winActive ? null : BarState.typing;
+        if (t && t.focus && t.visible && inside(t)) return t;
         return BarState.kbItem && inside(BarState.kbItem) ? BarState.kbItem : null;
     }
     // ── sections ────────────────────────────────────────────────────────────
@@ -584,6 +608,7 @@ PopupWindow {
         // a button…) — see navKey
         Keys.onPressed: ev => { if (pop.navKey(ev.key, ev.modifiers)) ev.accepted = true; }
         readonly property Item winFocus: Window.activeFocusItem
+        readonly property bool winActive: Window.active
         // the text box being typed in (focused by a click / focusAdd / Tab),
         // for the bars to forward keys to: Hyprland gives a popup's keys to
         // a BAR (the grab's first layer surface), never the popup itself

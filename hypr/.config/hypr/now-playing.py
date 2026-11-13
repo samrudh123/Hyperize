@@ -15,9 +15,9 @@ that sat beside it). The built-in module could not do either of these:
     "kdeconnect.mpris_<id>", so mpris could only class them all "kdeconnect";
     the app is only in the MPRIS Identity ("YouTube Morphe - My Phone").
 
-Spotify on another device (via the Web API, for when KDE Connect can't see
-the phone) is the "kdeconnect.spotifyremote" player published by spotify-remote.py — so
-it gets the same line, scroll-seek and menu as everything else.
+The phone's Spotify comes through KDE Connect like its other apps (the Web
+API bridge that also showed Spotify on other devices was removed 2026-11-09;
+the Web API is only asked for shuffle / repeat now — media_modes.py).
 
 Classes (bottom.css): spotify green · youtube dim red · firefox peach ·
 zen mauve · ytmusic pink · other blue · paused grey (wins) · hidden. Shows playerctld's
@@ -27,7 +27,7 @@ per change, plus a tick per second while something plays. Stdlib only.
 
 TWO PILLS (--scope): the bar runs this twice, `--scope local` (this laptop:
 Firefox, Spotify, mpv, …) and `--scope remote` (KDE Connect's phone players
-and the Spotify Web API bridge — every "kdeconnect.*" player), each with its
+— every "kdeconnect.*" player), each with its
 own line and controls, so the phone and the laptop never take each other's
 place. Without --scope: all players, as before.
 
@@ -78,8 +78,7 @@ def run(*cmd):
 
 def identity(instance):
     """A player's Identity — remembered per bus name (it doesn't change;
-    render() forgets players that are gone), except the bridge's: that one
-    names the device Spotify is playing on."""
+    render() forgets players that are gone)."""
     if instance in _ident:
         return _ident[instance]
     out = run("busctl", "--user", "--json=short", "get-property",
@@ -89,8 +88,7 @@ def identity(instance):
         ident = json.loads(out)["data"]
     except (ValueError, KeyError):
         return ""
-    if instance != BRIDGE:
-        _ident[instance] = ident
+    _ident[instance] = ident
     return ident
 
 
@@ -156,21 +154,6 @@ def modes_of(inst):
     return modes
 
 
-# spotify-remote.py's Web API bridge. Its bus name sits under "kdeconnect." so
-# kdeconnectd doesn't echo it back to the phone — check for it BEFORE the
-# generic kdeconnect (= phone) rules.
-BRIDGE = "kdeconnect.spotifyremote"
-
-
-def superseded(inst, players):
-    """KDE Connect's copy of the phone's Spotify, while spotify-remote.py's
-    bridge (BRIDGE, from the Web API) is up: the bridge is always
-    current, the copy can be frozen (KDE Connect over Bluetooth only reports
-    on connect). Same rule in media-menu.py and media-prefer-playing.sh."""
-    return (inst.startswith("kdeconnect.") and inst != BRIDGE and BRIDGE in players
-            and identity(inst).lower().startswith("spotify"))
-
-
 def classify_phone(ident):
     """'YouTube Music - My Phone' -> 'ytmusic'. Matches Morphe/ReVanced
     builds too, which keep "YouTube" / "YouTube Music" in their names."""
@@ -187,9 +170,6 @@ def classify_phone(ident):
 def describe(inst):
     """-> (colour class, icon, tooltip name, is_phone)."""
     name = inst.split(".")[0]
-    if inst == BRIDGE:                                # spotify-remote.py's bridge
-        device = identity(inst).partition(" - ")[2]
-        return "spotify", I_SPOTIFY, f"Spotify on {device or 'another device'}", True
     if name == "kdeconnect":
         ident = identity(inst)
         app = classify_phone(ident)
@@ -227,12 +207,6 @@ def _kdec_focus(inst):
 
     Skipped while nothing can have changed since the last check (_focus).
     -> True when it switched the selection (positions read before are stale)."""
-    if inst == BRIDGE:
-        # The bridge (Web API) shows Spotify; it reads KDE Connect's Spotify
-        # copy for position, which is only right while that copy is current.
-        inst = next((p for p in players_l()
-                     if p.startswith("kdeconnect.mpris_")
-                     and identity(p).lower().startswith("spotify")), "")
     if not inst.startswith("kdeconnect.mpris_"):
         return
     now = time.monotonic()
@@ -379,8 +353,8 @@ def _gecko_tabs(players, b):
 
 
 def in_scope(inst, scope):
-    """remote = another device: KDE Connect's phone players and the Web API
-    bridge (all "kdeconnect.*"); local = this laptop; None = everything."""
+    """remote = another device: KDE Connect's phone players (all
+    "kdeconnect.*"); local = this laptop; None = everything."""
     if scope is None:
         return True
     return inst.startswith("kdeconnect.") == (scope == "remote")
@@ -406,7 +380,7 @@ def shown_player(scope=None):
     scope: only "local" or "remote" players (see in_scope)."""
     players = players_l()
     mirrors = mirrors_of(players)
-    players = [p for p in players if not superseded(p, players) and p not in mirrors]
+    players = [p for p in players if p not in mirrors]
     players = [p for p in players if in_scope(p, scope)]
     players = firefox_tabs(players)
     if not players:
@@ -490,8 +464,7 @@ def render(scope=None):
         length = 0                                      # live stream / unknown
     if length > 0:
         position = held_position(inst, title, status, position)
-    if length > 0 and phone and inst != BRIDGE and \
-            position_frozen(inst, title, status, position):
+    if length > 0 and phone and position_frozen(inst, title, status, position):
         length = 0              # don't draw a progress line we know is wrong
     if length > 0:
         pct = max(0, min(100, round(position * 100 / length)))
@@ -656,10 +629,6 @@ def main(cffi=False, scope=None):
             settle = _live_until[0] - time.monotonic()
             wait = 1.0 if playing or spotify_may_move() else \
                 (settle + 0.05 if settle > 0 else None)
-            if wait is None and media_modes.web_shown:
-                # paused phone Spotify: keep re-reading shuffle / repeat
-                # from the Web API — they can change on the phone meanwhile
-                wait = media_modes.TTL_PAUSED + 0.1
             tokens.append(q.get(timeout=wait))
             while True:                                 # let a burst settle
                 tokens.append(q.get(timeout=0.25))

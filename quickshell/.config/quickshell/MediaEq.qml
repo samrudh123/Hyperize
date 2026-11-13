@@ -83,13 +83,13 @@ Item {
                     width: lbl.implicitWidth + 18
                     height: 26
                     radius: 8
-                    color: on ? eq.tint : pma.containsMouse ? Theme.alpha(Theme.surface1, 0.9) : Theme.alpha(Theme.surface0, 0.75)
+                    color: on ? eq.tint : pma.containsMouse && modelData !== "Custom" ? Theme.alpha(eq.tint, 0.22) : Theme.alpha(Theme.surface0, 0.75)
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
                     Text {
                         id: lbl
                         anchors.centerIn: parent
                         text: parent.modelData
-                        color: parent.on ? Theme.crust : pma.containsMouse ? Theme.text : Theme.subtext0
+                        color: parent.on ? Theme.crust : pma.containsMouse && parent.modelData !== "Custom" ? eq.tint : Theme.subtext0
                         font.family: Theme.font
                         font.pixelSize: 11
                         font.weight: Font.DemiBold
@@ -225,7 +225,7 @@ Item {
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: parent.bottom
                         text: eq.fmtF(eq.freqs[col.index])
-                        color: bma.containsMouse ? Theme.text : Theme.subtext0
+                        color: bma.containsMouse || bma.pressed ? eq.tint : Theme.subtext0
                         font.family: Theme.font
                         font.pixelSize: 11
                     }

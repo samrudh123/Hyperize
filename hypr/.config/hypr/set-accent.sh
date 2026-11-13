@@ -133,6 +133,7 @@ zen-userChrome.css	.zen/imported-firefox/chrome/userChrome.css
 zen-userContent.css	.zen/imported-firefox/chrome/userContent.css
 ghostty-config	.config/ghostty/config
 zathurarc	.config/zathura/zathurarc
+swayimg-config	.config/swayimg/config
 EOF
 }
 
@@ -256,6 +257,15 @@ reload_live() {
         while read -r name; do
             busctl --user call "$name" /org/pwmt/zathura org.pwmt.zathura SourceConfig >/dev/null 2>&1
         done
+
+    # swayimg windows showing a recoloured image (`w`, colours from the
+    # zathurarc just written): SIGUSR1 = reload, which re-runs the recolour.
+    # The rest of swayimg's config is read at start only.
+    for f in "${XDG_RUNTIME_DIR:-/tmp}"/swayimg-recolor/[0-9]*; do
+        # a stale file's pid may belong to something else now, and USR1
+        # kills most programs
+        [ "$(cat "/proc/${f##*/}/comm" 2>/dev/null)" = swayimg ] && kill -USR1 "${f##*/}" 2>/dev/null
+    done
 
     # tmux re-reads on demand, so it can recolour without restarting. The
     # other TUI apps (yazi, btop) read their theme once at startup and have no

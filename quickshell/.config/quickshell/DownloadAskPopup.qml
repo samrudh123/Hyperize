@@ -172,7 +172,8 @@ PanelPopup {
             height: 46
             radius: 12
             opacity: pop.stage(1)
-            color: prevMa.containsMouse || prevBtn.activeFocus ? Theme.alpha(Theme.mauve, 0.22) : Theme.alpha(Theme.mauve, 0.12)
+            readonly property color panelTint: Theme.mauve    // its keyboard ring
+            color: prevMa.containsMouse || prevBtn.activeFocus || BarState.kbItem === prevBtn ? Theme.alpha(Theme.mauve, 0.22) : Theme.alpha(Theme.mauve, 0.12)
             border.width: 1
             border.color: Theme.alpha(Theme.mauve, 0.4)
             Behavior on color { ColorAnimation { duration: Theme.fast } }

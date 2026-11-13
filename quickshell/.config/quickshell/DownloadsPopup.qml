@@ -234,6 +234,8 @@ PanelPopup {
                             readonly property color c: it.state === "error" ? Theme.red
                                                      : it.state === "complete" ? Theme.green
                                                      : it.state === "active" ? Theme.sapphire : Theme.overlay1
+                            // its buttons' rings in the state's colour (grey: the panel's)
+                            readonly property color panelTint: Theme.isGrey(c) ? pop.tint : c
                             width: list.width
                             height: col.implicitHeight + 20
                             radius: 12

@@ -274,6 +274,9 @@ PanelPopup {
                         width: parent.width
                         n: row.modelData
                         now: pop.now
+                        panel: pop
+                        listView: list
+                        index: row.index
                         onDismiss: pop.dismiss(row.modelData)
                         onInvoke: action => pop.invoke(row.modelData, action)
                         onReply: text => pop.send("phone-reply " + row.modelData.path + " " + text.replace(/\n/g, " "))

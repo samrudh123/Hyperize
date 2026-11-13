@@ -58,10 +58,25 @@ PanelWindow {
     // handled here whatever form they arrive in (the Shortcuts above cover
     // the rest)
     Item {
+        id: keySink
         focus: true
         readonly property var target: BarState.activePopup && BarState.activePopup.isOpen ? BarState.activePopup : null
-        Keys.forwardTo: target && target.textTarget ? [target.textTarget] : []
-        Keys.onPressed: ev => {
+        // (Shift+)Tab never reaches the text box: a TextInput handed a Tab
+        // moves Qt's focus itself, inside a popup window that isn't active
+        // (no activeFocusItem), so the panel never heard of the move, kept
+        // the text box as "where the keyboard is" and put it straight back
+        // there — Tab was stuck in Tasks' "new task" field. tabCatch takes
+        // it first and gives it to the panel's own Tab (sections).
+        Keys.forwardTo: target && target.textTarget ? [tabCatch, target.textTarget] : []
+        Item {
+            id: tabCatch
+            Keys.onPressed: ev => {
+                if (ev.key === Qt.Key_Tab || ev.key === Qt.Key_Backtab) keySink.handle(ev);
+                else ev.accepted = false;
+            }
+        }
+        Keys.onPressed: ev => handle(ev)
+        function handle(ev) {
             const p = target;
             if (!p) return;
             if (ev.modifiers & Qt.ControlModifier) {

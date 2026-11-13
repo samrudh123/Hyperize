@@ -172,6 +172,8 @@ PanelPopup {
 
         // ── night light ─────────────────────────────────────────────────────
         Rectangle {
+            // its controls' focus rings in its own peach (Theme.tintOf), not the pill's
+            readonly property color panelTint: Theme.peach
             width: parent.width
             height: nightCol.implicitHeight + 24
             radius: 14

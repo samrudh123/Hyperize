@@ -49,16 +49,32 @@ SettingsPage {
                       + "  ·  each theme has both; bars, windows, terminal and apps follow"
             keywords: "mode dark light day night latte dawn lotus contrast"
             Segmented {
+                id: modeSeg
                 anchors.verticalCenter: parent.verticalCenter
                 width: 200
                 height: 32
                 options: ["\u{f0594}  Dark", "\u{f05a8}  Light"]
                 currentIndex: Theme.light ? 1 : 0
+                // Dark → Light asks for the password first (the joke gate,
+                // SettingsAuth); "Light" stays highlighted while it's up
+                property bool asking: false
+                onOptimisticChanged: if (asking && optimistic !== 1) optimistic = 1
                 onSelected: i => {
                     const m = i === 1 ? "light" : "dark";
-                    if (m === Theme.mode) return;
-                    page.pendingMode = m;
-                    Theme.exec(Theme.hypr + "/set-theme.sh --mode " + m);
+                    if (m === Theme.mode || asking) return;
+                    const go = () => {
+                        page.pendingMode = m;
+                        Theme.exec(Theme.hypr + "/set-theme.sh --mode " + m);
+                    };
+                    if (m !== "light") { go(); return; }
+                    const seg = modeSeg;
+                    seg.asking = true;
+                    SettingsState.auth = {
+                        title: "Authenticate with password",
+                        message: "Epilepsy warning for Buffaloes!!!",
+                        onSuccess: () => { seg.asking = false; seg.optimistic = 1; go(); },
+                        onCancel: () => { seg.asking = false; seg.optimistic = -1; }
+                    };
                 }
             }
         }

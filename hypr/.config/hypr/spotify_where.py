@@ -13,7 +13,7 @@ laptop plays. Either way the bottom bar had the same song in both pills.
 So one copy is hidden, and the pill follows the SOUND: the laptop app is the
 real player only while it puts audio out here (a running PipeWire stream from
 the spotify binary). Otherwise it is a mirror, and the phone's copy (KDE
-Connect, or spotify-remote.py's Web API bridge) is the one shown.
+Connect) is the one shown.
 
 A copy is only a mirror if it shows the SAME song. One account streams to
 one device at a time, but a paused laptop app can sit on one song while the
@@ -34,7 +34,6 @@ import sys
 import time
 
 STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "spotify-where.json")
-BRIDGE = "kdeconnect.spotifyremote"
 # Playing with no audio for this long before the laptop counts as a mirror:
 # covers the gap between pressing play and the stream starting, and a track
 # change. A move TO the laptop (audio appears) is taken at once.
@@ -51,9 +50,7 @@ def is_laptop(inst):
 
 
 def is_remote_copy(inst):
-    """KDE Connect's copy of the phone's Spotify, or the Web API bridge."""
-    if inst == BRIDGE:
-        return True
+    """KDE Connect's copy of the phone's Spotify."""
     if not inst.startswith("kdeconnect.mpris_"):
         return False
     out = _run("busctl", "--user", "--json=short", "get-property",
@@ -137,8 +134,8 @@ def hidden(players):
     laptop = [p for p in players if is_laptop(p)]
     remote = [p for p in players if is_remote_copy(p)]
     if not remote:
-        # Nothing else shows the phone's Spotify (KDE Connect can't see it and
-        # the bridge isn't up yet): keep the laptop app rather than show nothing.
+        # Nothing else shows the phone's Spotify (KDE Connect can't see it):
+        # keep the laptop app rather than show nothing.
         return set()
     song = _title(laptop[0])
     same = {p for p in remote if song and _title(p) == song}

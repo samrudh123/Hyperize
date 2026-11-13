@@ -12,10 +12,6 @@ the phone's players is frozen (the bar was 80 s behind on position, a pause
 sent through it never arrived), but Spotify's Web API, which goes through
 Spotify's servers, stays current. So while the link is bad:
 
-  * spotify-remote.py's bridge doesn't step aside for KDE Connect's copy of
-    the phone's Spotify (it shows the Web API's view, and now-playing.py
-    hides the copy as superseded), doesn't send commands through it, and
-    doesn't take its "Spotify is closed" or its pushes as the truth;
   * resume ("Last played") goes through Spotify Connect, not KDE Connect.
 
 healthy() is True when nothing is known (no watcher running, old file): the

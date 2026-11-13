@@ -193,6 +193,7 @@ PanelPopup {
                 options: ["\u{f032a}  Saver", "\u{f05d1}  Balanced", "\u{f14de}  Performance"]
                 currentIndex: Math.max(0, pop.profiles.indexOf(pop.profile))
                 accent: currentIndex === 2 ? Theme.peach : currentIndex === 0 ? Theme.green : Theme.blue
+                readonly property color panelTint: accent     // its focus ring: the profile's colour
                 onSelected: i => {
                     pop.profile = pop.profiles[i];
                     setProf.command = ["busctl", "--system", "set-property", "org.freedesktop.UPower.PowerProfiles",

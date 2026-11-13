@@ -25,19 +25,6 @@ flock -n 8 || exit 0
 
 status_of() { playerctl -p "$1" status 2>/dev/null; }
 
-# KDE Connect's copy of the phone's Spotify while spotify-remote.py's bridge
-# ("kdeconnect.spotifyremote", from the Web API) is up: the copy can be frozen — over
-# Bluetooth KDE Connect reports the phone's players only when the link comes
-# up — and stuck at "Playing" forever, so it must never be the one in front.
-# Same rule as superseded() in now-playing.py / media-menu.py.
-superseded() {
-    local p=$1; shift
-    [[ $p == kdeconnect.* && $p != kdeconnect.spotifyremote ]] || return 1
-    printf '%s\n' "$@" | grep -qx kdeconnect.spotifyremote || return 1
-    busctl --user get-property "org.mpris.MediaPlayer2.$p" /org/mpris/MediaPlayer2 \
-        org.mpris.MediaPlayer2 Identity 2>/dev/null | grep -qi '^s "spotify'
-}
-
 # Firefox's (or Zen's) own player while the mpris-position extension's per-tab
 # players (firefox.tab_<id> / zen.tab_<id>) cover its YouTube tab — same rule
 # as now-playing.py.
@@ -61,7 +48,6 @@ mirrors=""
 good() {
     local p=$1
     [[ $'\n'$mirrors$'\n' == *$'\n'$p$'\n'* ]] && return 1
-    superseded "$@" && return 1
     ff_covered "$@" && return 1
     [ "$want" = any ] || [ "$(status_of "$p")" = Playing ]
 }
@@ -74,8 +60,8 @@ fix() {
     mirrors=""
     printf '%s\n' "${ps[@]}" | grep -q '^spotify' &&
         mirrors=$(/usr/bin/python3 "$HOME/.config/hypr/spotify_where.py" hidden "${ps[@]}")
-    # Prefer a playing, non-superseded player; with none playing, any
-    # non-superseded one (playerctld's own choice otherwise left alone).
+    # Prefer a playing player we'd show; with none playing, any such one
+    # (playerctld's own choice otherwise left alone).
     want=playing
     for p in "${ps[@]}"; do good "$p" "${ps[@]}" && break; p=; done
     [ -n "$p" ] || { want=any; for p in "${ps[@]}"; do good "$p" "${ps[@]}" && break; p=; done; }

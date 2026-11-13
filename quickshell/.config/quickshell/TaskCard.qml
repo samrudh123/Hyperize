@@ -38,6 +38,10 @@ Rectangle {
     // rebuilt — moved, edited, ticked (PanelPopup.noteKb)
     readonly property string navKey: "task:" + k
     readonly property bool editingMe: !!pop && pop.editing === k
+    // a due-soon / overdue task is in its DUE SOON colour (yellow / red): its
+    // buttons, editor and keyboard ring follow it (Theme.tintOf), else the panel's
+    readonly property color panelTint: !t.done && (t.level === "overdue" || t.level === "soon") && pop
+                                       ? pop.levelColor(t) : Theme.tintOf(parent)
 
     width: parent ? parent.width : 400
     height: editingMe ? editCol.height + 22 : Math.max(52, info.height + 20)
@@ -45,7 +49,7 @@ Rectangle {
     color: hovered || editingMe ? Theme.alpha(Theme.surface1, 0.5) : Theme.alpha(Theme.surface0, 0.55)
     border.width: 1
     border.color: t.level === "overdue" && !t.done ? Theme.alpha(Theme.red, 0.45)
-                : editingMe ? Theme.alpha(Theme.tintOf(parent), 0.6) : Theme.alpha(Theme.surface1, 0.4)
+                : editingMe ? Theme.alpha(panelTint, 0.6) : Theme.alpha(Theme.surface1, 0.4)
     Behavior on color { ColorAnimation { duration: Theme.fast } }
     Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 

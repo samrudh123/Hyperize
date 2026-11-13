@@ -79,30 +79,47 @@ PanelPopup {
         command: ["/usr/bin/python3", Theme.hypr + "/tasks.py", "json"]
         stdout: StdioCollector {
             onStreamFinished: {
-                try {
-                    const d = JSON.parse(text);
-                    pop.tasks = d.tasks || [];
-                    pop.today = d.today || "";
-                    pop.sortMode = d.sort || "manual";
-                    pop.undoN = d.undo || 0;
-                    pop.log = d.log || [];
-                    pop.days = d.days || [];
-                    if (pop.tab === 3) pop.loadDay(pop.histDay || (pop.days[0] ? pop.days[0].day : ""));
-                } catch (e) {}
+                // nothing changed: leave the lists alone (re-assigning them
+                // rebuilds every card — 50–90 ms, which on open landed in
+                // the middle of the opening animation and made it stutter)
+                if (text === pop.lastJson) return;
+                if (pop.settling) { pop.pendingJson = text; return; }
+                pop.applyJson(text);
             }
         }
+    }
+    // the data is kept up to date while closed (file changes below), so an
+    // open normally finds nothing new; what does change waits until the
+    // opening / closing animation is over
+    property string lastJson: ""
+    property string pendingJson: ""
+    readonly property bool settling: shown && (intro < 1 || closing)
+    onSettlingChanged: if (!settling && pendingJson) { const t = pendingJson; pendingJson = ""; applyJson(t); }
+    Component.onCompleted: refresh()
+    function applyJson(text) {
+        lastJson = text;
+        try {
+            const d = JSON.parse(text);
+            pop.tasks = d.tasks || [];
+            pop.today = d.today || "";
+            pop.sortMode = d.sort || "manual";
+            pop.undoN = d.undo || 0;
+            pop.log = d.log || [];
+            pop.days = d.days || [];
+            if (pop.tab === 3) pop.loadDay(pop.histDay || (pop.days[0] ? pop.days[0].day : ""));
+        } catch (e) {}
     }
     FileView {
         path: Theme.home + "/notes/tasks.md"
         watchChanges: true
         printErrors: false
-        onFileChanged: { reload(); if (pop.isOpen) pop.refresh(); }
+        onFileChanged: { reload(); pop.refresh(); }
     }
     FileView {
         path: pop.today ? Theme.home + "/notes/daily/" + pop.today + ".md" : ""
         watchChanges: true
         printErrors: false
-        onFileChanged: { reload(); if (pop.isOpen) pop.refresh(); }
+        onFileChanged: { reload(); pop.refresh(); }
     }
     // relative labels ("in 25m") age: re-read now and then while open
     Timer { interval: 30000; repeat: true; running: pop.isOpen; onTriggered: pop.refresh() }
@@ -383,6 +400,8 @@ PanelPopup {
                             required property var modelData
                             readonly property string k: "log:" + modelData.i + ":" + modelData.text
                             readonly property bool editingMe: pop.editing === k
+                            // its stamp's peach: the ✎ ring, the editor's border
+                            readonly property color panelTint: Theme.peach
                             width: list.width
                             height: editingMe ? 50 : Math.max(42, logText.implicitHeight + 20)
                             radius: 11

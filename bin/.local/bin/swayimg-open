@@ -1,0 +1,5 @@
+#!/bin/sh
+# Desktop-entry shim for ~/.config/swayimg/open (swayimg.desktop: Exec=swayimg-open %F).
+# A plain command because xdg-open — what yazi uses — splits Exec on spaces
+# and ignores quotes, so `sh -c "… \"$@\""` broke there (it worked in gio).
+exec "$HOME/.config/swayimg/open" "$@"

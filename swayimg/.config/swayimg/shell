@@ -1,0 +1,44 @@
+#!/bin/sh
+# swayimg's $SHELL — how `w` recolours images like zathura.
+#
+# swayimg can't filter colours, but it can load an image from a command's
+# stdout (`exec://CMD` runs `$SHELL -c CMD`) and `reload` runs that command
+# again. ./open hands it every image as exec://<file> with $SHELL = this
+# script, so each load lands here as `-c <file>`:
+#
+#   recolour off -> recolor.py --plain <file> (the file as is)
+#   recolour on  -> ./recolor.py <file>     (zathurarc colours, cached)
+#
+# The on/off state is per window: $XDG_RUNTIME_DIR/swayimg-recolor/<pid of
+# swayimg> exists = on. Key actions (`exec …` in ./config) come through here
+# too: `@recolor` flips the state (`@recolor-status` prints it), anything else goes to the real shell with
+# the `exec://` taken off `%`, so `exec rm '%'` still means the file.
+here=$(dirname "$(readlink -f "$0")")
+state=${XDG_RUNTIME_DIR:-/tmp}/swayimg-recolor
+real=${SWAYIMG_REAL_SHELL:-/bin/sh}
+
+if [ "$1" = -c ] && [ $# -eq 2 ]; then
+    case $2 in
+    @recolor)               # flip; quiet — `reload` overwrites the status
+        mkdir -p "$state"
+        if [ -e "$state/$PPID" ]; then rm -f "$state/$PPID"; else : > "$state/$PPID"; fi
+        exit 0 ;;
+    @recolor-status)        # stdout = swayimg's status line
+        if [ -e "$state/$PPID" ]; then printf "Recolour on (w)"; else printf "Recolour off (w)"; fi
+        exit 0 ;;
+    *.[Pp][Nn][Gg]|*.[Jj][Pp][Gg]|*.[Jj][Pp][Ee][Gg]|*.[Jj][Pp][Ee]|*.[Ww][Ee][Bb][Pp]|\
+    *.[Gg][Ii][Ff]|*.[Bb][Mm][Pp]|*.[Tt][Ii][Ff]|*.[Tt][Ii][Ff][Ff]|*.[Tt][Gg][Aa]|\
+    *.[Pp][Nn][Mm]|*.[Pp][Bb][Mm]|*.[Pp][Gg][Mm]|*.[Pp][Pp][Mm]|*.[Hh][Ee][Ii][CcFf]|\
+    *.[Aa][Vv][Ii][Ff]|*.[Jj][Xx][Ll]|*.[Ss][Vv][Gg]|*.[Ee][Xx][Rr]|*.[Qq][Oo][Ii]|\
+    *.[Dd][Nn][Gg]|*.[Cc][Rr]2|*.[Cc][Rr]3|*.[Nn][Ee][Ff]|*.[Aa][Rr][Ww]|*.[Oo][Rr][Ff]|*.[Rr][Aa][Ff]|*.[Rr][Ww]2)
+        if [ -f "$2" ]; then
+            [ -e "$state/$PPID" ] && exec /usr/bin/python3 "$here/recolor.py" "$2"
+            # not plain `cat`: swayimg drops what's left in the pipe when the
+            # writer exits, so big images came out cut off (see drain() there)
+            exec /usr/bin/python3 "$here/recolor.py" --plain "$2"
+        fi ;;
+    esac
+    cmd=$(printf '%s\n' "$2" | sed 's|exec://||g')
+    SHELL=$real exec /bin/sh -c "$cmd"
+fi
+SHELL=$real exec "$real" "$@"

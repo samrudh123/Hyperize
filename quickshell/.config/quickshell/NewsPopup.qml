@@ -303,6 +303,7 @@ PanelPopup {
         property string label
         property int count: -1
         property color c: pop.tint
+        readonly property color panelTint: c      // its keyboard ring (FocusRing)
         property bool on: true
         property bool isAll: false
         signal toggled()
@@ -713,6 +714,7 @@ PanelPopup {
                     required property var modelData
                     required property int index
                     readonly property color sc: pop.subColor(modelData.sub)
+                    readonly property color panelTint: sc      // its keyboard ring
                     readonly property bool kb: activeFocus || BarState.kbItem === row
                     readonly property bool lit: rma.containsMouse || kb
                     activeFocusOnTab: true

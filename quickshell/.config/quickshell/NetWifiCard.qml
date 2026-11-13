@@ -213,6 +213,12 @@ Rectangle {
                 font.family: Theme.font
                 font.pixelSize: 13
                 clip: true
+                // in the Tab / arrow round (eye and Connect follow it), and
+                // findable by name: when the popup window loses the keyboard
+                // to a bar, PanelPopup puts it back on this box — not on the
+                // first button of the list
+                activeFocusOnTab: true
+                readonly property string navKey: "wifi:pw:" + card.name
                 // the popup never holds the keyboard — a bar does and
                 // forwards keys to BarState.typing (see SettingsField)
                 readonly property bool typing: activeFocus || (focus && BarState.typing === pw)
@@ -227,7 +233,15 @@ Rectangle {
                 }
                 Keys.onReturnPressed: go.clicked(Qt.LeftButton)
                 Keys.onEnterPressed: go.clicked(Qt.LeftButton)
-                Keys.onEscapePressed: pop.pwFor = ""
+                // Esc: drop the password row, not the whole panel (see
+                // PanelPopup.escapeKey)
+                function textEscape() { pop.pwFor = ""; }
+                Keys.onEscapePressed: ev => { ev.accepted = true; textEscape(); }
+                // ↑ ↓ leave the box like any control (↓ = Show, then Connect;
+                // ↑ = the network's row); ← → still move the text cursor
+                function step(d) { BarState.kbItem = pw; pop.moveInSection(d); }
+                Keys.onUpPressed: step(-1)
+                Keys.onDownPressed: step(1)
             }
             IconBtn {
                 id: eye
@@ -247,8 +261,10 @@ Rectangle {
                 icon: "\u{f0054}"                      // arrow-right
                 active: pw.text.length >= 8
                 activeFg: pop.tint
-                enabled: pw.text.length >= 8
-                tip: "Connect"
+                // stays reachable by the keyboard while the password is too
+                // short (just dimmed; pressing it does nothing then)
+                opacity: pw.text.length >= 8 ? 1 : 0.4
+                tip: pw.text.length >= 8 ? "Connect" : "Connect (8+ characters)"
                 onClicked: {
                     if (pw.text.length < 8) return;
                     pop.connectNet(card.net, pw.text);

@@ -112,6 +112,8 @@ PanelPopup {
         Item {
             width: parent.width
             height: 40
+            // "Pause everything" hovers filled, like the columns' buttons
+            readonly property bool panelFillHover: true
             opacity: pop.stage(0)
             Row {
                 anchors.verticalCenter: parent.verticalCenter

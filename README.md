@@ -80,7 +80,7 @@ Files of yours that a copy would overwrite are moved to
 | `hypr` | Hyprland, hyprlock/hypridle, every helper script, the theme engine (`set-theme.sh`, `set-accent.sh`, `rice-theme.py`), patches for the nwg tools |
 | `quickshell` | top bar, bottom bar, dock, wallpaper / workspace / theme pickers, clipboard and recorder |
 | `yazi` | file manager config, plugins, grid view (`Alt+G`) |
-| `ghostty` `mako` `fuzzel` `tmux` `bat` `btop` `glow` `fastfetch` `zathura` `nvim` | app configs |
+| `ghostty` `mako` `fuzzel` `tmux` `bat` `btop` `glow` `fastfetch` `zathura` `swayimg` `nvim` | app configs |
 | `pipewire` | `rice-eq.conf`: the music panel's 10-band equalizer (a WirePlumber smart filter, `rice-eq.service`) |
 | `zen` | Zen's live theme + accent (an autoconfig script, `build/zen.sh` installs it) — see `zen/.config/zen-rice/README.md` |
 | `firefox-accent` | the old Firefox-only live-accent extension; no longer installed (Zen has `zen` instead) |

@@ -1,0 +1,73 @@
+# swayimg — image viewer (default app for images), themed with the desktop.
+# vim: filetype=dosini
+#
+# ⚠ This file is RENDERED by ~/.config/hypr/set-accent.sh from
+# hypr/theme/templates/swayimg-config on every theme (SUPER+SHIFT+T) or
+# accent (SUPER+ALT+C) change. After editing it run
+#     ~/.config/hypr/set-accent.sh --resync
+# or the edit is lost on the next change. Colours are Catppuccin Mocha roles
+# (rice-theme.py maps them to the current theme) plus the accent token.
+# Only the options that differ from swayimg's defaults are here — the full
+# list is /usr/share/swayimg/swayimgrc. New windows pick up a new theme;
+# open ones keep theirs, except the recoloured image, which reloads (SIGUSR1).
+#
+# `w` (or Ctrl+R) = recolour the image like zathura recolours PDF pages:
+# zathurarc's recolor colours, hue kept. Per window, off at start; while on,
+# every image you browse to is recoloured. Works through ./open + ./shell +
+# ./recolor.py — open images with ./open (the desktop entry does), not with
+# plain `swayimg FILE`, or `w` has nothing to switch.
+
+[general]
+app_id = swayimg
+
+[viewer]
+# zathura's window colour, so a recoloured image sits on it like a page
+window = #11111b
+transparency = grid
+# a preloaded neighbour would keep its old colours across a `w`
+preload = 0
+history = 0
+
+[slideshow]
+window = #11111b
+transparency = #11111b
+
+[gallery]
+window = #11111b
+background = #181825
+select = #313244
+border_color = #@@ACCENT@@
+border_width = 3
+padding = 8
+
+[font]
+name = JetBrainsMono Nerd Font
+size = 12
+color = #cdd6f4
+shadow = #00000000
+background = #11111bcc
+
+[info]
+info_timeout = 4
+
+[info.viewer]
+# no index: the list starts at the file you opened (see ./open), so "1 of N"
+# would be relative to it
+top_left = +name,+format,+filesize,+imagesize,+exif
+top_right = none
+bottom_left = scale,frame
+bottom_right = status
+
+[info.gallery]
+top_right = none
+
+[keys.viewer]
+w = exec @recolor; reload; exec @recolor-status
+Ctrl+r = exec @recolor; reload; exec @recolor-status
+e = zoom width
+Shift+e = zoom height
+Shift+w = none
+
+[keys.gallery]
+w = exec @recolor; reload; exec @recolor-status
+Ctrl+r = exec @recolor; reload; exec @recolor-status

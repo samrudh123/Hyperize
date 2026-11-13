@@ -4,8 +4,12 @@
     weather.py status       waybar-style JSON from the cache; fetches when the
                             cache is older than 15 min (the bar polls every 60 s)
     weather.py refresh      fetch now (left-click)
-    weather.py locate       pick the place: fuzzel prompt → Open-Meteo geocoding
-                            → choose among the matches (right-click)
+    weather.py search Q     Open-Meteo geocoding matches for Q, as JSON — the
+                            weather panel's place picker (WeatherPopup.qml)
+    weather.py set NAME LAT LON
+                            save the place and fetch its forecast (the picker)
+    weather.py locate       the old picker without the shell: fuzzel prompt →
+                            geocoding → choose among the matches
     weather.py json         everything, structured, for the bar's weather panel
                             (WeatherPopup.qml); fetches like `status`
 
@@ -237,17 +241,50 @@ def fuzzel(prompt, options=None):
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
+def geocode(query, count=8):
+    res = get_json("https://geocoding-api.open-meteo.com/v1/search?"
+                   + urllib.parse.urlencode({"name": query, "count": count, "format": "json"}))
+    return res.get("results") or []
+
+
+def save_location(name, lat, lon):
+    with open(LOCATION, "w") as f:
+        json.dump({"name": name, "lat": round(float(lat), 3), "lon": round(float(lon), 3)}, f)
+        f.write("\n")
+
+
+def cmd_search(query):
+    query = query.strip()
+    if len(query) < 2:
+        print(json.dumps({"ok": True, "query": query, "hits": []}))
+        return
+    try:
+        hits = geocode(query)
+    except Exception as e:
+        print(json.dumps({"ok": False, "query": query, "why": str(e)}))
+        return
+    out = []
+    for h in hits:
+        out.append({
+            "name": h.get("name", ""),
+            "region": ", ".join(x for x in (h.get("admin1"), h.get("country")) if x),
+            "cc": h.get("country_code", ""),
+            "lat": round(h["latitude"], 3),
+            "lon": round(h["longitude"], 3),
+            "pop": h.get("population") or 0,
+        })
+    print(json.dumps({"ok": True, "query": query, "hits": out}, ensure_ascii=False))
+
+
 def cmd_locate():
     query = fuzzel("Weather for: ")
     if not query:
         return
     try:
-        res = get_json("https://geocoding-api.open-meteo.com/v1/search?"
-                       + urllib.parse.urlencode({"name": query, "count": 8, "format": "json"}))
+        hits = geocode(query)
     except Exception as e:
         subprocess.run(["notify-send", "-a", "Weather", "Couldn't look that up", str(e)])
         return
-    hits = res.get("results") or []
     if not hits:
         subprocess.run(["notify-send", "-a", "Weather", "No place found", query])
         return
@@ -260,10 +297,7 @@ def cmd_locate():
         if not choice:
             return
         pick = hits[int(choice.split(".", 1)[0]) - 1]
-    with open(LOCATION, "w") as f:
-        json.dump({"name": pick["name"], "lat": round(pick["latitude"], 3),
-                   "lon": round(pick["longitude"], 3)}, f)
-        f.write("\n")
+    save_location(pick["name"], pick["latitude"], pick["longitude"])
     cmd_status(force=True)
 
 
@@ -275,6 +309,11 @@ if __name__ == "__main__":
         cmd_status(force=True)
     elif cmd == "locate":
         cmd_locate()
+    elif cmd == "search" and len(sys.argv) > 2:
+        cmd_search(" ".join(sys.argv[2:]))
+    elif cmd == "set" and len(sys.argv) == 5:
+        save_location(sys.argv[2], sys.argv[3], sys.argv[4])
+        cmd_status(force=True)
     elif cmd == "json":
         cmd_json()
     else:

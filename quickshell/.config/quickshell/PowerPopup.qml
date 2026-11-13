@@ -130,6 +130,8 @@ PanelPopup {
                     required property var modelData
                     required property int index
                     readonly property color col: Theme[modelData.col]
+                    // its own colour for the focus ring (Theme.tintOf), not the ⏻ pill's red
+                    readonly property color panelTint: col
                     readonly property bool armed: pop.armed === modelData.id
                     readonly property real t: pop.stage(1 + index * 0.35)
                     // keyboard: Tab / Shift+Tab (or arrows) to it, Enter / Space
@@ -238,6 +240,7 @@ PanelPopup {
                     required property var modelData
                     readonly property color col: Theme[modelData.col]
                     readonly property bool now: Idle.current === modelData.src
+                    readonly property color panelTint: col      // its Segmenteds' rings
                     width: (idleRow.width - idleRow.spacing) / 2
                     spacing: 6
                     Text {

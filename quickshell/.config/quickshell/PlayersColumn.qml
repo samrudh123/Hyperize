@@ -409,10 +409,12 @@ Rectangle {
                 readonly property var mm: col.mprisOf(modelData.inst)
                 readonly property bool playing: mm ? mm.isPlaying : modelData.state === "playing"
                 readonly property color c: col.colourOf(modelData.colour)
+                // its own player's colour: the row's hover, its buttons' fills and rings
+                readonly property color panelTint: c
                 width: inner.width
                 height: 46
                 radius: 11
-                color: rowMa.containsMouse ? Theme.alpha(col.panelTint, 0.18) : Theme.alpha(Theme.surface0, 0.55)
+                color: rowMa.containsMouse ? Theme.alpha(mini.c, 0.18) : Theme.alpha(Theme.surface0, 0.55)
                 border.width: 1
                 border.color: Theme.alpha(c, mini.playing ? 0.35 : 0.12)
                 Behavior on color { ColorAnimation { duration: Theme.fast } }

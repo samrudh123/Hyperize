@@ -112,6 +112,9 @@ PanelPopup {
     Column {
         width: parent.width
         spacing: 14
+        // buttons hover filled in their colour (the player's, or their own
+        // fg) — like the bar's player pill and the players deck (IconBtn)
+        readonly property bool panelFillHover: true
 
         // ── now playing ─────────────────────────────────────────────────────
         Row {

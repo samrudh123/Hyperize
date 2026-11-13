@@ -146,21 +146,6 @@ def identity(instance):
         return ""
 
 
-# spotify-remote.py's Web API bridge. Its bus name sits under "kdeconnect." so
-# kdeconnectd doesn't echo it back to the phone — check for it BEFORE the
-# generic kdeconnect (= phone) rules.
-BRIDGE = "kdeconnect.spotifyremote"
-
-
-def superseded(inst, players):
-    """KDE Connect's copy of the phone's Spotify, while spotify-remote.py's
-    bridge (BRIDGE, from the Web API) is up: the bridge is always
-    current, the copy can be frozen (KDE Connect over Bluetooth only reports
-    on connect). Same rule in media-menu.py and media-prefer-playing.sh."""
-    return (inst.startswith("kdeconnect.") and inst != BRIDGE and BRIDGE in players
-            and identity(inst).lower().startswith("spotify"))
-
-
 def classify_phone(ident):
     app = ident.lower()
     if app.startswith("spotify"):
@@ -176,9 +161,6 @@ def describe(instance, url):
     """-> (display name, colour key). Same mapping as the bar's player
     (now-playing.py; colours in waybar/bottom.css)."""
     p = instance.split(".")[0]
-    if instance == BRIDGE:                  # Web API bridge, spotify-remote.py
-        device = identity(instance).partition(" - ")[2]
-        return f"Spotify · {device or 'Remote'}", "spotify"
     if p == "kdeconnect":
         ident = identity(instance)          # "Spotify - My Phone"
         return f"{ident.partition(' - ')[0] or 'Phone'} · Phone", classify_phone(ident)
@@ -205,17 +187,17 @@ RESUME_MARK = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "spotify-r
 
 def is_spotify(inst):
     name = inst.split(".")[0]
-    return (name == "spotify" or inst == BRIDGE
+    return (name == "spotify"
             or (name == "kdeconnect" and identity(inst).lower().startswith("spotify")))
 
 
 def last_played_row(players):
     """Blue "Last played" row — only while there is no Spotify player at all
-    (laptop app, phone via KDE Connect, or the Web API bridge). Clicking runs
+    (laptop app, or the phone's via KDE Connect). Clicking runs
     `spotify-remote.py resume`, which plays it on the device it last played
     on; the row then stays away (RESUME_MARK) until Spotify has played and
-    stopped again — the bridge clears the mark when it sees Spotify, or after
-    150 s if nothing started. Recorded by the bridge (record_last)."""
+    stopped again — the recorder clears the mark when it sees Spotify, or after
+    150 s if nothing started. Recorded by `spotify-remote.py record`."""
     if any(is_spotify(p) for p in players) or os.path.exists(RESUME_MARK):
         return None
     try:
@@ -279,7 +261,7 @@ def players_now():
     # other way round) — the bar shows only the real one, so does the menu.
     mirrors = spotify_where.hidden(players)
     for inst in players:
-        if superseded(inst, players) or inst in mirrors:
+        if inst in mirrors:
             continue
         meta = run("playerctl", "-p", inst, "metadata", "--format",
                    "{{status}}\x1f{{title}}\x1f{{artist}}\x1f{{xesam:url}}").split("\x1f")

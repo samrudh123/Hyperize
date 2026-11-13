@@ -22,6 +22,8 @@ Rectangle {
     property string kind: "outputs"           // outputs | inputs | apps
     property bool isDefault: false
     property color tint: Theme.pink
+    // its focus ring + slider follow the card's own colour (Theme.tintOf)
+    readonly property color panelTint: tint
 
     readonly property var props: node ? node.properties || {} : {}
     readonly property bool ok: !!node && !!node.audio

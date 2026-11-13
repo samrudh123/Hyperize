@@ -37,8 +37,8 @@ resync_position). Stdlib only.
 LINK QUALITY (kdec_link.py): a thread pings the phone every LINK_EVERY s
 and publishes ok / bad. KDE Connect keeps saying "reachable" over a link
 that loses half its packets with 1-2 s round trips (phone on mobile data,
-measured) — its view of the phone's players freezes, so spotify-remote.py
-switches to Spotify's Web API while the link is bad. When the link comes
+measured) — its view of the phone's players freezes (spotify-remote.py's
+resume goes through Spotify's Web API while the link is bad). When the link comes
 back after a real outage: a fresh connection (--refresh) and fresh player
 lists / positions at once, instead of waiting for the next timer.
 """
