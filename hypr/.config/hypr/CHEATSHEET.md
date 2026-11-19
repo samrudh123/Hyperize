@@ -12,6 +12,7 @@ Online version: https://claude.ai/artifact/QtvkUqWFVMf9392AwsNaea
 | `SUPER + Q` | Close the focused window |
 | `SUPER + 1..0` | Switch workspace |
 | `SUPER + A` | Show / hide the app sidebar (left edge) |
+| `SUPER + SHIFT + A` | Show / hide the top and bottom bars together (the dock stays as it is). Opening a panel from a keybind brings its bar back |
 | `SUPER + SHIFT + E` | Quit Hyprland → login screen (escape hatch) |
 
 ## Launching

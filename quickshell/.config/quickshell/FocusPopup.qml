@@ -4,10 +4,10 @@
 //   ring     the countdown as a draining arc (red focus · green break ·
 //            yellow paused), time left in the middle, the phase under it
 //   controls start / pause·resume · +5 min · finish now (or end break) · stop
-//   length   25·5 · 50·10 · 90·15
+//   length   25·5 · 50·10 · 90·15 · Custom (focus / break steppers)
 //   task     none · open tasks from ~/notes/tasks.md · typed ones (× forgets)
-//            · a field for anything else (focus.py use); picking one while
-//            idle starts the session on it
+//            · a field for anything else (focus.py use); a click selects
+//            one, a click on the selected one clears it — Start starts
 //   today    sessions done today and the focus lines of today's log
 //
 // Everything runs focus.py, like the pill (its state file is the truth).
@@ -41,11 +41,33 @@ PanelPopup {
             }
         }
     }
-    onOpened: logProc.running = true
+    onOpened: { logProc.running = true; customOpen = false; }
 
     function run(args) { if (fp) fp.run(args); }
-    // pick a task: idle -> start on it, running -> rename the session
-    function pick(t) { run(idle ? ["start", String(fp.workMin)].concat(t ? [t] : []) : ["task"].concat(t ? [t] : [])); }
+    // pick a task: selects it (or renames a running session); the selected
+    // one again clears it. Only Start starts.
+    function pick(t) { run(t && fp && fp.task === t ? ["task"] : ["task"].concat(t ? [t] : [])); }
+
+    // length presets; "Custom" shows the steppers (also whenever the set
+    // lengths match no preset)
+    readonly property var lens: [[25, 5], [50, 10], [90, 15]]
+    readonly property int presetIndex: fp ? lens.findIndex(l => l[0] === fp.workMin && l[1] === fp.brkMin) : 0
+    property bool customOpen: false
+    readonly property bool custom: customOpen || presetIndex < 0
+    // typed lengths go out once the typing settles (a "45" would otherwise
+    // send 4 then 45 as two racing focus.py runs)
+    property int wantWork: 0
+    property int wantBrk: 0
+    function setLength(w, b) {
+        wantWork = w || wantWork || (fp ? fp.workMin : 25);
+        wantBrk = b || wantBrk || (fp ? fp.brkMin : 5);
+        lenTimer.restart();
+    }
+    Timer {
+        id: lenTimer
+        interval: 450
+        onTriggered: { pop.run(["lengths", String(pop.wantWork), String(pop.wantBrk)]); pop.wantWork = pop.wantBrk = 0; }
+    }
 
     function stage(k) { return Math.max(0, Math.min(1, (pop.intro - k * 0.12) / (1 - k * 0.12))); }
 
@@ -202,15 +224,63 @@ PanelPopup {
         }
 
         // ── length ──────────────────────────────────────────────────────────
-        Segmented {
+        Column {
             width: parent.width
-            height: 32
+            spacing: 8
             opacity: pop.stage(1)
-            readonly property var lens: [[25, 5], [50, 10], [90, 15]]
-            options: lens.map(l => l[0] + " / " + l[1] + " min")
-            currentIndex: pop.fp ? Math.max(0, lens.findIndex(l => l[0] === pop.fp.workMin && l[1] === pop.fp.brkMin)) : 0
-            accent: pop.tint
-            onSelected: i => pop.run(["lengths", String(lens[i][0]), String(lens[i][1])])
+            Segmented {
+                width: parent.width
+                height: 32
+                options: pop.lens.map(l => l[0] + " / " + l[1] + " min").concat(["Custom"])
+                currentIndex: pop.custom ? pop.lens.length : pop.presetIndex
+                accent: pop.tint
+                onSelected: i => {
+                    if (i >= pop.lens.length) { pop.customOpen = true; return; }
+                    pop.customOpen = false;
+                    pop.run(["lengths", String(pop.lens[i][0]), String(pop.lens[i][1])]);
+                }
+            }
+            Row {
+                id: customRow
+                visible: pop.custom
+                width: parent.width
+                spacing: 6
+                readonly property real stW: (width - focusLbl.width - brkLbl.width - 4 * spacing - 10) / 2
+                Text {
+                    id: focusLbl
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "\u{f051b}  Focus"
+                    color: Theme.subtext0
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                }
+                Stepper {
+                    width: customRow.stW
+                    value: pop.fp ? pop.fp.workMin : 25
+                    min: 1
+                    max: 300
+                    stepSize: 5
+                    onEdited: v => pop.setLength(v, 0)
+                }
+                Item { width: 10; height: 1 }
+                Text {
+                    id: brkLbl
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "\u{f0d9e}  Break"
+                    color: Theme.subtext0
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                }
+                Stepper {
+                    width: customRow.stW
+                    value: pop.fp ? pop.fp.brkMin : 5
+                    min: 1
+                    max: 60
+                    onEdited: v => pop.setLength(0, v)
+                }
+            }
         }
 
         // ── task ────────────────────────────────────────────────────────────
@@ -220,7 +290,7 @@ PanelPopup {
             opacity: pop.stage(2)
             transform: Translate { y: 12 * (1 - pop.stage(2)) }
             Text {
-                text: "TASK" + (pop.idle ? "  ·  picking one starts the session" : "")
+                text: "TASK  ·  " + (pop.idle ? "click to select, again to clear" : "click to rename this session")
                 color: Theme.overlay1
                 font.family: Theme.font
                 font.pixelSize: 10

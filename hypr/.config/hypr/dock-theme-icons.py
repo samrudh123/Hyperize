@@ -229,7 +229,10 @@ def desktop_entries():
 
 
 def wanted_ids(entries, extra=()):
-    ids = set(entries) | set(extra)
+    # GLYPHS too: an app whose window wasn't open at the last run (yazi's own
+    # class after a theme switch) would otherwise have no icon and the shell
+    # would fall back to application-x-executable — a gear.
+    ids = set(entries) | set(extra) | set(GLYPHS)
     try:
         with open(PINNED) as f:
             ids |= {l.strip() for l in f if l.strip()}

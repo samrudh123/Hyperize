@@ -245,6 +245,17 @@ SettingsPage {
         }
         SettingsRow {
             icon: "\u{f10a9}"
+            title: "Top bar"
+            subtitle: "Workspaces, clock, system pills… (SUPER+SHIFT+A: both bars)"
+            keywords: "top bar panel hide"
+            Toggle {
+                anchors.verticalCenter: parent.verticalCenter
+                checked: BarState.topShown
+                onToggled: v => BarState.topShown = v
+            }
+        }
+        SettingsRow {
+            icon: "\u{f10a9}"
             title: "Bottom bar"
             subtitle: "Media, phone, focus timer, weather, tasks…"
             keywords: "bottom bar media"

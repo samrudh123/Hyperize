@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Yazi
+GenericName=File manager
+Comment=yazi in Ghostty (SUPER+E)
+# Not a launcher entry: it only gives the window class com.samrudh.yazi
+# (hyprland.conf $fileMgr) an icon — without it the SUPER+Tab picker and
+# other theme-icon lookups fall back to application-x-executable (a gear).
+StartupWMClass=com.samrudh.yazi
+Exec=sh -c "exec ghostty --gtk-single-instance=false --class=com.samrudh.yazi -e ~/.config/yazi/yazi-live.sh"
+Icon=folder-open
+Terminal=false
+NoDisplay=true

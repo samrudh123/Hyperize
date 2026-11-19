@@ -16,6 +16,7 @@ PopupWindow {
     signal dismissed()
 
     function open(item) {
+        BarState.revealFor(item);          // its bar may be hidden (SUPER+SHIFT+A)
         anchor.item = item;
         isOpen = true;
     }

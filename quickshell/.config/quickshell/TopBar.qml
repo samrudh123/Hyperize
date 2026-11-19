@@ -108,6 +108,8 @@ PanelWindow {
     // one per screen (shell.qml); the focused screen's owns the IPC targets
     readonly property bool active: screen && screen.name === BarState.active
 
+    // SUPER+SHIFT+A hides both bars (BarState.topShown, `qs ipc call bars toggle`)
+    visible: BarState.topShown
     anchors { top: true; left: true; right: true }
     // islands: the groups float 4 px below the screen edge (Island.qml)
     implicitHeight: Theme.islands ? 42 : 40

@@ -14,6 +14,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 
 Singleton {
     readonly property string primary: {
@@ -374,11 +375,32 @@ Singleton {
     }
 
     property alias bottomShown: state.bottomShown
+    property alias topShown: state.topShown
     property alias keepAwake: state.keepAwake
     PersistentProperties {
         id: state
         reloadableId: "barState"
         property bool bottomShown: true
+        property bool topShown: true
         property bool keepAwake: false
+    }
+
+    // A panel or menu opening on a hidden bar shows that bar first (its pill
+    // has to be on screen for the popup to anchor to it)
+    function revealFor(item) {
+        if (!item) return;
+        const root = rootOf(item);
+        const b = bars.find(w => w.navRoot && w.navRoot() === root);
+        if (!b) return;
+        if (b.isTopBar) topShown = true;
+        else bottomShown = true;
+    }
+    // SUPER+SHIFT+A: both bars at once (the dock is separate, SUPER+A).
+    // Either one up → hide both; both down → show both.
+    IpcHandler {
+        target: "bars"
+        function toggle(): void { const v = !(state.topShown || state.bottomShown); state.topShown = v; state.bottomShown = v; }
+        function open(): void { state.topShown = true; state.bottomShown = true; }
+        function close(): void { state.topShown = false; state.bottomShown = false; }
     }
 }

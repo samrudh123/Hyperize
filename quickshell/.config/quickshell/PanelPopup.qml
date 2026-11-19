@@ -453,6 +453,7 @@ PopupWindow {
 
     function open() {
         if (isOpen) return;
+        BarState.revealFor(pill);          // its bar may be hidden (SUPER+SHIFT+A)
         closeAnim.stop();
         closing = false;
         if (alignLeft && pill) pillX = pill.mapToItem(null, 0, 0).x;

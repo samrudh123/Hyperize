@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=File picker
+Comment=yazi as the open/save dialog (xdg-desktop-portal-termfilechooser)
+# Icon only, for the window class com.samrudh.filepicker (yazi-picker.sh);
+# the portal starts it, so there is nothing to launch from here.
+StartupWMClass=com.samrudh.filepicker
+Exec=true
+Icon=system-file-manager
+Terminal=false
+NoDisplay=true

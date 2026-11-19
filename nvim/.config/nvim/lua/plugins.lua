@@ -134,6 +134,42 @@ require("lazy").setup({
       config = function()
         vim.lsp.config("*", { capabilities = require("blink.cmp").get_lsp_capabilities() })
         local pyenv = require("python-env")   -- which venv/conda env (:PythonEnv)
+        -- The rest of the None noise has no rule of its own: `self.next =
+        -- None` in __init__ makes the checker decide next can only ever be
+        -- None, so `node.next = other` elsewhere is "Cannot assign…",
+        -- `node.next.next` is "…for class None", f(None) is a bad argument,
+        -- and list[i] with an int-or-None i adds "No overloads for
+        -- __getitem__" on the same spot. Drop diagnostics whose text blames
+        -- None (and that companion); everything else still shows.
+        local function none_noise_handlers()
+          local function blames_none(d)
+            local m = d.message or ""
+            return m:find('"None" is not assignable', 1, true)
+                or m:find('is not assignable to "None"', 1, true)
+                or m:find('for class "None"', 1, true)
+          end
+          local function key(r) return ("%d:%d:%d:%d"):format(r.start.line, r.start.character,
+                                                               r["end"].line, r["end"].character) end
+          local function filter(list)
+            local spots, keep = {}, {}
+            for _, d in ipairs(list) do if blames_none(d) then spots[key(d.range)] = true end end
+            for _, d in ipairs(list) do
+              local companion = spots[key(d.range)] and (d.message or ""):find("^No overloads for")
+              if not blames_none(d) and not companion then keep[#keep + 1] = d end
+            end
+            return keep
+          end
+          return {   -- pushed and pulled diagnostics, whichever the server uses
+            ["textDocument/publishDiagnostics"] = function(err, res, ctx)
+              if res and res.diagnostics then res.diagnostics = filter(res.diagnostics) end
+              return vim.lsp.diagnostic.on_publish_diagnostics(err, res, ctx)
+            end,
+            ["textDocument/diagnostic"] = function(err, res, ctx)
+              if res and res.items then res.items = filter(res.items) end
+              return vim.lsp.diagnostic.on_diagnostic(err, res, ctx)
+            end,
+          }
+        end
         vim.lsp.config("basedpyright", {
           root_dir = pyenv.root,
           before_init = pyenv.before_init,
@@ -141,7 +177,17 @@ require("lazy").setup({
           -- ("recommended") also flags every unused call result, missing
           -- stub, untyped value… — noise for scripts and coursework.
           -- A project's pyproject.toml / pyrightconfig.json still overrides.
-          settings = { basedpyright = { analysis = { typeCheckingMode = "standard" } } },
+          settings = { basedpyright = { analysis = {
+            typeCheckingMode = "standard",
+            -- "x could be None" warnings (current.next where current might
+            -- be None): untyped linked-list / tree code is full of them.
+            diagnosticSeverityOverrides = {
+              reportOptionalMemberAccess = "none", reportOptionalSubscript = "none",
+              reportOptionalIterable = "none", reportOptionalCall = "none",
+              reportOptionalOperand = "none", reportOptionalContextManager = "none",
+            },
+          } } },
+          handlers = none_noise_handlers(),
         })
         vim.lsp.config("lua_ls", { settings = { Lua = {   -- knows about `vim.*`
           runtime = { version = "LuaJIT" },

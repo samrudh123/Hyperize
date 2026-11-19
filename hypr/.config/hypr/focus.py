@@ -9,8 +9,9 @@
     focus.py task [TEXT]           what this session is for (empty = none)
     focus.py pick                  ask for it (fuzzel): any task or chore, kept
                                    in `recent` for the menu; idle -> starts
-    focus.py use TEXT…             `pick` without the prompt (the bar's panel
-                                   has its own field)
+    focus.py use TEXT…             like `pick` without the prompt (the bar's
+                                   panel has its own field), but only selects:
+                                   the panel's Start button starts
     focus.py forget TEXT…          drop a typed task from `recent` (and, idle,
                                    from `task` too)
     focus.py lengths WORK BREAK    session / short break length in minutes
@@ -207,7 +208,7 @@ def main():
             return
         st = load()                     # the prompt may have sat open a while
         st["recent"] = [text] + [r for r in st["recent"] if r != text][:RECENT_MAX - 1]
-        if st["phase"] == "idle":
+        if st["phase"] == "idle" and cmd == "pick":
             start(st, None, text)
         else:
             st["task"] = text
@@ -217,7 +218,11 @@ def main():
         if st["phase"] == "idle" and st["task"] == text:
             st["task"] = ""             # a running session keeps its name
     elif cmd == "lengths":
-        st["work"], st["brk"] = int(args[0]), int(args[1])
+        try:
+            work, brk = int(args[0]), int(args[1])
+        except (IndexError, ValueError):
+            sys.exit("lengths WORK BREAK: whole minutes")
+        st["work"], st["brk"] = max(1, min(work, 600)), max(1, min(brk, 120))
         st["long"] = st["brk"] * 3
     elif cmd == "status":
         print(json.dumps({**st, "remaining": round(remaining(st))}, ensure_ascii=False))

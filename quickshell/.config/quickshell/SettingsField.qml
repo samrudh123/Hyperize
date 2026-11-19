@@ -48,6 +48,22 @@ Rectangle {
         Keys.onEscapePressed: ev => { ev.accepted = true; focus = false; f.escaped(); }
         Keys.onReturnPressed: f.accepted()
         Keys.onEnterPressed: f.accepted()
+        // ↑ / ↓ in a bar panel (Tasks, New download, Focus custom lengths…):
+        // on to the section's other controls, like the Wi-Fi password box.
+        // Elsewhere (the Settings panel) they're left alone → the page scrolls.
+        function panelOf() {
+            for (let x = f.parent; x; x = x.parent) if (x.panelPopup !== undefined) return x.panelPopup;
+            return null;
+        }
+        function step(ev, d) {
+            const p = (ev.modifiers & Qt.ControlModifier) ? null : panelOf();
+            if (!p) { ev.accepted = false; return; }
+            ev.accepted = true;
+            BarState.kbItem = input;
+            p.moveInSection(d);
+        }
+        Keys.onUpPressed: ev => step(ev, -1)
+        Keys.onDownPressed: ev => step(ev, 1)
 
         Text {
             visible: !input.text

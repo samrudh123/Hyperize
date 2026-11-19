@@ -1,5 +1,5 @@
-// A number stepper for the panels: [ − ][ 8 ][ + ]. The buttons step by 1
-// within min…max; the box takes a typed number too. A typed number outside
+// A number stepper for the panels: [ − ][ 8 ][ + ]. The buttons step by
+// `stepSize` (1) within min…max; the box takes a typed number too. A typed number outside
 // the limits (or an empty box) isn't sent on: `invalid` turns true, the box
 // goes red, and the owner shows why (see DownloadAskPopup).
 //
@@ -14,6 +14,7 @@ Row {
     property int min: 1
     property int max: 99
     property real size: 30
+    property int stepSize: 1
     signal edited(int value)
     signal accepted()                     // Enter in the box
 
@@ -42,7 +43,7 @@ Row {
         enabled: sp.invalid || sp.value > sp.min
         tip: "Fewer (min " + sp.min + ")"
         tipEdge: Edges.Top
-        onClicked: sp.step(-1)
+        onClicked: sp.step(-sp.stepSize)
     }
     SettingsField {
         id: field
@@ -66,6 +67,6 @@ Row {
         enabled: sp.invalid || sp.value < sp.max
         tip: "More (max " + sp.max + ")"
         tipEdge: Edges.Top
-        onClicked: sp.step(1)
+        onClicked: sp.step(sp.stepSize)
     }
 }
