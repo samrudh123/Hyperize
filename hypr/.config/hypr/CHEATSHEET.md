@@ -142,6 +142,30 @@ so it does nothing to them:
 | `SUPER + S` | Toggle scratchpad (floating hidden workspace) |
 | `SUPER + ALT + S` | Send window to scratchpad |
 
+## Zen: tiling workspaces
+
+In Zen a *workspace* is one entry of the tab list: a single tab or a split
+view (tiles). `~/.config/zen-rice/tiles.uc.js` — restart Zen after editing it.
+Starting Zen lands on the workspace you used last, not a new tab.
+
+| Keys | Does |
+|---|---|
+| `CTRL + T` | New tile (works in a blank workspace too) where the cursor is: splits the tile under it (side by side if wider than tall) on the cursor's half |
+| `ALT + N` | The next empty workspace — only one exists; an empty one you leave is closed |
+| `ALT + 1..0` | The 1st–10th workspace from the top of the tab list |
+| `CTRL + TAB` / `CTRL + SHIFT + TAB` | Next / previous tile of this workspace (wraps; nothing on a lone tab) |
+| `ALT + SHIFT + 1..0` | Send the focused tile to that workspace |
+| `ALT + TAB` | Workspace picker, in tab-list order, numbered like `ALT + 1..0` (hold ALT + tap TAB, let go = go there; `m` carry, `x` close, `/` search) |
+| 3-finger swipe down / up · `ALT + PgUp / PgDn` | One workspace up / down the list, no wrap — swipe down on the top one opens a new tab, swipe up on the bottom one does nothing |
+| (animations) | Tiles open, move and close, and workspaces crossfade, with the same animations as Hyprland (from `hyprland.conf`'s `animations {}`, read when Zen starts) |
+| mouse over a tile | Focuses it (like Hyprland's focus-follows-mouse); not while typing in the URL bar |
+| `ALT + arrows`, `ALT + H/J/K/L` | Focus the tile in that direction |
+| `ALT + SHIFT + arrows` | Move the tile that way (like SUPER+SHIFT+arrows) |
+| `ALT + CTRL + arrows` | Resize the tile 40 px (→ ↓ grow, ← ↑ shrink) |
+| ⤷ arrows only in a split view | on a lone tab `ALT + ←/→` stay back/forward, `CTRL + ALT + ←/→` Zen's space switch |
+| `ALT + T` | Flip the focused tile's split (row ↔ column) |
+| `CTRL + W` | Close the focused tile; you stay in that workspace. Closing the very last tab closes the window, and the next start is a fresh browser |
+
 ## Screenshots & clipboard
 
 | Keys | Does |

@@ -87,6 +87,13 @@ cat >> "$dst/user.js" <<'EOF'
 // over by zen-import-firefox (browser.newtabpage.pinned) show up.
 user_pref("browser.newtabpage.activity-stream.feeds.topsites", true);
 user_pref("zen.urlbar.replace-newtab", false);
+// Start where you left off: Zen otherwise selects its empty tab and opens the
+// URL bar at every start (tiles.uc.js also lands on the most recent workspace).
+user_pref("zen.workspaces.continue-where-left-off", true);
+user_pref("zen.urlbar.open-on-startup", false);
+// Closing the last tab closes the window (Zen ships this off and leaves an
+// empty window behind).
+user_pref("browser.tabs.closeWindowWithLastTab", true);
 // The rice's own extensions (mpris-position, …) unsigned, straight from
 // their source folders — no AMO round trip for each new version. Zen honours
 // this (built without MOZ_REQUIRE_SIGNING; release Firefox ignores it). Any
