@@ -154,7 +154,9 @@ Starting Zen lands on the workspace you used last, not a new tab.
 | `ALT + N` | The next empty workspace — only one exists; an empty one you leave is closed |
 | `ALT + 1..0` | The 1st–10th workspace from the top of the tab list |
 | `CTRL + TAB` / `CTRL + SHIFT + TAB` | Next / previous tile of this workspace (wraps; nothing on a lone tab) |
-| `ALT + SHIFT + 1..0` | Send the focused tile to that workspace |
+| `ALT + SHIFT + 1..0` | Send the focused tile to that workspace; a number past the last one makes a new workspace at the bottom |
+| `ALT` + drag (mouse / touchpad) | Move a tile of a split; drop it where it should go (outline shows the spot), `Esc` cancels |
+| links that open a new tab | Become a tile of the page's workspace (a new workspace when it is full) |
 | `ALT + TAB` | Workspace picker, in tab-list order, numbered like `ALT + 1..0` (hold ALT + tap TAB, let go = go there; `m` carry, `x` close, `/` search) |
 | 3-finger swipe down / up · `ALT + PgUp / PgDn` | One workspace up / down the list, no wrap — swipe down on the top one opens a new tab, swipe up on the bottom one does nothing |
 | (animations) | Tiles open, move and close, and workspaces crossfade, with the same animations as Hyprland (from `hyprland.conf`'s `animations {}`, read when Zen starts) |

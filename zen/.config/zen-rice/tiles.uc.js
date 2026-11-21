@@ -13,7 +13,12 @@
 //                     only ever one: an empty workspace you leave is closed, so
 //                     you cannot reach a second one until you search in this one
 //   Alt+1 … Alt+9, 0  the 1st … 10th workspace from the top of the tab list
-//                     (SUPER+1…0); Alt+Shift+1 … 0 moves the focused tile there
+//                     (SUPER+1…0); Alt+Shift+1 … 0 moves the focused tile there —
+//                     a number past the last workspace makes a new one at the
+//                     bottom (the desktop's stacked workspaces)
+//   Alt + drag        move a tile of a split with the mouse / touchpad (SUPER+drag)
+//   links             a tab a page opens becomes a tile of that page's workspace,
+//                     or a new workspace when it is full
 //   Ctrl+Tab          next tile of THIS workspace (reading order), wrapping;
 //                     Ctrl+Shift+Tab the other way. A lone tab stays put
 //   (starting Zen, or a new window, lands on the most recently used workspace
@@ -358,10 +363,12 @@
     const under = hit(list, mouse);
     const anchor = under ? under.tab : cur;
     const side = placeAt(under || list.find((r) => r.tab === cur) || list[0], under ? mouse : null);
+    ownTabs++;
     const tab = gBrowser.addTrustedTab(window.BROWSER_NEW_TAB_URL || "about:newtab", {
       index: anchor._tPos + 1,
       skipAnimation: true,
     });
+    ownTabs--;
     insertTile(anchor, tab, side);
     gBrowser.selectedTab = tab;
     focusUrlbar();
@@ -375,11 +382,12 @@
       gBrowser.selectedTab = e.tabs[0];
       return focusUrlbar();
     }
+    ownTabs++;
     try {
       window.BrowserCommands.openTab();
     } catch (err) {
       gBrowser.selectedTab = gBrowser.addTrustedTab(window.BROWSER_NEW_TAB_URL || "about:newtab");
-    }
+    } finally { ownTabs--; }
     if (top) toTop(gBrowser.selectedTab);
     focusUrlbar();
   }
@@ -398,10 +406,11 @@
     if (dest !== "new" && dest.tabs.includes(tab)) return;
     if (dest !== "new" && !dest.empty && full(dest.group)) return;
     const g = groupOf(tab);
-    if (!g && (dest === "new" || dest.empty)) return;      // already a workspace of its own
+    if (!g && dest !== "new" && dest.empty) return;       // already a workspace of its own
     if (g) sp.removeTabFromGroup(tab, sp._data.indexOf(g), { forUnsplit: true, changeTab: false });
     if (dest === "new" || dest.empty) {
       const old = dest !== "new" ? dest.tabs[0] : null;
+      if (dest === "new") toBottom(tab);                    // the new last workspace
       gBrowser.selectedTab = tab;
       if (old && old !== tab) gBrowser.removeTab(old, { animate: false, skipSessionStore: true });
       return;
@@ -424,6 +433,19 @@
     if (j >= us.length) return;
     if (j >= 0) return go(us[j]);
     if (!us[i].empty) crossfade(() => newWorkspace(true));
+  }
+
+  // move `tab` below every other workspace of this space (unpinning it)
+  function toBottom(tab) {
+    try {
+      if (tab.pinned) gBrowser.unpinTab(tab);
+      const others = gBrowser.visibleTabs.filter((t) => t !== tab && usable(t) && !folded(t));
+      const last = others[others.length - 1];
+      if (!last || tab._tPos > last._tPos) return;
+      let target = last;
+      while (target.group) target = target.group;    // after its split / folder, not into it
+      gBrowser.moveTabAfter(tab, target);
+    } catch (e) { log(e); }
   }
 
   // move `tab` above every other unpinned workspace of this space
@@ -860,6 +882,153 @@
     remember();
   }
 
+  // ── links: a tab a page opens joins that page's workspace ──
+  //
+  // Like a new window on the desktop: a tab opened from a page (target=_blank,
+  // middle click, "Open Link in New Tab", window.open) becomes a tile next to
+  // the tab it came from — on the cursor's side when the cursor is over that
+  // tile — unless that workspace is full (MAX_TILES), then it stays a new
+  // workspace. A background open (middle click) keeps your focus where it was.
+  // Pinned / Essential openers are left alone (Ctrl+W resets a pinned tab
+  // instead of closing it, which would strand the tiles), and so are Glance
+  // previews.
+  let ownTabs = 0;                        // tabs this script is making (not links)
+  function onTabOpen(e) {
+    const tab = e.target, opener = tab.openerTab;
+    if (!started || ownTabs || !opener || opener === tab) return;
+    setTimeout(() => linkTile(tab, opener), 0);
+  }
+  function linkTile(tab, opener) {
+    try {
+      if (!tab.isConnected || tab.closing || !usable(tab) || tab.pinned || tab.hasAttribute("zen-essential") ||
+          tab.hasAttribute("glance-id") || groupOf(tab)) return;
+      if (!usable(opener) || opener.pinned || opener.hasAttribute("zen-essential") || folded(opener)) return;
+      const g = groupOf(opener);
+      if (g && g.tabs.length >= S().MAX_TABS) return;          // full: a workspace of its own
+      const fg = gBrowser.selectedTab === tab;
+      const keep = fg ? null : gBrowser.selectedTab;
+      const list = tilePx(g, opener), r = list.find((q) => q.tab === opener) || list[0];
+      const under = hit(list, mouse);
+      insertTile(opener, tab, placeAt(r, under && under.tab === opener ? mouse : null));
+      gBrowser.selectedTab = keep && keep.isConnected ? keep : tab;
+    } catch (err) { log(err); }
+  }
+
+  // ── Alt + drag: move a tile with the mouse (Hyprland's SUPER + left drag) ──
+  //
+  // Hold Alt, press on a tile of a split and drag: the tile follows the
+  // cursor, and where you let go it is put back like a new window opened
+  // there — the tile under the cursor (in the layout without the dragged one)
+  // splits, side by side if wider than tall, on the cursor's half; an outline
+  // shows that spot. Let go over nothing, or press Esc, and it slides home.
+  // Only in a split: on a lone tab Alt+click stays Zen's Glance (link preview).
+  let drag = null;
+  let altHeld = false;           // tracked from the keys too: some touchpad drags report no modifiers
+  function onAltKey(e) {
+    if (e.key === "Alt") altHeld = e.type === "keydown";
+  }
+  function rectsWithout(node, skip, x = 0, y = 0, w = 1, h = 1, out = []) {
+    if (!node) return out;
+    if (!node.children) {
+      if (node.tab !== skip) out.push({ tab: node.tab, x, y, w, h });
+      return out;
+    }
+    const kids = node.children.filter((c) => c.children || c.tab !== skip);
+    const size = (c) => c.sizeInParent || 100 / node.children.length;
+    const total = kids.reduce((a, c) => a + size(c), 0) || 1;
+    let off = 0;
+    for (const c of kids) {
+      const f = size(c) / total;
+      if (node.direction === "row") rectsWithout(c, skip, x + off * w, y, f * w, h, out);
+      else rectsWithout(c, skip, x, y + off * h, w, f * h, out);
+      off += f;
+    }
+    return out;
+  }
+  function dropSpot(d, pt) {
+    const p = panelRect();
+    const list = rectsWithout(d.g.layoutTree, d.tab).filter((r) => r.w > 0 && r.h > 0)
+      .map((r) => ({ tab: r.tab, x: p.x + r.x * p.w, y: p.y + r.y * p.h, w: r.w * p.w, h: r.h * p.h }));
+    const t = hit(list, pt);
+    return t ? { target: t, side: placeAt(t, pt) } : null;
+  }
+  function flipFrom(box, from) {
+    const n = layoutRect(box);
+    stopTileAnims(box);
+    if (!n.width || !n.height) return;
+    run(box, [
+      { transformOrigin: "0 0", transform: `translate(${from.left - n.left}px, ${from.top - n.top}px) scale(${from.width / n.width}, ${from.height / n.height})` },
+      { transformOrigin: "0 0", transform: "none" },
+    ], ANIM.move);
+    layoutCache.set(box, n);
+  }
+  function onMouseDown(e) {
+    try {
+      if (e.button !== 0 || !(e.altKey || altHeld) || e.ctrlKey || e.metaKey || e.shiftKey || P.open || drag) return;
+      const cur = current(), g = groupOf(cur);
+      if (!g) return;
+      const tab = tileAt(e, g);
+      if (!tab || !g.tabs.includes(tab)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      const box = containerOf(tab);
+      stopTileAnims(box);
+      if (gBrowser.selectedTab !== tab) gBrowser.selectedTab = tab;
+      const ov = el("div", "rw-drag", document.body);
+      ov.setAttribute("popover", "manual");
+      const spot = el("div", "rw-drop", ov);
+      spot.hidden = true;
+      drag = { tab, g, box, ov, spot, x0: e.clientX, y0: e.clientY, moved: false };
+      Object.assign(box.style, { zIndex: "5", opacity: "0.9", pointerEvents: "none" });
+      ov.addEventListener("mousemove", onDragMove);
+      ov.addEventListener("mouseup", onDragUp);
+      ov.addEventListener("contextmenu", (ev) => ev.preventDefault());
+      ov.showPopover();
+    } catch (err) { log(err); }
+  }
+  function onDragMove(e) {
+    if (!drag) return;
+    const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+    if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+    drag.box.style.transform = `translate(${dx}px, ${dy}px)`;
+    const s = drag.moved && dropSpot(drag, { x: e.clientX, y: e.clientY });
+    if (!s) { drag.spot.hidden = true; return; }
+    // the tiles sit inside Zen's split gaps (their margins)
+    const cs = getComputedStyle(drag.box), mt = parseFloat(cs.marginTop) || 0, mr = parseFloat(cs.marginRight) || 0;
+    const r = { x: s.target.x, y: s.target.y + mt, w: s.target.w - mr, h: s.target.h - mt }, half = { ...r };
+    if (s.side === "left" || s.side === "right") { half.w = r.w / 2; if (s.side === "right") half.x = r.x + r.w / 2; }
+    else { half.h = r.h / 2; if (s.side === "bottom") half.y = r.y + r.h / 2; }
+    Object.assign(drag.spot.style, { left: half.x + "px", top: half.y + "px", width: half.w + "px", height: half.h + "px" });
+    drag.spot.hidden = false;
+  }
+  function endDrag(pt) {
+    const d = drag;
+    if (!d) return;
+    drag = null;
+    try {
+      const from = d.box.getBoundingClientRect();
+      Object.assign(d.box.style, { zIndex: "", opacity: "", pointerEvents: "", transform: "" });
+      try { d.ov.hidePopover(); } catch (e) {}
+      d.ov.remove();
+      const s = pt && d.moved && groupOf(d.tab) === d.g ? dropSpot(d, pt) : null;
+      if (s) {
+        const sp = S(), leaf = findLeaf(d.g.layoutTree, d.tab);
+        sp.removeNode(leaf);
+        const t = hit(tilePx(d.g), pt) || s.target;
+        layoutCache.set(d.box, { left: from.left, top: from.top, width: from.width, height: from.height });
+        sp.splitIntoNode(findLeaf(d.g.layoutTree, t.tab), leaf, placeAt(t, pt), 0.5);
+        relayout(d.g);
+      } else {
+        flipFrom(d.box, from);                    // back home
+      }
+      d.tab.linkedBrowser.focus();
+    } catch (err) { log(err); }
+  }
+  function onDragUp(e) {
+    endDrag({ x: e.clientX, y: e.clientY });
+  }
+
   // ── toast ────────────────────────────────────────────────────────────────
 
   let toastEl = null, toastTimer = null;
@@ -1217,6 +1386,10 @@
 
   function onKeyDown(e) {
     try {
+      if (drag) {
+        if (e.key === "Escape") { endDrag(null); e.preventDefault(); e.stopPropagation(); }
+        return;
+      }
       if (P.open) return pickerKey(e);
       const alt = e.altKey && !e.ctrlKey && !e.metaKey;
       const ctrl = e.ctrlKey && !e.altKey && !e.metaKey;
@@ -1230,7 +1403,9 @@
       else if (alt && /^Digit[0-9]$/.test(e.code)) {
         const n = (Number(e.code.slice(5)) + 9) % 10;       // 1→0 … 9→8, 0→9
         const u = units()[n];
-        if (e.shiftKey) { if (u) moveTile(u); }
+        // past the last workspace = a new one at the bottom (workspace-stack.py:
+        // moving to an empty number lands on the next free one)
+        if (e.shiftKey) moveTile(u || "new");
         else if (u) go(u);
         done = true;
       }
@@ -1327,6 +1502,10 @@
 #tabbrowser-tabpanels#tabbrowser-tabpanels[zen-split-view="true"] > .browserSidebarContainer[zen-split="true"] {
   transition: none !important;
 }
+.rw-drag { position: fixed; inset: 0; width: 100vw; height: 100vh; max-width: none; max-height: none;
+  margin: 0; padding: 0; border: 0; background: transparent; cursor: grabbing; }
+.rw-drop { position: fixed; box-sizing: border-box; border-radius: var(--zen-native-inner-radius, 8px);
+  border: 2px solid var(--rice-accent, #89b4fa); background: color-mix(in srgb, var(--rice-accent, #89b4fa) 14%, transparent); }
 .rw-ghost { position: fixed; inset: auto; margin: 0; padding: 0; border: 0; overflow: hidden; pointer-events: none;
   border-radius: var(--zen-native-inner-radius, 8px); background: var(--rice-base, #1e1e2e); }
 .rw-ghost-img { width: 100%; height: 100%; display: block; }
@@ -1346,6 +1525,10 @@
     window.addEventListener("keydown", onAnyKey, true);
     window.addEventListener("keyup", onKeyUp, true);
     window.addEventListener("TabSelect", onTabSelect);
+    window.addEventListener("TabOpen", onTabOpen);
+    window.addEventListener("mousedown", onMouseDown, true);
+    window.addEventListener("keydown", onAltKey, true);
+    window.addEventListener("keyup", onAltKey, true);
     hookBlur();
     hookLastClose();
     setupAnimations();
@@ -1358,10 +1541,12 @@
       focusFollowsMouse(e);
     }, true);
     document.documentElement.addEventListener("mouseleave", () => { mouse = null; });
-    window.addEventListener("blur", () => closePicker());
+    // the window losing focus (not just focus moving into a page: that fires
+    // "blur" on the window too, which used to close things mid-use)
+    window.addEventListener("deactivate", () => { closePicker(); endDrag(null); altHeld = false; });
     window.addEventListener("resize", () => { if (P.open) { build(); render(); } });
     window.riceTiles = { ANIM_DEBUG: () => ANIM, units, mostRecent, cycleTile, landOnRecent, tileNew, newWorkspace, moveTile, step, focusDir, moveDir, resizeDir,
-                         toggleSplit, openPicker, closePicker, isEmptyWs, P, get mouse() { return mouse; } };
+                         toggleSplit, openPicker, closePicker, isEmptyWs, P, get mouse() { return mouse; }, get altHeld() { return altHeld; }, get drag() { return drag; } };
   } catch (e) {
     log(e);
   }

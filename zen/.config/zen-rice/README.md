@@ -79,6 +79,19 @@ file (and in `hypr/CHEATSHEET.md`). Loaded straight from this folder by
   Alt+N, swipe, picker) first snapshot the old tiles (≤50 ms) and fade those out
   on top with `workspacesOut` — Hyprland's crossfade. Tab-list clicks: fade-in only. Zen's own 90 ms `inset` transition is switched off. Edit
   hyprland.conf's animations → restart Zen.
+- Alt+Shift+N past the last workspace = a new workspace at the bottom
+  (`toBottom`), the desktop's stacked numbering.
+- Alt+drag (split view only; lone tabs keep Alt+click = Glance): chrome
+  capture `mousedown` with Alt (or Alt tracked from keydown — headless/touchpad
+  mouse events can lack the modifier) is eaten before the page sees it; a
+  transparent popover takes the drag, the tile follows by transform, and the
+  drop re-inserts it like dwindle's movewindow (`rectsWithout` = the layout
+  without the dragged tile). Window `deactivate`, not `blur`, cancels — focus
+  moving into a page fires `blur` on the window.
+- Link tabs: `TabOpen` with `tab.openerTab` (set for links / window.open /
+  middle click) → tiled next to the opener unless its split is full; not for
+  pinned/Essential openers or Glance. The script's own new tabs are excluded
+  (`ownTabs`).
 - Zen's split limit (`MAX_TABS`, 4) is raised to 8.
 - The picker is a `popover` (top layer) in the chrome document, styled with
   `--rice-*` like the rest; thumbnails from `drawSnapshot()`.
