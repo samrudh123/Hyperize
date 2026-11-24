@@ -4,7 +4,7 @@
 // drift rises from the bottom until snow fills the screen (~3 min).
 // Back at the desk, moving the pointer wipes it away like a frosted window;
 // once most of it is wiped (or ~10 s after any other input) the rest melts.
-// A drawing (Shift was used) fades out slowly 35 s after the last move; if
+// A drawing (Shift was used) fades out slowly 15 s after the last move; if
 // idleness comes first, the drawing stays and fresh snow fills its strokes in.
 // Holding Shift: the pointer moves without wiping and it stays "idle" — the
 // snow keeps piling up (draw in the snow: wipe = pen down, Shift = pen up).
@@ -173,9 +173,9 @@ PanelWindow {
             }
     }
     // the rest melts: after enough wiping, or a while after other input
-    // (35 s once Shift has been used: a drawing gets time to be seen)
+    // (15 s once Shift has been used: a drawing gets time to be seen)
     property bool drawing: false
-    Timer { id: meltLater; interval: win.drawing ? 35000 : 10000; onTriggered: win.meltNow() }
+    Timer { id: meltLater; interval: win.drawing ? 15000 : 10000; onTriggered: win.meltNow() }
     // A plain wipe's leftovers melt quickly; a drawing fades away slowly
     // (~12 s) — move the mouse or hold Shift meanwhile and it comes back.
     function meltNow() {
