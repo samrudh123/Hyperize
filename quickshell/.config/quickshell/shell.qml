@@ -19,6 +19,16 @@
 import Quickshell
 
 ShellRoot {
+    // the winter theme's snow (SeasonState.qml) — only while it's on, so a
+    // normal theme has no extra surfaces at all
+    Variants {
+        model: SeasonState.winter ? Quickshell.screens : []
+        WinterOverlay {}
+    }
+    Variants {
+        model: SeasonState.winter ? Quickshell.screens : []
+        WinterCover {}
+    }
     // both bars on every screen (BarState.qml: what they share)
     Variants {
         model: Quickshell.screens

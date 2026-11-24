@@ -288,7 +288,9 @@ function extract() {
 # ~/.config/fastfetch/greeting.env (FF_LOGO = a data logo file with $1/$2 =
 # fastfetch logo colours, "" = none; FF_LOGO_SMALL = its small version; FF_COW
 # = cow / random / "" = no fortune; FF_ARGS / FF_ARGS_SMALL = extra fastfetch
-# args) — greeting.py there; without it, the small rice logo + the default
+# args; FF_QUOTES = the ticked quote categories' fortune files, "" = fortune's
+# classic set — one is picked at random per greeting; FF_QUOTES_SHORT = those
+# with quotes <= 60 chars, for the compact greeting) — greeting.py there; without it, the small rice logo + the default
 # cow. `$` in the fortune is doubled so fastfetch doesn't read it as a colour
 # code. The animal is nudged up to 4 columns left (greeting.py's preview does
 # the same) so with the default cow the logo column stays 27 wide and the info
@@ -320,7 +322,7 @@ function _ff_cowsay() {
 function fortunefetch() {
   local FF_LOGO=~/.config/fastfetch/ubuntu-small.txt FF_COW=default
   local FF_LOGO_SMALL=~/.config/fastfetch/ubuntu-small.txt FF_COMPACT=${FF_COMPACT:-0}
-  local -a FF_ARGS FF_ARGS_SMALL cows
+  local -a FF_ARGS FF_ARGS_SMALL cows FF_QUOTES=("") FF_QUOTES_SHORT=("")
   [[ -r ~/.config/fastfetch/greeting.env ]] && source ~/.config/fastfetch/greeting.env
   _ff_args=("${FF_ARGS[@]}") _ff_args_small=("${FF_ARGS_SMALL[@]}") _ff_compact_on=$FF_COMPACT
   _ff_art= _ff_art_small= _ff_cow= _ff_cow_small= _ff_size= _ff_shown= _ff_compact=
@@ -333,7 +335,9 @@ function fortunefetch() {
       FF_COW=${cows[RANDOM % $#cows + 1]:-default}
     fi
     _ff_cowname=$FF_COW
-    _ff_cowsay $FF_COW < <(/usr/games/fortune -s)
+    (( $#FF_QUOTES )) || FF_QUOTES=("")
+    _ff_quote=${FF_QUOTES[RANDOM % $#FF_QUOTES + 1]} _ff_quotes_short=("${FF_QUOTES_SHORT[@]}")
+    _ff_cowsay $FF_COW < <(/usr/games/fortune -s ${_ff_quote:+"$_ff_quote"})
     _ff_cow=$REPLY
   fi
   _ff_render && _ff_show $1
@@ -350,8 +354,14 @@ function _ff_run() {
     args=(-c ~/.config/fastfetch/config-compact.jsonc "${_ff_args_small[@]}")
     REPLY=$_ff_art_small
     if [[ -n $_ff_cowname ]]; then
-      # a short fortune, made once per shell; the cow goes only if it fits
-      [[ -z $_ff_cow_small ]] && { _ff_cowsay $_ff_cowname < <(/usr/games/fortune -s -n 60); _ff_cow_small=$REPLY; }
+      # a short fortune, made once per shell; the cow goes only if it fits.
+      # `fortune -n 60` never returns on a file without a quote that short,
+      # so the category comes from FF_QUOTES_SHORT
+      if [[ -z $_ff_cow_small ]] && (( $#_ff_quotes_short )); then
+        local q=$_ff_quote
+        (( ${_ff_quotes_short[(Ie)$q]} )) || q=${_ff_quotes_short[RANDOM % $#_ff_quotes_short + 1]}
+        _ff_cowsay $_ff_cowname < <(/usr/games/fortune -s -n 60 ${q:+"$q"}); _ff_cow_small=$REPLY
+      fi
       (( ${#${(f)_ff_art_small}} + ${#${(f)_ff_cow_small}} + 1 <= LINES - 3 )) \
         && _ff_join "$_ff_art_small" "$_ff_cow_small"
     fi

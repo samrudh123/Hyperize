@@ -56,9 +56,12 @@ Rectangle {
         return ({ spotify: Theme.green, youtube: Theme.youtube, firefox: Theme.peach,
                   zen: Theme.mauve, ytmusic: Theme.pink })[key] || Theme.accent;
     }
-    function glyphOf(key) {
+    // a player's glyph (media-menu.py --json row): by its colour, except
+    // Spotifusion — Spotify's green, but its own waves glyph, not Spotify's logo
+    function glyphOf(p) {
+        if (/^spotifusion/i.test(p.name || "")) return "\u{f078d}";   // md-waves
         return ({ spotify: "\u{f04c7}", youtube: "\u{f05c3}", ytmusic: "\u{f05c3}",
-                  firefox: "\u{f0239}", zen: "\u{f059f}" })[key] || "\u{f075a}";
+                  firefox: "\u{f0239}", zen: "\u{f059f}" })[p.colour] || "\u{f075a}";
     }
 
     readonly property bool heroPlaying: heroIsNp ? np.playing : mp ? mp.isPlaying : !!hero && hero.state === "playing"
@@ -197,7 +200,10 @@ Rectangle {
                 art: col.art
                 tint: col.tint
                 playing: col.heroPlaying
-                listen: !col.phone && col.heroPlaying && !!col.deck && col.deck.isOpen
+                // while the deck is open, both sides: the laptop's ring hears the
+                // speakers, the phone's dances to a made-up beat (`fake`) and its
+                // record spins — like the music panel
+                listen: !!col.deck && col.deck.isOpen
                 fake: col.phone
             }
 
@@ -216,7 +222,7 @@ Rectangle {
                         Text {
                             id: via
                             anchors.centerIn: parent
-                            text: col.hero ? col.glyphOf(col.hero.colour) + "  " + col.hero.name.replace(/ · Phone$/, "") : ""
+                            text: col.hero ? col.glyphOf(col.hero) + "  " + col.hero.name.replace(/ · Phone$/, "") : ""
                             color: col.tint
                             font.family: Theme.font
                             font.pixelSize: 10
@@ -261,6 +267,7 @@ Rectangle {
         Column {
             width: parent.width
             spacing: 2
+            topPadding: 2                         // room for the waves above the line
             visible: col.heroIsNp && col.np.lenUs > 0
             Slider {
                 id: seek
@@ -277,6 +284,19 @@ Rectangle {
                     interval: 120
                     running: seek.want >= 0 && !seek.dragging
                     onTriggered: { col.seekTo(seek.want * col.np.lenUs); seek.want = -1; }
+                }
+                // waves over the played part, rising from the line
+                SeekWaves {
+                    z: -1
+                    anchors.bottom: parent.verticalCenter
+                    anchors.bottomMargin: seek.thickness / 2
+                    width: parent.width
+                    height: 15
+                    frac: seek.shown
+                    playing: col.heroPlaying
+                    level: col.heroIsNp ? col.np.level : -1
+                    color: col.tint
+                    active: !!col.deck && col.deck.isOpen
                 }
             }
             Item {
@@ -437,7 +457,7 @@ Rectangle {
                     color: Theme.alpha(mini.c, 0.18)
                     Text {
                         anchors.centerIn: parent
-                        text: col.glyphOf(mini.modelData.colour)
+                        text: col.glyphOf(mini.modelData)
                         color: mini.c
                         font.family: Theme.font
                         font.pixelSize: 15

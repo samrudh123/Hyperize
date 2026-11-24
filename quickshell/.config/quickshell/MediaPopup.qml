@@ -207,6 +207,7 @@ PanelPopup {
                 Column {
                     width: parent.width
                     spacing: 2
+                    topPadding: 5                     // room for the waves above the line
                     visible: !!pop.np && pop.np.lenUs > 0
                     Slider {
                         id: seek
@@ -224,6 +225,19 @@ PanelPopup {
                             interval: 120
                             running: seek.want >= 0 && !seek.dragging
                             onTriggered: { pop.seekTo(seek.want * pop.np.lenUs); seek.want = -1; }
+                        }
+                        // waves over the played part, rising from the line
+                        SeekWaves {
+                            z: -1
+                            anchors.bottom: parent.verticalCenter
+                            anchors.bottomMargin: seek.thickness / 2
+                            width: parent.width
+                            height: 16
+                            frac: seek.shown
+                            playing: !!pop.np && pop.np.playing
+                            level: pop.np ? pop.np.level : -1
+                            color: pop.col
+                            active: pop.isOpen
                         }
                     }
                     Item {

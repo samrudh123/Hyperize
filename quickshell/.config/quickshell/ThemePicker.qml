@@ -99,6 +99,44 @@ PanelWindow {
         tick.stop();
     }
 
+    // ── winter (SeasonState) ──
+    // Snow settles on the top edges of the cards and the toolbar while the
+    // picker is up and falls off (WinterOverlay's clumps) when it closes.
+    // Not winter: nothing shows.
+    property real snowT0: 0
+    onShownChanged: {
+        if (shown) { snowT0 = SeasonState.capsOn ? Date.now() : 0; return; }
+        if (snowT0) dropSnow();
+        snowT0 = 0;
+    }
+    function snowDepth(nowMs, max) {
+        return snowT0 ? max * Math.min(1, 0.08 + (nowMs - snowT0) / 45000) : 0;
+    }
+    // the window covers the whole screen from 0,0: its coords are the screen's
+    function dropSnow() {
+        if (!SeasonState.capsOn || !screen) return;
+        const now = Date.now();
+        for (let i = 0; i < band.children.length; i++) {
+            const c = band.children[i];
+            const l = typeof c.snowLedge === "function" ? c.snowLedge() : null;
+            if (l) SeasonState.drop(screen.name, l.x, l.y, l.w, snowDepth(now, 10));
+        }
+        SeasonState.drop(screen.name, toolbar.x + 14, toolbar.y, toolbar.width - 28, snowDepth(now, 8));
+    }
+    SnowCap {
+        z: 10
+        visible: picker.snowT0 > 0 && depth > 0.3
+        x: toolbar.x + 14
+        width: toolbar.width - 28
+        y: toolbar.y + base - height
+        maxDepth: 8
+        depth: picker.snowDepth(SeasonState.now, 8)
+        seed: 77
+        taperL: 14
+        taperR: 14
+        opacity: picker.fade
+    }
+
     function move(step) {
         if (!themes.length) return;
         target = Math.max(0, Math.min(themes.length - 1, target + step));
@@ -248,6 +286,24 @@ PanelWindow {
                 height: picker.ch + 2 * picker.m + 18
                 z: -Math.abs(index - picker.pos)
                 visible: lx + w + picker.slant >= -20 && lx <= picker.width + 20
+
+                // winter: snow on the card's top edge (picker.snowT0)
+                function snowLedge() {
+                    return visible && w > 20 ? { x: x + picker.m + picker.slant + 2, y: y + picker.m, w: w - 4 } : null;
+                }
+                SnowCap {
+                    visible: picker.snowT0 > 0 && card.w > 20 && depth > 0.3
+                    x: picker.m + picker.slant + 2
+                    width: card.w - 4
+                    y: picker.m + base - height
+                    maxDepth: 10
+                    depth: picker.snowDepth(SeasonState.now, 10)
+                    gx: card.index * 211
+                    seed: 13
+                    taperL: 6
+                    taperR: 6
+                    opacity: picker.fade
+                }
 
                 ThemePreview {
                     id: preview

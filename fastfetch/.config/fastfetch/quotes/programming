@@ -1,0 +1,1406 @@
+Computer Science is no more about computers than astronomy is about telescopes.
+    — Edsger W. Dijkstra
+%
+Simplicity is prerequisite for reliability.
+    — Edsger W. Dijkstra
+%
+The computing scientist's main challenge is not to get confused by the complexities of his own making.
+    — Edsger W. Dijkstra
+%
+If debugging is the process of removing software bugs, then programming must be the process of putting them in.
+    — Edsger W. Dijkstra
+%
+The best minds of my generation are thinking about how to make people click ads.
+    — Jeff Hammerbacher
+%
+The tools we use have a profound and devious influence on our thinking habits, and therefore on our thinking abilities.
+    — Edsger W. Dijkstra
+%
+Adding manpower to a late software project makes it later.
+    — Fred Brooks
+%
+Sometimes there is a silver bullet for boosting software engineering productivity. But you need to shoot the right person.
+    — Michael Stal
+%
+Nine women can't make a baby in one month.
+    — Fred Brooks
+%
+Deleted code is debugged code.
+    — Jeff Sickel
+%
+When in doubt, use brute force.
+    — Ken Thompson
+%
+One of my most productive days was throwing away 1,000 lines of code.
+    — Ken Thompson
+%
+One accurate measurement is worth more than a thousand expert opinions.
+    — Grace Hopper
+%
+What one programmer can do in one month, two programmers can do in two months.
+    — Fred Brooks
+%
+Always code as if the guy who ends up maintaining your code will be a violent psychopath who knows where you live.
+    — Rick Osborne
+%
+A program that produces incorrect results twice as fast is infinitely slower.
+    — John Ousterhout
+%
+I have yet to see any problem, however complicated, which when looked at in the right way, did not become more complicated.
+    — Poul Anderson
+%
+Cleaning code does NOT take time. NOT cleaning code does take time.
+    — Robert C. Martin
+%
+Walking on water and developing software from a specification are easy if both are frozen.
+    — Edward V. Berard
+%
+Controlling complexity is the essence of computer programming.
+    — Brian Kernighan
+%
+Debugging time increases as a square of the program's size.
+    — Chris Wenham
+%
+The trouble with programmers is that you can never tell what a programmer is doing until it's too late.
+    — Seymour Cray
+%
+Code never lies, comments sometimes do.
+    — Ron Jeffries
+%
+Some problems are so complex that you have to be highly intelligent and well informed just to be undecided about them.
+    — Laurence J. Peter
+%
+I have no special talent. I am only passionately curious.
+    — Albert Einstein
+%
+The proper use of comments is to compensate for our failure to express ourself in code.
+    — Robert C. Martin
+%
+When there is no type hierarchy you don't have to manage the type hierarchy.
+    — Rob Pike
+%
+Everybody should learn to program a computer, because it teaches you how to think.
+    — Steve Jobs
+%
+Simplicity is hard to build, easy to use, and hard to charge for. Complexity is easy to build, hard to use, and easy to charge for.
+    — Chris Sacca
+%
+Measuring programming progress by lines of code is like measuring aircraft building progress by weight.
+    — Bill Gates
+%
+Testing can be a very effective way to show the presence of bugs, but it is hopelessly inadequate for showing their absence.
+    — Edsger W. Dijkstra
+%
+Imagination is more important than knowledge.
+    — Albert Einstein
+%
+Good code is short, simple, and symmetrical - the challenge is figuring out how to get there.
+    — Sean Parent
+%
+If you think your users are idiots, only idiots will use it.
+    — Linus Torvalds
+%
+Once you stop learning you start dying.
+    — Albert Einstein
+%
+No code is faster than no code.
+    — Kevlin Henney
+%
+Over half of the time you spend working on a project is spent thinking, and no tool, no matter how advanced, can think for you.
+    — Richard P. Gabriel
+%
+Once a new technology starts rolling, if you're not part of the steamroller, you're part of the road.
+    — Stewart Brand
+%
+There are only two kinds of languages: the ones people complain about and the ones nobody uses.
+    — Bjarne Stroustrup
+%
+The purpose of software engineering is to control complexity, not to create it.
+    — Pamela Zave
+%
+Unix is simple. It just takes a genius to understand its simplicity.
+    — Dennis Ritchie
+%
+A language that doesn't have everything is actually easier to program in than some that do.
+    — Dennis Ritchie
+%
+What I cannot build, I do not understand.
+    — Richard Feynman
+%
+There is no programming language, no matter how structured, that will prevent programmers from making bad programs.
+    — Lawrence Flon
+%
+Any fool can write code that a computer can understand. Good programmers write code that humans can understand.
+    — Martin Fowler
+%
+You can't trust code that you did not totally create yourself.
+    — Ken Thompson
+%
+A clever person solves a problem. A wise person avoids it.
+    — Albert Einstein
+%
+The most important single aspect of software development is to be clear about what you are trying to build.
+    — Bjarne Stroustrup
+%
+The only sin is to make a choice without knowing you are making one.
+    — Jonathan Shewchuk
+%
+So much complexity in software comes from trying to make one thing do two things.
+    — Ryan Singer
+%
+Hofstadter's Law: It always takes longer than you expect, even when you take into account Hofstadter's Law.
+    — P. J. Plauger
+%
+First, solve the problem. Then, write the code.
+    — John Johnson
+%
+A good programmer is someone who looks both ways before crossing a one-way street.
+    — Doug Linder
+%
+Compatibility means deliberately repeating other people's mistakes.
+    — David Wheeler
+%
+There are two major products that come out of Berkeley: LSD and UNIX. We don't believe this to be a coincidence.
+    — Jeremy S. Anderson
+%
+When in doubt, leave it out.
+    — Joshua Bloch
+%
+Never memorize something that you can look up.
+    — Albert Einstein
+%
+Mathematicians stand on each others' shoulders and computer scientists stand on each others' toes.
+    — Richard Hamming
+%
+LISP has assisted a number of our most gifted fellow humans in thinking previously impossible thoughts.
+    — Edsger W. Dijkstra
+%
+An organisation that treats its programmers as morons will soon have programmers that are willing and able to act like morons only.
+    — Bjarne Stroustrup
+%
+The button is working, only, it cannot be seen.
+    — Anonymous
+%
+Don't worry about anything. Just do what you can and be the best you can be.
+    — Douglas Crockford
+%
+In programming the hard part isn't solving problems, but deciding what problems to solve.
+    — Paul Graham
+%
+The manager's function is not to make people work, but to make it possible for people to work.
+    — Tom DeMarco
+%
+People under pressure don't work better; they just work faster.
+    — Tom DeMarco
+%
+Science is what we understand well enough to explain to a computer. Art is everything else we do.
+    — Donald Knuth
+%
+Less code equals less bugs.
+    — Kevlin Henney
+%
+As soon as an Analytical Engine exists, it will necessarily guide the future course of science.
+    — Charles Babbage
+%
+The use of COBOL cripples the mind; its teaching should, therefore, be regarded as a criminal offense.
+    — Edsger W. Dijkstra
+%
+A picture may be worth a thousand words, a formula is worth a thousand pictures.
+    — Edsger W. Dijkstra
+%
+Young man, in mathematics you don't understand things. You just get used to them.
+    — John von Neumann
+%
+C is quirky, flawed, and an enormous success.
+    — Dennis Ritchie
+%
+It is not the task of the University to offer what society asks for, but to give what society needs.
+    — Edsger W. Dijkstra
+%
+By understanding a machine-oriented language, the programmer will tend to use a much more efficient method; it is much closer to reality.
+    — Donald Knuth
+%
+Within C++, there is a much smaller and cleaner language struggling to get out.
+    — Bjarne Stroustrup
+%
+Anybody who comes to you and says he has a perfect language is either naïve or a salesman.
+    — Bjarne Stroustrup
+%
+A man provided with paper, pencil, and rubber, and subject to strict discipline, is in effect a universal machine.
+    — Alan Turing
+%
+Machines take me by surprise with great frequency.
+    — Alan Turing
+%
+I'm doing a free operating system (just a hobby, won't be big and professional like GNU).
+    — Linus Torvalds
+%
+If you need more than 3 levels of indentation, you're screwed anyway, and should fix your program.
+    — Linus Torvalds
+%
+An infinite number of monkeys typing into GNU Emacs would never make a good program.
+    — Linus Torvalds
+%
+If Microsoft ever does applications for Linux it means I've won.
+    — Linus Torvalds
+%
+See, you not only have to be a good coder to create a system like Linux, you have to be a sneaky bastard too ;-)
+    — Linus Torvalds
+%
+Really, I'm not out to destroy Microsoft. That will just be a completely unintentional side effect.
+    — Linus Torvalds
+%
+Talk is cheap. Show me the code.
+    — Linus Torvalds
+%
+I'm not a great programmer; I'm just a good programmer with great habits.
+    — Kent Beck
+%
+There's only one trick in software, and that is using a piece of software that's already been written.
+    — Bill Gates
+%
+You can't just ask customers what they want and then try to give that to them. By the time you get it built, they'll want something new.
+    — Steve Jobs
+%
+What a computer is to me is it's the most remarkable tool that we have ever come up with. It's the equivalent of a bicycle for our minds.
+    — Steve Jobs
+%
+A lot of companies hire people to tell them what to do. We hire people to tell us what to do.
+    — Steve Jobs
+%
+There are many terrible mistakes to make in program design, so go ahead and make them so that you understand them better.
+    — Marijn Haverbeke
+%
+We who cut mere stones must always be envisioning cathedrals.
+    — Quarry worker's creed
+%
+When you feel the need to write a comment, first try to refactor the code so that any comment becomes superfluous.
+    — Kent Beck
+%
+With testing, I know straight away when I added a bug. That lets me fix the bug immediately, before it can crawl off and hide.
+    — Martin Fowler
+%
+I think one of the most valuable rules is avoid duplication.
+    — Martin Fowler
+%
+Story in a game is like a story in a porn movie. It's expected to be there, but it's not that important.
+    — John Carmack
+%
+The best thing software can be is easy, but the way to do this is to get the defaults right, not to limit users' choices.
+    — Paul Graham
+%
+The most important thing is to be able to think what you want, not to say what you want.
+    — Paul Graham
+%
+It's not so important what you work on, so long as you're not wasting your time.
+    — Paul Graham
+%
+The top 5 percent of programmers probably write 99 percent of the good software.
+    — Paul Graham
+%
+There are few sources of energy so powerful as a procrastinating grad student.
+    — Paul Graham
+%
+Your most unhappy customers are your greatest source of learning.
+    — Bill Gates
+%
+What is simplicity? Simplicity is the shortest path to a solution.
+    — Ward Cunningham
+%
+Putting a new feature into a program is important, but refactoring so new features can be added in the future is equally important.
+    — Ward Cunningham
+%
+A new idea comes suddenly and in a rather intuitive way. But intuition is nothing but the outcome of earlier intellectual experience.
+    — Albert Einstein
+%
+The limits of my language mean the limits of my world.
+    — Ludwig Wittgenstein
+%
+If you have a procedure with 10 parameters, you probably missed some.
+    — Alan Perlis
+%
+That language is an instrument of human reason, and not merely a medium for the expression of thought, is a truth generally admitted.
+    — George Boole
+%
+A language that doesn't affect the way you think about programming, is not worth knowing.
+    — Alan Perlis
+%
+Simplicity does not precede complexity, but follows it.
+    — Alan Perlis
+%
+A year spent in artificial intelligence is enough to make one believe in God.
+    — Alan Perlis
+%
+The best book on programming for the layman is Alice in Wonderland, but that's because it's the best book on anything for the layman.
+    — Alan Perlis
+%
+Dealing with failure is easy: Work hard to improve.
+    — Alan Perlis
+%
+A programming language is low level when its programs require attention to the irrelevant.
+    — Alan Perlis
+%
+Computer programs are the most intricate, delicately balanced and finely interwoven of all the products of human industry to date.
+    — James Gleick
+%
+Fools ignore complexity. Pragmatists suffer it. Some can avoid it. Geniuses remove it.
+    — Alan Perlis
+%
+Programs must be written for people to read, and only incidentally for machines to execute.
+    — Hal Abelson
+%
+When we don't understand a process, we fall into magical thinking about results.
+    — Jef Raskin
+%
+Low-level programming is good for the programmer's soul.
+    — John Carmack
+%
+Simplicity and elegance are unpopular because they require hard work and discipline to achieve and education to be appreciated.
+    — Edsger W. Dijkstra
+%
+A user interface should be so simple that a beginner in an emergency can understand it within 10 seconds.
+    — Ted Nelson
+%
+Learning to program has no more to do with designing interactive software than learning to touch type has to do with writing poetry.
+    — Ted Nelson
+%
+Every program has (at least) two purposes: the one for which it was written and another for which it wasn't.
+    — Alan Perlis
+%
+In man-machine symbiosis, it is man who must adjust: The machines can't.
+    — Alan Perlis
+%
+One man's constant is another man's variable.
+    — Alan Perlis
+%
+Success is a lousy teacher. It seduces smart people into thinking they can't lose.
+    — Bill Gates
+%
+It is easier to change the specification to fit the program than vice versa.
+    — Alan Perlis
+%
+I think it is inevitable that people program poorly. Training will not substantially help matters. We have to learn to live with it.
+    — Alan Perlis
+%
+If we'd asked the customers what they wanted, they would have said "faster horses".
+    — Henry Ford
+%
+A distributed system is one in which the failure of a computer you didn't even know existed can render your own computer unusable.
+    — Leslie Lamport
+%
+It's all talk until the code runs.
+    — Ward Cunningham
+%
+In theory, there is no difference between theory and practice. But, in practice, there is.
+    — Jan L. A. van de Snepscheut
+%
+We build our computer systems the way we build our cities: over time, without a plan, on top of ruins.
+    — Ellen Ullman
+%
+The next best thing to having good ideas is recognizing good ideas from your users.
+    — Eric S. Raymond
+%
+Good software, like good wine, takes time.
+    — Joel Spolsky
+%
+Debugging is like being the detective in a crime movie where you are also the murderer.
+    — Filipe Fortes
+%
+What we wanted to preserve was not just a good environment in which to do programming, but a system around which fellowship could form.
+    — Dennis Ritchie
+%
+Once the computers got control, we might never get it back.
+    — Marvin Minsky
+%
+A computer shall not waste your time or require you to do more work than is strictly necessary.
+    — Jef Raskin
+%
+The science of operations, as derived from mathematics more especially, is a science of itself, and has its own abstract truth and value.
+    — Ada Lovelace
+%
+We may say most aptly that the Analytical Engine weaves algebraical patterns just as the Jacquard loom weaves flowers and leaves.
+    — Ada Lovelace
+%
+Software engineering is the part of computer science which is too difficult for the computer scientist.
+    — Friedrich Bauer
+%
+Good people with a good process will outperform good people with no process every time.
+    — Grady Booch
+%
+The entire history of software engineering is that of the rise in levels of abstraction.
+    — Grady Booch
+%
+The purpose of computing is insight, not numbers.
+    — Richard Hamming
+%
+All of our exalted technological progress, civilization for that matter, is comparable to an axe in the hand of a pathological criminal.
+    — Albert Einstein
+%
+Any sufficiently advanced technology is indistinguishable from magic.
+    — Arthur C. Clarke
+%
+All too many of our software systems are, architecturally, little more than shantytowns.
+    — Joseph Yoder
+%
+Sadly, architecture has been undervalued for so long that many engineers regard life with a Big Ball of Mud as normal.
+    — Joseph Yoder
+%
+The real problem with throwaway code comes when it isn't thrown away.
+    — Joseph Yoder
+%
+Sometimes it's just easier to throw a system away, and start over.
+    — Joseph Yoder
+%
+I invented the term 'Object-Oriented', and I can tell you I did not have C++ in mind.
+    — Alan Kay
+%
+Educators, generals, dieticians, psychologists, and parents program. Armies, students, and some societies are programmed.
+    — Alan Perlis
+%
+To iterate is human, to recurse divine.
+    — L. Peter Deutsch
+%
+The best thing about a boolean is even if you are wrong, you are only off by a bit.
+    — Anonymous
+%
+When debugging, novices insert corrective code; experts remove defective code.
+    — Richard E. Pattis
+%
+It turns out that style matters in programming for the same reason that it matters in writing. It makes for better reading.
+    — Douglas Crockford
+%
+Computer programs are the most complex things that humans make.
+    — Douglas Crockford
+%
+JavaScript is the world's most misunderstood programming language.
+    — Douglas Crockford
+%
+Every good work of software starts by scratching a developer's personal itch.
+    — Eric S. Raymond
+%
+You can have the project: Done On Time. Done On Budget. Done Properly - Pick two.
+    — Anonymous
+%
+No one in the brief history of computing has ever written a piece of perfect software. It's unlikely that you'll be the first.
+    — Andy Hunt
+%
+Never trust a computer you can't throw out a window.
+    — Steve Wozniak
+%
+The best way to predict the future is to invent it.
+    — Alan Kay
+%
+Codes are a puzzle. A game, just like any other game.
+    — Alan Turing
+%
+Documentation is a love letter that you write to your future self.
+    — Damian Conway
+%
+Life is too short to run proprietary software.
+    — Bdale Garbee
+%
+The code you write makes you a programmer. The code you delete makes you a good one. The code you don't have to write makes you a great one.
+    — Mario Fusco
+%
+First do it, then do it right, then do it better.
+    — Addy Osmani
+%
+First learn computer science and all the theory. Next develop a programming style. Then forget all that and just hack.
+    — George Carrette
+%
+The only way to learn a new programming language is by writing programs in it.
+    — Dennis Ritchie
+%
+An evolving system increases its complexity unless work is done to reduce it.
+    — Manny Lehman
+%
+No matter how slow you are writing clean code, you will always be slower if you make a mess.
+    — Robert C. Martin
+%
+Fancy algorithms are slow when n is small, and n is usually small.
+    — Rob Pike
+%
+Within a computer, natural language is unnatural.
+    — Alan Perlis
+%
+Just because you've implemented something doesn't mean you understand it.
+    — Brian Cantwell Smith
+%
+That hardly ever happens is another way of saying 'it happens'.
+    — Douglas Crockford
+%
+Beware of bugs in the above code; I have only proved it correct, not tried it.
+    — Donald Knuth
+%
+Before software can be reusable it first has to be usable.
+    — Ralph Johnson
+%
+The cheapest, fastest, and most reliable components are those that aren't there.
+    — Gordon Bell
+%
+In order to understand recursion, one must first understand recursion.
+    — Anonymous
+%
+The hardest part of design is keeping features out.
+    — Don Norman
+%
+Premature abstraction is as bad as premature optimization.
+    — Luciano Ramalho
+%
+Much of the essence of building a program is in fact the debugging of the specification.
+    — Fred Brooks
+%
+Any product that needs a manual to work is broken.
+    — Elon Musk
+%
+The act of describing a program in unambiguous detail and the act of programming are one and the same.
+    — Kevlin Henney
+%
+I think you should always bear in mind that entropy is not on your side.
+    — Elon Musk
+%
+With artificial intelligence we are summoning the demon.
+    — Elon Musk
+%
+AI is a fundamental risk to the existence of human civilization.
+    — Elon Musk
+%
+Cool URIs don't change.
+    — Tim Berners-Lee
+%
+When I invented the web, I didn't have to ask anyone's permission.
+    — Tim Berners-Lee
+%
+We need to be super careful with AI. Potentially more dangerous than nukes.
+    — Elon Musk
+%
+I invented the Web just because I needed it, really, because it was so frustrating that it didn't exit.
+    — Tim Berners-Lee
+%
+To be a hacker - when I use the term - is somebody who is creative and does wonderful things.
+    — Tim Berners-Lee
+%
+The Domain Name Server (DNS) is the Achilles heel of the Web.
+    — Tim Berners-Lee
+%
+Whenever logical processes of thought are employed, there is an opportunity for the machine.
+    — Vannevar Bush
+%
+Computers are the most complex objects we human beings have ever created, but in a fundamental sense they are remarkably simple.
+    — Danny Hillis
+%
+The magic of a computer lies in its ability to become almost anything you can imagine, as long as you can explain exactly what that is.
+    — Danny Hillis
+%
+A skilled programmer is like a poet who can put into words those ideas that others find inexpressible.
+    — Danny Hillis
+%
+The class of problems that are computable by a digital computer apparently includes every problem that is computable by any kind of device.
+    — Danny Hillis
+%
+False scheduling to match the patron's desired date is much more common in our discipline than elsewhere in engineering.
+    — Fred Brooks
+%
+The separation of architectural effort from implementation is a very powerful way of getting conceptual integrity on very large projects.
+    — Fred Brooks
+%
+The general tendency is to over-design the second system, using all the ideas and frills that were cautiously sidetracked on the first one.
+    — Fred Brooks
+%
+Chemical engineers learned long ago that a process that works in the laboratory cannot be implemented in a factory in only one step.
+    — Fred Brooks
+%
+Coding is "90 percent finished" for half of the total coding time. Debugging is "99 percent complete" most of the time.
+    — Fred Brooks
+%
+A programming systems product takes about nine times as much effort as the component programs written separately for private use.
+    — Fred Brooks
+%
+My rule of thumb is 1/3 of the schedule for design, 1/6 for coding, 1/4 for component testing, and 1/4 for system testing.
+    — Fred Brooks
+%
+Very good professional programmers are ten times as productive as poor ones, at same training and two-year experience level.
+    — Fred Brooks
+%
+Programming increases goes as a power of program size.
+    — Fred Brooks
+%
+All repairs tend to destroy structure, to increase the entropy and disorder of a system.
+    — Fred Brooks
+%
+I think there is a world market for maybe five computers.
+    — Thomas J. Watson
+%
+There is no reason anyone would want a computer in their home.
+    — Ken Olsen
+%
+The beginning of wisdom for a programmer is to recognize the difference between getting his program to work and getting it right.
+    — Michael A. Jackson
+%
+Two things are known about requirements: 1. They will change! 2. They will be misunderstood!
+    — Michael A. Jackson
+%
+Every time you improve process, work becomes harder.
+    — Daniel T. Barry
+%
+There is never enough time to do it right, but there is always enough time to fix it or to do it over.
+    — Daniel T. Barry
+%
+The more code you have, the more places there are for bugs to hide.
+    — Rich Skrenta
+%
+If builders built houses the way programmers built programs, the first woodpecker to come along would destroy civilization.
+    — Gerald Weinberg
+%
+The techniques of artificial intelligence are to the mind what bureaucracy is to human social interaction.
+    — Terry Winograd
+%
+Code is expensive to change, but design is cheaper to change, and requirements are even cheaper to change.
+    — Daniel T. Barry
+%
+The cost to repair an error goes up dramatically as project moves towards completion and beyond.
+    — Daniel T. Barry
+%
+For most software, efficiency just does not matter.
+    — Daniel T. Barry
+%
+The best way to know that you have found the last bug is never to find the first bug.
+    — Harlan Mills
+%
+The only way for errors to occur in a program is by being put there by the author. No other mechanisms are known.
+    — Harlan Mills
+%
+Reliable computations are obtainable from buggy programs, which after all, are the only kind of programs there are.
+    — Daniel T. Barry
+%
+I can build a reliable system with thousands of bugs, if you let me choose my bugs carefully.
+    — David Parnas
+%
+Ed Adams of IBM found that 80 percent of the reliability problems are caused by only 2 percent of the defects.
+    — Daniel T. Barry
+%
+Hardware is the part you can replace. Software is the part you have to keep, because it's so expensive and nobody understands it any more.
+    — Jim Horning
+%
+Any technological or managerial scheme to force documentation can be subverted by unwilling programmers.
+    — Daniel T. Barry
+%
+Good judgement comes from experience. Experience comes from bad judgement.
+    — Jim Horning
+%
+Machines as simple as thermostats can be said to have beliefs.
+    — John McCarthy
+%
+Typing is no substitute for thinking.
+    — Richard Hamming
+%
+A programmer who subconsciously views himself as an artist will enjoy what he does and will do it better.
+    — Donald Knuth
+%
+Any unwillingness to learn mathematics today can greatly restrict your possibilities tomorrow.
+    — Richard Hamming
+%
+Really good programs live forever.
+    — Charles Simonyi
+%
+In handling resources, strive to avoid disaster rather than to attain an optimum.
+    — Butler Lampson
+%
+As with most projects, the last two percent takes fifty percent of the time.
+    — John Warnock
+%
+I think programming is very much a religious experience for a lot of people.
+    — Gary Kildall
+%
+If you ever talk to a great programmer, you'll find he knows his tools like an artist knows his paintbrushes.
+    — Bill Gates
+%
+Our goals are very simple. We're going to create the software that puts a computer on every desk and in every home.
+    — Bill Gates
+%
+The most important part of writing a program is designing the data structures.
+    — Dan Bricklin
+%
+Ideas don't disappear. They change form, they merge with other ideas.
+    — Bob Frankston
+%
+I care not only what the code says but how it looks.
+    — Peter Roizen
+%
+Programming is the ultimate field for someone who likes to tinker.
+    — Ray Ozzie
+%
+Programming can be addictive.
+    — Bob Carr
+%
+From an artistic standpoint, the best software comes from the realm of intuition.
+    — Bob Carr
+%
+Then Apple went public toward the end of 1980. All of a sudden, all these people I was working with were millionaires.
+    — Andy Hertzfeld
+%
+I'm interested in creating images that communicate with people.
+    — Toru Iwatani
+%
+I think the best way to supervise is by personal example and by frequent code reviews.
+    — Charles Simonyi
+%
+A beautiful program is like a beautiful theorem: It does the job elegantly.
+    — Butler Lampson
+%
+To be successful, you want to surround yourself with very talented folks whose skills blend very well. That's the secret of success.
+    — John Warnock
+%
+If you learn how to solve problems, you can go through life and do pretty well.
+    — Gary Kildall
+%
+The really great programs I've written have all been ones that I have thought about for a huge amount of time before I ever wrote them.
+    — Bill Gates
+%
+Really care about the tools you use because they are what make you your best.
+    — Addy Osmani
+%
+Part of what makes programming difficult is most of the time we're doing stuff we've never done before.
+    — Douglas Crockford
+%
+I think of myself as a writer. Sometimes I write in English and sometimes I write in JavaScript.
+    — Douglas Crockford
+%
+People should be able to speak and breathe programs just like they talk now.
+    — Jaron Lanier
+%
+Humanity is acquiring all the right technology for all the wrong reasons.
+    — Buckminster Fuller
+%
+I characterize functional programming as a radical and elegant attack on the whole enterprise of writing programs.
+    — Simon Peyton Jones
+%
+Every now and then I feel a temptation to design a programming language but then I just lie down until it goes away.
+    — L. Peter Deutsch
+%
+I'll throw away code as soon I want to add something to it and I get the feeling that what I have to do to add it is too hard.
+    — Ken Thompson
+%
+The problem is that coding isn't fun if all you can do is call things out of a library, if you can't write the library yourself.
+    — Donald Knuth
+%
+I make mistakes because I'm always operating at my limit. If I only stay in comfortable territory all the time, that's not so much fun.
+    — Donald Knuth
+%
+The more varieties of different kinds of notations are still useful — don't only read the people who code like you.
+    — Donald Knuth
+%
+The good news about computers is that they do what you tell them to do. The bad news is that they do what you tell them to do.
+    — Ted Nelson
+%
+Making things easy is hard.
+    — Ted Nelson
+%
+The difference between theory and practice is that in theory, there is no difference between theory and practice.
+    — Richard Moore
+%
+You should name a variable using the same care with which you name a first-born child.
+    — Jim Coplien
+%
+There's nothing more permanent than a temporary hack.
+    — Kyle Simpson
+%
+As numbers are reduced to the simplest principles, like 0 and 1, a wonderful order is apparent throughout.
+    — Gottfried Wilhelm Leibniz
+%
+In my second year in graduate school, I took a computer course and that was like lightening striking.
+    — Ted Nelson
+%
+They were saying computers deal with numbers. This was absolutely nonsense. Computers deal with arbitrary information of any kind.
+    — Ted Nelson
+%
+Right now you are a prisoner of each application you use. You have only the options that were given you by the developer of that application.
+    — Ted Nelson
+%
+Software gets slower faster than hardware gets faster.
+    — Niklaus Wirth
+%
+A few months writing code can save you a few hours in design.
+    — Anonymous
+%
+If people do not believe that mathematics is simple, it is only because they do not realize how complicated life is.
+    — John von Neumann
+%
+C makes it easy to shoot yourself in the foot; C++ makes it harder, but when you do it blows your whole leg off.
+    — Bjarne Stroustrup
+%
+If you think it's simple, then you have misunderstood the problem.
+    — Bjarne Stroustrup
+%
+Object-oriented design is the roman numerals of computing.
+    — Rob Pike
+%
+It is hard to think that a $2 billion company with 4,300-plus people couldn't compete with six people in blue jeans.
+    — Steve Jobs
+%
+Some people, when confronted with a problem, think 'I know, I'll use regular expressions.' Now they have two problems.
+    — Jamie Zawinski
+%
+Sometimes we do get taken by surprise. For example, when the Internet came along, we had it as a fifth or sixth priority.
+    — Bill Gates
+%
+It was a turning point in my programming career when I realized that I didn't have to win every argument.
+    — Ward Cunningham
+%
+And programming computers was so fascinating. You create your own little universe, and then it does what you tell it to do.
+    — Vint Cerf
+%
+The cleaner and nicer the program, the faster it's going to run. And if it doesn't, it'll be easy to make it fast.
+    — Joshua Bloch
+%
+SQL, Lisp, and Haskell are the only programming languages that I've seen where one spends more time thinking than typing.
+    — Philip Greenspun
+%
+It is better to have 100 functions operate on one data structure than to have 10 functions operate on 10 data structures.
+    — Alan Perlis
+%
+The most effective debugging tool is still careful thought, coupled with judiciously placed print statements.
+    — Brian Kernighan
+%
+Computer languages of the future will be more concerned with goals and less with procedures specified by the programmer.
+    — Marvin Minsky
+%
+A computer would deserve to be called intelligent if it could deceive a human into believing that it was human.
+    — Alan Turing
+%
+The way to arrest entropy in software is to refactor it.
+    — Joseph Yoder
+%
+You might not think that programmers are artists, but programming is an extremely creative profession. It's logic-based creativity.
+    — John Romero
+%
+JavaScript is the only language that I'm aware of that people feel they don't need to learn before they start using it.
+    — Douglas Crockford
+%
+Be humble, communicate clearly, and respect others. It costs nothing to be kind, but the impact is priceless.
+    — Addy Osmani
+%
+Telling a programmer there's already a library to do X is like telling a songwriter there's already a song about love.
+    — Pete Cordell
+%
+Should array indices start at 0 or 1? My compromise of 0.5 was rejected without, I thought, proper consideration.
+    — Stan Kelly-Bootle
+%
+The purpose of abstraction is not to be vague, but to create a new semantic level in which one can be absolutely precise.
+    — Edsger W. Dijkstra
+%
+There certainly will be job disruption. Because what's going to happen is robots will be able to do everything better than us.
+    — Elon Musk
+%
+Sometimes, the elegant implementation is a function. Not a method. Not a class. Not a framework. Just a function.
+    — John Carmack
+%
+Artificial intelligence is the science of making machines do things that would require intelligence if done by men.
+    — Marvin Minsky
+%
+I just had to take the hypertext idea and connect it to the TCP and DNS ideas and — ta-da!— the World Wide Web.
+    — Tim Berners-Lee
+%
+One must assume that there will be lots of bugs, and plan an orderly procedure for snaking them out.
+    — Fred Brooks
+%
+To achieve conceptual integrity, a design must proceed from one mind or a small group of agreeing minds.
+    — Fred Brooks
+%
+The very best technology never has as much impact as girlfriend or boyfriend trouble.
+    — Tom DeMarco
+%
+Maintenance cost is strongly affected by the number of users. More users find more bugs.
+    — Fred Brooks
+%
+Most errors are introduced during requirements specification!
+    — Daniel T. Barry
+%
+Programming is similar to a game of golf. The point is not getting the ball in the hole but how many strokes it takes.
+    — Harlan Mills
+%
+A number of studies have shown testing not very effective at finding bugs.
+    — Daniel T. Barry
+%
+The key to keeping software costs down is to write code that is easily modified.
+    — Daniel T. Barry
+%
+Programming is at least as difficult as developing a mathematical theory.
+    — Daniel T. Barry
+%
+By June 1949 people had begun to realize that it was not so easy to get programs right as at one time appeared.
+    — Maurice Wilkes
+%
+Everything should be made as simple as possible. But to do that you have to master complexity.
+    — Butler Lampson
+%
+If I had followed my heart instead of advice, dBASE would be much closer to perfection today.
+    — Wayne Ratliff
+%
+Programming is a little bit like the army. Now that I'm out, it's neat to have had the experience.
+    — Wayne Ratliff
+%
+I don't like using any tools or programs I didn't write myself or that I don't have some control over.
+    — Jonathan Sachs
+%
+If you cannot explain a program to yourself, the chance of the computer getting it right is pretty small.
+    — Bob Frankston
+%
+I don't comment on the code itself because I feel that properly written code is very much self-documented.
+    — Gary Kildall
+%
+When a program is clean and neat, nicely structured, and consistent, it can be beautiful.
+    — Gary Kildall
+%
+JavaScript, purely by accident, has become the most popular programming language in the world.
+    — Douglas Crockford
+%
+Software is a discipline of detail, and that is a deep, horrendous fundamental problem with software.
+    — L. Peter Deutsch
+%
+Even in the games of children there are things to interest the greatest mathematician.
+    — Gottfried Wilhelm Leibniz
+%
+Why would a guitarist become a good programmer?
+
+He's adept at riffing in C#.
+%
+What's the best thing about a Boolean?
+
+Even if you're wrong, you're only off by a bit.
+%
+What's the object-oriented way to become wealthy?
+
+Inheritance
+%
+Where do programmers like to hangout?
+
+The Foo Bar.
+%
+Why did the programmer quit his job?
+
+Because he didn't get arrays.
+%
+A SQL query walks into a bar, walks up to two tables and asks...
+
+'Can I join you?'
+%
+How many programmers does it take to change a lightbulb?
+
+None that's a hardware problem
+%
+If you put a million monkeys at a million keyboards, one of them will eventually write a Java program
+
+the rest of them will write Perl
+%
+['hip', 'hip']
+
+(hip hip array)
+%
+To understand what recursion is...
+
+You must first understand what recursion is
+%
+There are 10 types of people in this world...
+
+Those who understand binary and those who don't
+%
+Which song would an exception sing?
+
+Can't catch me - Avicii
+%
+Why do Java programmers wear glasses?
+
+Because they don't C#.
+%
+How do you check if a webpage is HTML5?
+
+Try it out on Internet Explorer
+%
+Lady: How do I spread love in this cruel world?
+
+Random Dude: [...💘]
+%
+A user interface is like a joke.
+
+If you have to explain it then it is not that good.
+%
+I was gonna tell you a joke about UDP...
+
+...but you might not get it.
+%
+The punchline often arrives before the set-up.
+
+Do you know the problem with UDP jokes?
+%
+Why do C# and Java developers keep breaking their keyboards?
+
+Because they use a strongly typed language.
+%
+Knock-knock.
+
+A race condition. Who is there?
+%
+What's the best part about TCP jokes?
+
+I get to keep telling them until you get them.
+%
+A programmer puts two glasses on his bedside table before going to sleep.
+
+A full one, in case he gets thirsty, and an empty one, in case he doesn't.
+%
+What did the router say to the doctor?
+
+It hurts when IP.
+%
+An IPv6 packet is walking out of the house.
+
+He goes nowhere.
+%
+A DHCP packet walks into a bar and asks for a beer.
+
+Bartender says, "here, but I'll need that back in an hour!"
+%
+3 SQL statements walk into a NoSQL bar. Soon, they walk out
+
+They couldn't find a table.
+%
+Why dot net developers don't wear glasses?
+
+Because they see sharp.
+%
+What did the Java code say to the C code?
+
+You've got no class.
+%
+What is the most used language in programming?
+
+Profanity.
+%
+Why do programmers always get Christmas and Halloween mixed up?
+
+Because DEC 25 = OCT 31
+%
+What goes after USA?
+
+USB.
+%
+Where did the API go to eat?
+
+To the RESTaurant.
+%
+Hey, wanna hear a joke?
+
+Parsing HTML with regex.
+%
+I just got fired from my job at the keyboard factory.
+
+They told me I wasn't putting in enough shifts.
+%
+How do you generate a random string?
+
+Put a Windows user in front of Vim and tell them to exit.
+%
+Why did the functions stop calling each other?
+
+Because they had constant arguments.
+%
+Why did the private classes break up?
+
+Because they never saw each other.
+%
+Why did the developer quit his job?
+
+Because he didn't get arrays.
+%
+How many React developers does it take to change a lightbulb?
+
+None, they prefer dark mode.
+%
+Why don't React developers like nature?
+
+They prefer the virtual DOM.
+%
+What do you get when you cross a React developer with a mathematician?
+
+A function component.
+%
+Why did the developer go broke buying Bitcoin?
+
+He kept calling it bytecoin and didn't get any.
+%
+Why did the programmer go to art school?
+
+He wanted to learn how to code outside the box.
+%
+Why did the programmer's wife leave him?
+
+He didn't know how to commit.
+%
+Why do programmers prefer dark chocolate?
+
+Because it's bitter like their code.
+%
+Why did the programmer go broke?
+
+He used up all his cache
+%
+Why did the programmer always mix up Halloween and Christmas?
+
+Because Oct 31 equals Dec 25.
+%
+Why don't programmers like nature?
+
+There's too many bugs.
+%
+Why was the JavaScript developer sad?
+
+He didn't know how to null his feelings.
+%
+What do you call a computer mouse that swears a lot?
+
+A cursor!
+%
+Why did the designer break up with their font?
+
+Because it wasn't their type.
+%
+Why did the programmer quit their job?
+
+They didn't get arrays.
+%
+Why did the developer go broke?
+
+They kept spending all their cache.
+%
+How do you comfort a designer?
+
+You give them some space... between the elements.
+%
+Why don't programmers like nature?
+
+Too many bugs.
+%
+Why did the programmer bring a ladder to work?
+
+They heard the code needed to be debugged from a higher level.
+%
+Why was the font always tired?
+
+It was always bold.
+%
+Why did the developer go to therapy?
+
+They had too many unresolved issues.
+%
+Why was the designer always cold?
+
+Because they always used too much ice-olation.
+%
+Why did the programmer bring a broom to work?
+
+To clean up all the bugs.
+%
+Why did the developer break up with their keyboard?
+
+It just wasn't their type anymore.
+%
+Why did the programmer always carry a pencil?
+
+They preferred to write in C#.
+%
+I have a joke about Stack Overflow, but you would say it's a duplicate.
+%
+Why was the JavaScript developer sad?
+
+Because they didn't Node how to Express themself!
+%
+why do python programmers wear glasses?
+
+Because they can't C.
+%
+Why are Assembly programmers always soaking wet?
+
+They work below C-level.
+%
+Why did the database administrator leave his wife?
+
+She had one-to-many relationships.
+%
+UDP is better in the COVID era since it avoids unnecessary handshakes.
+%
+Why is Linux safe?
+
+Hackers peak through Windows only.
+%
+Why do programmers prefer using the dark mode?
+
+Because light attracts bugs.
+%
+Two SQL tables sit at the bar. A query approaches and asks "Can I join you?"
+%
+Why do they call it hyper terminal?
+
+Too much Java.
+%
+What are bits?
+
+Tiny things left when you drop your computer down the stairs.
+%
+Why did the programmer jump on the table?
+
+Because debug was on his screen.
+%
+Knock knock.
+Who's there?
+Recursion.
+Recursion who?
+Knock knock.
+%
+How did you make your friend rage?
+
+I implemented a greek question mark in his JavaScript code.
+%
+Algorithm: A word used by programmers when they don't want to explain how their code works.
+%
+So what's a set of predefined steps the government might take to preserve the environment?
+
+An Al-Gore-ithm.
+%
+Why do Java programmers hate communism?
+
+They don't want to live in a classless society.
+%
+Hey baby I wish your name was asynchronous...
+
+... so you'd give me a callback.
+%
+What is a dying programmer's last program?
+
+Goodbye, world!
+%
+"Can I tell you a TCP joke?"
+"Please tell me a TCP joke."
+"OK, I'll tell you a TCP joke."
+%
+Debugging: Removing the needles from the haystack.
+%
+Hey Girl,
+Roses are #ff0000,
+Violets are #0000ff,
+I use hex codes,
+But I'd use RGB for you.
+%
+How do you tell HTML from HTML5?
+- Try it out in Internet Explorer
+- Did it work?
+- No?
+- It's HTML5.
+%
+Have a great weekend!
+I hope your code behaves the same on Monday as it did on Friday.
+%
+Why did the functional programmer get thrown out of school?
+
+Because he refused to take classes.
+%
+.NET developers are picky when it comes to food.
+
+They only like chicken NuGet.
+%
+Why do programmers wear glasses?
+
+Because they need to C#
+%
+Why did the JavaScript heap close shop?
+
+It ran out of memory.
+%
+What is the best prefix for global variables?
+
+//
+%
+Eight bytes walk into a bar.
+The bartender asks, "Can I get you anything?"
+"Yeah," reply the bytes.
+"Make us a double."
+%
+There are only 10 kinds of people in this world: those who know binary and those who don't.
+%
+"Knock, knock."
+"Who's there?"
+
+[very long pause]
+
+"Java."
+%
+Programming is 10% science, 20% ingenuity, and 70% getting the ingenuity to work with the science.
+%
+The generation of random numbers is too important to be left to chance.
+%
+"We messed up the keming again guys."
+%
+Why are modern programming languages so materialistic?
+
+Because they are object-oriented.
+%
+If Bill Gates had a dime for every time Windows crashed ... Oh wait, he does.
+%
+The glass is neither half-full nor half-empty, the glass is twice as big as it needs to be.
+%
+ASCII silly question, get a silly ANSI.
+%
+What do you get if you lock a monkey in a room with a typewriter for 8 hours?
+
+A regular expression.
+%
+What do you call a group of 8 Hobbits?
+
+A Hobbyte.
+%
+Why do programmers confuse Halloween and Christmas?
+
+Because Oct 31 = Dec 25
+%
+// This line doesn't actually do anything, but the code stops working when I delete it.
+%
+Why does no one like SQLrillex?
+
+He keeps dropping the database.
+%
+What do you call a developer who doesn't comment code?
+
+A developer.
+%
+Why did the Python programmer not respond to the foreign mails he got?
+
+Because his interpreter was busy collecting garbage.
+%
+How can you tell an extroverted programmer?
+
+He looks at YOUR shoes when he's talking.
+%
+"Honey, go to the store and buy some eggs."
+"OK."
+"Oh and while you're there, get some milk."
+He never returned.
+%
+I've got a really good UDP joke to tell you but I don’t know if you'll get it.
+%
+How many programmers does it take to screw in a light bulb?
+
+None. It's a hardware problem.
+%
+Java and C were telling jokes. It was C's turn, so he writes something on the wall, points to it and says "Do you get the reference?" But Java didn't.
+%
+A SQL statement walks into a bar and sees two tables.
+It approaches, and asks "may I join you?"
+%
+Why did the web developer walk out of a resturant in disgust?
+
+The seating was laid out in tables.
+%
+Why is 6 afraid of 7 in hexadecimal Canada?
+
+Because 7 8 9 A?
+%

@@ -172,11 +172,14 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "qs-bottombar"    // layerrule blur-qs-bars
     color: "transparent"
+    // winter theme: snow settles on the islands / the panel (WinterTrim)
+    readonly property string winterTrim: "ledge"
 
     Rectangle {
         anchors.fill: parent
         visible: !Theme.islands
         color: Theme.alpha(Theme.base, 0.80)
+        WinterTrim { ledgeRadius: 0 }
         Rectangle {
             anchors { left: parent.left; right: parent.right; top: parent.top }
             height: 1
@@ -195,7 +198,7 @@ PanelWindow {
     // each part is heading, not from the laid-out widths (those lag a frame
     // behind and fed back into the titles: the row jittered and overlapped)
     readonly property real leftFixed: 2 * leftGroup.pad
-        + (local.visible ? local.chromeWidth : 0) + visLocal.targetWidth
+        + (local.visible ? local.chromeWidth : 0)
         + (local.visible && remote.visible ? 6 : 0)
         + (remote.visible ? remote.chromeWidth : 0)
         + nothingPill.implicitWidth + spotifyLogin.implicitWidth + menuChevron.implicitWidth
@@ -232,15 +235,11 @@ PanelWindow {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 0
 
+        // no spectrum bars beside the players (Visualizer.qml is unused):
+        // each player's progress line carries waves instead (SeekWaves in
+        // NowPlaying.qml) — the laptop's to its audio, the phone's a loop
         NowPlaying { id: local; scope: "local"; maxTextWidth: bar.titleWidths[0] }
-        Visualizer {
-            id: visLocal
-            active: local.visible && local.playing
-            tint: local.tint
-        }
         Item { width: 6; height: 1; visible: local.visible && remote.visible }
-        // no visualizer for the phone: its audio isn't here, and the made-up
-        // one (Visualizer fake: true) redrew this bar ~20 times a second
         NowPlaying { id: remote; scope: "remote"; maxTextWidth: bar.titleWidths[1] }
 
         // Nothing playing anywhere: a faint, empty progress line — the "no

@@ -30,6 +30,9 @@ Singleton {
     readonly property string mode: pal.mode || "dark"
     readonly property bool light: mode === "light"
     readonly property string themeFamily: pal.family || themeId
+    // a SEASONAL theme ("winter"; rice-theme.py) — Winter.qml / SeasonState
+    // switch the season's effects on from this; "" for the normal themes
+    readonly property string season: pal.season || ""
     function role(name, dflt) { return pal[name] || dflt; }
 
     readonly property color base: role("base", "#1e1e2e")

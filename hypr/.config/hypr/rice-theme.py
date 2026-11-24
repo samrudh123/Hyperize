@@ -39,6 +39,7 @@ import sys
 HYPR = os.path.expanduser("~/.config/hypr")
 NAME_FILE = os.path.join(HYPR, "theme/name")
 GTK_THEMES = os.path.expanduser("~/.local/share/themes")
+WALLS = os.path.expanduser("~/Pictures/wallpapers")
 
 ROLES = ["rosewater", "flamingo", "pink", "mauve", "red", "maroon", "peach", "yellow",
          "green", "teal", "sky", "sapphire", "blue", "lavender", "text", "subtext1",
@@ -98,8 +99,24 @@ THEMES = {
                   "7fb4ca 658594 7e9cd8 9cabca dcd7ba c8c093 a6a69c 8a8980 727169 625e6e "
                   "54546d 363646 2a2a37 1f1f28 181820 16161d",
     },
+    # SEASONAL themes: a palette like the others plus `season`, which the
+    # Quickshell shell reads (palette.json) to switch its seasonal effects on
+    # (Winter.qml: snowfall, snow settling on windows / panels / the bottom
+    # bar, the idle snow cover, frosted panels, fairy lights), and
+    # `wallpaper`, which set-theme.sh puts up while the season is on (and
+    # puts the previous one back when you pick a normal theme again).
+    # Winter Night: polar-night navy paper, snow-white ink, glacier / aurora
+    # accents, one warm candle-and-lantern pair (peach, yellow) for contrast.
+    "winter": {
+        "name": "Winter Night", "accent": "sky", "season": "winter",
+        "wallpaper": "aurora-mountain-lake-live.mp4",
+        "colors": "f2dfe6 eec3cf e6b3de b9a7f2 ef7a8b d4677a f6b98a f3d898 9fdcb6 86e1d6 "
+                  "9fdcf7 6cc4ea 86b4f7 bccbfc e3eefb c8d6ea aebdd6 8fa0bd 7a8ba9 667795 "
+                  "4c5b78 3a4763 2a3550 1a2338 151d2f 101726",
+    },
 }
-ORDER = ["mocha", "tokyonight", "gruvbox", "nord", "rosepine", "everforest", "dracula", "kanagawa"]
+ORDER = ["mocha", "tokyonight", "gruvbox", "nord", "rosepine", "everforest", "dracula", "kanagawa",
+         "winter"]
 
 # LIGHT MODE (Settings › Appearance › Mode, `set-theme.sh --mode light`): each
 # theme's own light flavour, as `<id>-light`, in the same Mocha ROLES — base /
@@ -156,6 +173,13 @@ LIGHT = {
         "colors": "b8776a c25b6a b35b79 624c83 c84053 d7474b cc6d00 de9800 6f894e 597b75 "
                   "4e8ca2 5a7785 4d699b 766b90 545464 5f5f6e 716e61 8a8980 9e9a8c b0ab95 "
                   "c4bd94 d5cea3 dcd5ac f2ecbc e9e2b4 e5ddb0",
+    },
+    # Winter Day: fresh-snow paper, slate-blue ink, deep frosty accents
+    "winter": {
+        "name": "Winter Day", "season": "winter", "wallpaper": "lone-tree-snow.jpg",
+        "colors": "b97b86 c46a7d b4589a 6e55c9 c8364f a8414f c96a2b a5780f 2f8a5c 1b8a85 "
+                  "1a87b8 2275a8 2f63c7 5f6ccf 2b3a55 3d4d6a 52627f 67779a 7c8bab 93a1bd "
+                  "b1bdd3 c7d2e4 d9e2ef f4f8fc eaf0f7 e0e8f2",
     },
 }
 for _fam, _t in LIGHT.items():
@@ -442,6 +466,12 @@ def as_json(tid):
     p = {r: "#" + h for r, h in palette(tid).items()}
     p.update({"id": tid, "name": THEMES[tid]["name"], "accent": THEMES[tid]["accent"],
               "mode": mode_of(tid), "family": family(tid)})
+    # seasonal themes (winter …): the shell's effects and the season's wallpaper
+    t = THEMES[tid]
+    if t.get("season"):
+        p["season"] = t["season"]
+        if t.get("wallpaper"):
+            p["wallpaper"] = os.path.join(WALLS, t["wallpaper"])
     return p
 
 

@@ -58,7 +58,7 @@ Scope {
         { id: "tailscale",     name: "Tailscale",     icon: "\u{f0317}", keys: "vpn tailnet ssh peers machines" },
         { id: "notifications", name: "Notifications", icon: "\u{f009a}", keys: "do not disturb dnd mako alerts popups history phone notifications" },
         { id: "power",         name: "Power",         icon: "\u{f0425}", keys: "battery charge profile performance saver balanced keep awake caffeine idle lock suspend sleep shutdown power off restart reboot logout" },
-        { id: "terminal",      name: "Terminal",      icon: "\u{f018d}", keys: "terminal greeting fastfetch neofetch logo ubuntu cowsay cow fortune shell zsh ghostty details modules" },
+        { id: "terminal",      name: "Terminal",      icon: "\u{f018d}", keys: "terminal greeting fastfetch neofetch logo ubuntu cowsay cow fortune quotes quote jokes proverbs movies facts philosophy inspiration shell zsh ghostty details modules" },
         { id: "about",         name: "About",         icon: "\u{f02fd}", keys: "system version kernel host info os cpu processor memory ram disk storage gpu graphics" }
     ]
 
@@ -149,6 +149,47 @@ Scope {
                 onClicked: root.close()
             }
 
+            // ── winter (SeasonState) ────────────────────────────────────
+            // Snow settles on the card's top edge while Settings is open and
+            // falls off (WinterOverlay's clumps) when it closes; frost grows
+            // in its corners (below). Not winter: none of this shows.
+            property real snowT0: 0
+            readonly property int snowMax: 14
+            readonly property real snowGrow: 60000
+            function snowDepth(nowMs) {
+                return snowT0 ? snowMax * Math.min(1, 0.08 + (nowMs - snowT0) / snowGrow) : 0;
+            }
+            Component.onCompleted: if (root.isOpen && SeasonState.capsOn) snowT0 = Date.now()
+            Connections {
+                target: root
+                function onIsOpenChanged() {
+                    if (root.isOpen) {
+                        win.snowT0 = SeasonState.capsOn ? Date.now() : 0;
+                        return;
+                    }
+                    const d = win.snowDepth(Date.now());
+                    win.snowT0 = 0;
+                    if (!SeasonState.capsOn || !win.screen || d < 0.6) return;
+                    // the window sits between the bars (exclusionMode Normal)
+                    const y0 = BarState.topShown ? (Theme.islands ? 42 : 40) : 0;
+                    SeasonState.drop(win.screen.name, card.x + 12, y0 + card.y, card.width - 24, d);
+                }
+            }
+            SnowCap {
+                // follows the card's open / close scale (about its centre)
+                readonly property real k: card.scale
+                visible: SeasonState.capsOn && root.isOpen && win.snowT0 > 0 && depth > 0.3
+                x: card.x + card.width * (1 - k) / 2 + 12 * k
+                width: (card.width - 24) * k
+                y: card.y + card.height * (1 - k) / 2 + base - height
+                maxDepth: win.snowMax
+                depth: win.snowDepth(SeasonState.now)
+                seed: 41
+                taperL: 22
+                taperR: 22
+                opacity: card.opacity
+            }
+
             Rectangle {
                 id: card
                 width: Math.min(1120, parent.width - 80)
@@ -167,6 +208,21 @@ Scope {
 
                 // swallow clicks so they don't reach the click-outside area
                 MouseArea { anchors.fill: parent }
+
+                // winter: frost feathers in the corners (over the content but
+                // faint, and only near the corners; never takes input)
+                ShaderEffect {
+                    anchors.fill: parent
+                    z: 100
+                    visible: SeasonState.frostOn
+                    blending: true
+                    fragmentShader: Qt.resolvedUrl("shaders/frost.frag.qsb")
+                    property size itemSize: Qt.size(width, height)
+                    property real seed: 23
+                    property real strength: Theme.light ? 0.75 : 0.6
+                    property real radius: card.radius
+                    property color frostColor: Theme.light ? "#9fb6d6" : "#dce9ff"
+                }
 
                 focus: true
                 Component.onCompleted: forceActiveFocus()

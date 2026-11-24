@@ -5,6 +5,7 @@ cow, which fastfetch details. Settings › Terminal drives it.
   greeting.py state                 JSON: choices + catalogues + logo thumbnails
   greeting.py set logo ID           pick a logo   (ids in `state`, "none" = no logo)
   greeting.py set cow NAME          pick a cow    ("random", "none" = no fortune)
+  greeting.py set quote ID 0|1      tick / untick a quote category (one stays on)
   greeting.py set module ID 0|1     show / hide a fastfetch detail
   greeting.py preview [FORTUNE]     JSON {html, cols, rows, fortune}: the greeting
                                     as the terminal draws it (same fortune if given)
@@ -13,7 +14,12 @@ Writes:
   greeting.json   the choices (this folder)
   greeting.env    what zsh's fortunefetch sources: FF_LOGO (a data logo file,
                   "" = none), FF_COW (name / random / ""), FF_ARGS (extra
-                  --logo-color-N for builtin logos with more than 2 colours)
+                  --logo-color-N for builtin logos with more than 2 colours),
+                  FF_QUOTES (the ticked categories' fortune files, "" = the
+                  classic fortune set; each greeting picks one category at
+                  random, then `fortune -s` from it) and FF_QUOTES_SHORT (those
+                  with quotes of <= 60 chars, for the compact greeting —
+                  `fortune -n 60` on a file without one never returns)
   logo.txt        the picked builtin logo, as fastfetch data ($1 $2 … colours)
   logo-small.txt  its small version (FF_LOGO_SMALL / FF_ARGS_SMALL in greeting.env)
   config.jsonc    its "modules" list, rebuilt from the details switched on
@@ -43,6 +49,38 @@ GHOSTTY = os.path.expanduser("~/.config/ghostty/config")
 COWS_DIR = "/usr/share/cowsay/cows"
 FORTUNE = "/usr/games/fortune"
 COWSAY = "/usr/games/cowsay"
+STRFILE = "/usr/bin/strfile"
+
+# ── quote categories ────────────────────────────────────────────────────────
+# id, label, icon, fortune file ("" = fortune's own default set). The files in
+# quotes/ are plain fortune files (entries split by "%" lines, each <= 160
+# chars so `fortune -s` can pick any of them); their .dat index is rebuilt by
+# strfile whenever the text is newer, so a quote can be added by just editing
+# the file. Sources: inspiration / philosophy / proverbs from the
+# JamesFT/Database-Quotes-JSON and dwyl/quotes collections (+ hand-picked
+# proverbs), programming from mudroljub/programming-quotes-api (+ the
+# programming jokes of 15Dkatz/official_joke_API and JokeAPI), jokes = the
+# clean top-voted r/Jokes posts of taivop/joke-dataset (hand-picked) + JokeAPI
+# safe-mode puns/misc, dadjokes from icanhazdadjoke.com + official_joke_API,
+# bofh from Debian's fortunes-bofh-excuses; memes (text versions of internet
+# memes), oneliners (stand-up one-liners), showerthoughts, movies and facts
+# are hand-written.
+QUOTES_DIR = os.path.join(HERE, "quotes")
+QUOTES = [
+    ("fortune", "Fortune (classic)", 0xF0198, ""),
+    ("inspiration", "Inspiration", 0xF0335, "inspiration"),
+    ("philosophy", "Philosophy", 0xF0680, "philosophy"),
+    ("proverbs", "Proverbs", 0xF01E7, "proverbs"),
+    ("programming", "Programming", 0xF0169, "programming"),
+    ("memes", "Memes", 0xF1214, "memes"),
+    ("jokes", "Jokes", 0xF01F5, "jokes"),
+    ("dadjokes", "Dad jokes", 0xF01F9, "dadjokes"),
+    ("oneliners", "One-liners", 0xF036C, "oneliners"),
+    ("showerthoughts", "Shower thoughts", 0xF09A0, "showerthoughts"),
+    ("movies", "Movies & TV", 0xF0381, "movies"),
+    ("facts", "Fun facts", 0xF02FC, "facts"),
+    ("bofh", "BOFH excuses", 0xF048B, "bofh"),
+]
 
 LOGOS = [
     ("rice", "Ubuntu small (rice)"),
@@ -149,6 +187,8 @@ def load():
         s = {}
     s.setdefault("logo", "rice")
     s.setdefault("cow", "default")
+    ids = [q[0] for q in QUOTES]
+    s["quotes"] = [q for q in s.get("quotes", ids) if q in ids] or ["fortune"]
     mods = s.setdefault("modules", {})
     for m in MODULES:
         mods.setdefault(m[0], m[5])
@@ -163,6 +203,44 @@ def save(s):
         json.dump(s, f, indent=2)
         f.write("\n")
     os.replace(tmp, SETTINGS)
+
+
+def quote_file(qid):
+    """The fortune file of a category ("" = fortune's default set), its .dat
+    (re)built if the text is newer."""
+    name = dict((q[0], q[3]) for q in QUOTES)[qid]
+    if not name:
+        return ""
+    path = os.path.join(QUOTES_DIR, name)
+    try:
+        if not os.path.exists(path + ".dat") or os.path.getmtime(path + ".dat") < os.path.getmtime(path):
+            subprocess.run([STRFILE, "-s", path], capture_output=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return path
+
+
+def quote_stats(qid):
+    """(number of quotes, has one of <= 60 chars) — the classic set is big
+    and has short ones."""
+    path = quote_file(qid)
+    if not path:                     # strfile's .dat headers hold the counts
+        n = 0
+        for d in ("/usr/share/games/fortunes", "/usr/share/fortune"):
+            try:
+                for name in os.listdir(d):
+                    if name.endswith(".dat"):
+                        with open(os.path.join(d, name), "rb") as f:
+                            n += int.from_bytes(f.read(8)[4:8], "big")
+            except OSError:
+                pass
+        return n or None, True
+    try:
+        with open(path, encoding="utf-8") as f:
+            entries = [e for e in f.read().split("\n%\n") if e.strip("%\n ")]
+    except OSError:
+        return 0, False
+    return len(entries), any(len(e.strip("\n").encode()) <= 60 for e in entries)   # fortune counts bytes
 
 
 def cows():
@@ -255,6 +333,9 @@ def write_outputs(s):
         f.write("FF_COW=%s\n" % shlex.quote(cow))
         f.write("FF_ARGS=(%s)\n" % " ".join(shlex.quote(a) for a in args))
         f.write("FF_ARGS_SMALL=(%s)\n" % " ".join(shlex.quote(a) for a in sargs))
+        files = [(quote_file(qid), quote_stats(qid)[1]) for qid in s["quotes"]]
+        f.write("FF_QUOTES=(%s)\n" % " ".join(q(p) if p else '""' for p, _ in files))
+        f.write("FF_QUOTES_SHORT=(%s)\n" % " ".join(q(p) if p else '""' for p, short in files if short))
     write_config(s)
 
 
@@ -491,8 +572,10 @@ def thumb(lid):
 
 # ── the greeting as fortunefetch builds it ──────────────────────────────────
 def new_fortune():
+    path = quote_file(random.choice(load()["quotes"]))
     try:
-        return subprocess.run([FORTUNE, "-s"], capture_output=True, text=True, timeout=3).stdout
+        return subprocess.run([FORTUNE, "-s"] + ([path] if path else []),
+                              capture_output=True, text=True, timeout=3).stdout
     except (OSError, subprocess.SubprocessError):
         return "Hello!"
 
@@ -569,6 +652,8 @@ def state():
         "cow": s["cow"],
         "logos": [{"id": l[0], "name": l[1], **t} for l, t in zip(LOGOS, thumbs)],
         "cows": cows(),
+        "quotes": [{"id": x[0], "name": x[1], "icon": chr(x[2]), "count": quote_stats(x[0])[0],
+                    "on": x[0] in s["quotes"]} for x in QUOTES],
         "sections": [{"id": x[0], "name": x[1]} for x in SECTIONS],
         "modules": [{"id": m[0], "name": m[1], "section": m[2], "icon": chr(m[3]),
                      "on": bool(s["modules"].get(m[0]))} for m in MODULES],
@@ -587,6 +672,13 @@ def main(argv):
             s["logo"] = val
         elif what == "cow" and (val in ("random", "none") or val in cows()):
             s["cow"] = val
+        elif what == "quote" and len(argv) >= 5 and argv[3] in [q[0] for q in QUOTES]:
+            cur = set(s["quotes"])
+            if argv[4] in ("0", "false", "off"):
+                cur.discard(argv[3])
+            else:
+                cur.add(argv[3])
+            s["quotes"] = [q[0] for q in QUOTES if q[0] in cur] or s["quotes"]   # the last one stays ticked
         elif what == "module" and len(argv) >= 5 and argv[3] in s["modules"]:
             s["modules"][argv[3]] = argv[4] not in ("0", "false", "off")
         else:

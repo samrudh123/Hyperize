@@ -82,7 +82,7 @@ SettingsPage {
             icon: "\u{f03d8}"
             title: "Desktop theme"
             subtitle: Theme.themeName + (page.pendingTheme ? "  ·  switching…" : "") + "  ·  also SUPER+SHIFT+T"
-            keywords: "colours palette catppuccin tokyo gruvbox nord rose pine everforest dracula kanagawa latte dawn lotus alucard"
+            keywords: "colours palette catppuccin tokyo gruvbox nord rose pine everforest dracula kanagawa latte dawn lotus alucard winter season"
             last: true
             IconBtn {
                 text: "Open picker"
@@ -91,7 +91,7 @@ SettingsPage {
             }
         }
         Item {
-            visible: SettingsState.query === "" || "theme colours palette catppuccin tokyo gruvbox nord rose pine everforest dracula kanagawa latte dawn lotus alucard light dark mode".includes(SettingsState.query.toLowerCase())
+            visible: SettingsState.query === "" || "theme colours palette catppuccin tokyo gruvbox nord rose pine everforest dracula kanagawa latte dawn lotus alucard winter season light dark mode".includes(SettingsState.query.toLowerCase())
             width: parent.width
             height: themeGrid.height + 14
                 Grid {
@@ -167,6 +167,72 @@ SettingsPage {
                         }
                     }
                 }
+        }
+    }
+
+    // ── season (SeasonState.qml) ────────────────────────────────────────────
+    SettingsCard {
+        title: "Season"
+        icon: "\u{f0717}"
+        SettingsRow {
+            icon: "\u{f0f36}"
+            title: "Winter"
+            subtitle: SeasonState.winter
+                      ? Theme.themeName + " is on  ·  pick any other theme to go back (snow and the winter wallpaper go with it)"
+                      : "A seasonal theme: icy palette, falling snow, snow on windows and panels, an idle snow-in, frost, fairy lights"
+            keywords: "season winter snow christmas holiday festive seasonal"
+            IconBtn {
+                anchors.verticalCenter: parent.verticalCenter
+                readonly property var prev: page.allThemes.find(t => t.id === SeasonState.prevTheme)
+                text: SeasonState.winter ? "Back to " + (prev ? prev.name : "Catppuccin Mocha")
+                                         : Theme.light ? "Winter Day" : "Winter Night"
+                icon: SeasonState.winter ? "\u{f050e}" : "\u{f0717}"
+                onClicked: {
+                    const back = SeasonState.prevTheme + (Theme.light ? "-light" : "");
+                    const id = SeasonState.winter ? back : (Theme.light ? "winter-light" : "winter");
+                    page.pendingTheme = id;
+                    Theme.exec(Theme.hypr + "/set-theme.sh " + id);
+                }
+            }
+        }
+        Repeater {
+            model: [
+                { k: "snow", icon: "\u{f0717}", t: "Snowfall", s: "Flakes drift down over the desktop, gusting now and then  ·  stops on low battery and under fullscreen" },
+                { k: "cursor", icon: "\u{f01bf}", t: "Snow parts around the pointer", s: "Flakes swerve away from the mouse as it moves" },
+                { k: "caps", icon: "\u{f05b6}", t: "Snow settles", s: "Builds up on the tops of windows, bar panels and the bottom bar's islands; falls off when they move, close or collapse" },
+                { k: "idle", icon: "\u{f0f36}", t: "Snowed in when idle", s: "Left alone, the screen frosts over and fills with snow; move the mouse to wipe it away (hold Shift to move without wiping while the snow keeps piling up — draw in the snow)  ·  never while a video plays" },
+                { k: "frost", icon: "\u{f05a3}", t: "Frosted panels", s: "Ice feathers in the corners of the bar panels" },
+                { k: "lights", icon: "\u{f0335}", t: "Fairy lights", s: "Twinkling lights strung along the top bar" },
+                { k: "wallpaper", icon: "\u{f0e09}", t: "Seasonal wallpaper", s: "Winter Night: aurora over a snowy lake (live) · Winter Day: a lone tree in snow  ·  your own wallpaper comes back after" }
+            ]
+            delegate: SettingsRow {
+                required property var modelData
+                icon: modelData.icon
+                title: modelData.t
+                subtitle: modelData.s
+                keywords: "season winter snow " + modelData.k
+                Toggle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    checked: SeasonState.opt(modelData.k, true)
+                    onToggled: v => SeasonState.set(modelData.k, v)
+                }
+            }
+        }
+        SettingsRow {
+            icon: "\u{f0f29}"
+            title: "How much snow"
+            subtitle: "Snowfall density"
+            keywords: "season winter snow density heavy light amount"
+            last: true
+            Segmented {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 240
+                height: 32
+                options: ["Light", "Normal", "Heavy"]
+                readonly property var values: [0.5, 1, 1.7]
+                currentIndex: SeasonState.density < 0.75 ? 0 : SeasonState.density > 1.3 ? 2 : 1
+                onSelected: i => SeasonState.set("density", values[i])
+            }
         }
     }
 

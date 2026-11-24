@@ -35,5 +35,20 @@
     "loadavg": false,
     "title": true,
     "colors": true
-  }
+  },
+  "quotes": [
+    "fortune",
+    "inspiration",
+    "philosophy",
+    "proverbs",
+    "programming",
+    "memes",
+    "jokes",
+    "dadjokes",
+    "oneliners",
+    "showerthoughts",
+    "movies",
+    "facts",
+    "bofh"
+  ]
 }

@@ -16,6 +16,8 @@ wallpapers before /usr/share/backgrounds, then by name).
           see classify(). Cached in ~/.cache/wallpaper-thumbs/colours.json by
           mtime (and CLASSIFIER version). Only NEW files are decoded, so a
           normal run takes a few ms.
+          wallpaper-colours.conf (next to this script) overrides the bucket by
+          file name, for pictures the classifier gets wrong.
   accent  Mono only: the wallpaper's own grey ("#rrggbb"), the accent a
           black-and-white wallpaper sets; "" for the colour buckets (they set
           the theme's colour for their role)
@@ -44,6 +46,7 @@ LOCK_CONF = os.path.join(HYPR, "hyprlock.conf")
 CACHE = os.path.join(HOME, ".cache/wallpaper-thumbs")
 CARDS = os.path.join(CACHE, "carousel")
 INDEX = os.path.join(CACHE, "colours.json")
+OVERRIDES = os.path.join(HYPR, "wallpaper-colours.conf")
 
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
 VIDEO_EXTS = (".mp4", ".webm", ".mkv", ".mov", ".gif")    # = set-wallpaper.sh is_video
@@ -250,6 +253,21 @@ def make_card(path, w, h):
     os.replace(tmp, out)
 
 
+def overrides():
+    """{file name: bucket} from wallpaper-colours.conf — `name  Bucket` per
+    line, # comments. Unknown buckets are ignored."""
+    out = {}
+    try:
+        with open(OVERRIDES) as f:
+            for line in f:
+                parts = line.split("#", 1)[0].split()
+                if len(parts) >= 2 and parts[-1].capitalize() in ORDER:
+                    out[" ".join(parts[:-1])] = parts[-1].capitalize()
+    except OSError:
+        pass
+    return out
+
+
 def bucket_of(path, index):
     """-> (bucket, accent), cached by mtime and classifier version."""
     _, mtime = key_for(path)
@@ -285,12 +303,18 @@ def main():
         index = {}
     before = dict(index)          # (re)classified entries are new objects
 
+    forced = overrides()
     items, missing = [], []
     for p in wallpapers(lock):
         try:
             bucket, accent = bucket_of(p, index)
         except OSError:
             continue
+        name = os.path.basename(p)
+        if forced.get(name, bucket) != bucket:
+            bucket = forced[name]
+            accent = ""          # a colour bucket sets the theme's colour; a
+                                 # forced Mono gets no own grey (theme default)
         video = is_video(p)
         card = card_path(p, w, h) if w else ""
         if card and not os.path.exists(card):

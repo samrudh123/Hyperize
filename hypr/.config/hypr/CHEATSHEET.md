@@ -110,7 +110,7 @@ so it does nothing to them:
 | Keys | Does |
 |---|---|
 | `SUPER + Q` | Close window (not Alt+F4) |
-| `SUPER + SHIFT + T` | Theme picker — Catppuccin Mocha, Tokyo Night, Gruvbox Dark, Nord, Rosé Pine, Everforest, Dracula, Kanagawa; recolours the whole desktop (press again to close); `m` shows each theme's LIGHT flavour (Settings › Appearance › Mode flips the current one) |
+| `SUPER + SHIFT + T` | Theme picker — Catppuccin Mocha, Tokyo Night, Gruvbox Dark, Nord, Rosé Pine, Everforest, Dracula, Kanagawa, Winter (seasonal: snowfall, snow settling on windows / panels / bottom bar, idle snow-in wiped by the mouse (hold Shift to move without wiping, to draw in it), frost, fairy lights, its own wallpaper — Settings › Appearance › Season; `qs ipc call winter snowin` previews the snow-in); recolours the whole desktop (press again to close); `m` shows each theme's LIGHT flavour (Settings › Appearance › Mode flips the current one) |
 | ⤷ in the picker | `←/→` or wheel move · `Enter` apply · `1`–`8` jump · `b` bar style: classic ⇄ floating islands · `Esc` close |
 | Brightness pill (top bar) | scroll = brightness · click = 50 % · **right-click = night light** on/off · middle-click = warmer/cooler (4500 → 3500 → 2700 K) |
 | Display pill (top bar, only with an external monitor plugged in) | `dup` = duplicated, `ext` = extended. Click: **Duplicate** / **Extend** and which side the external screen sits on (right / left / above / below). Middle-click flips duplicate ↔ extend; `SUPER + SHIFT + P` opens the panel. Both bars show on every screen. A monitor plugged in for the first time is **duplicated**; after that your choice is remembered per monitor and re-applied on replug (`hypr/display-mode.py`) |

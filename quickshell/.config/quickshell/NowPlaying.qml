@@ -13,6 +13,8 @@
 //                   (seekTo: instant playhead, throttled stdin seeks)
 //   bottom 11 px    the seek zone: line thickens, knob + time bubble;
 //                   click = jump, drag = seek on release (one request)
+//   above the line  waves over the played part (SeekWaves.qml), to the
+//                   laptop's audio (`level`) / a gentle loop for the phone
 //   ⏮ ⏭            media-skip.sh prev|next <player>
 //   ⇄ ⟲            "shuffle|repeat <player>" on now-playing.py's stdin
 //                   (media_modes.py, on its warm connection): shuffle on/off,
@@ -151,6 +153,25 @@ Row {
         onTriggered: np.now = Date.now()
     }
 
+    // laptop loudness 0..1 for the waves above the progress lines (this
+    // pill's, the music panel's, the deck's): hypr/visualizer.py, the
+    // speakers' monitor, while a laptop player plays. -1 = nothing to hear
+    // (the phone's audio plays on the phone): the waves just roll.
+    property real level: -1
+    Process {
+        running: np.scope === "local" && np.visible && np.playing
+        command: ["/usr/bin/python3", Theme.hypr + "/visualizer.py", "8"]
+        stdout: SplitParser {
+            onRead: line => {
+                const v = line.trim().split(" ").map(Number);
+                if (!v.length) return;
+                const mx = Math.max(...v), mean = v.reduce((a, b) => a + b, 0) / v.length;
+                np.level = Math.min(1, (0.6 * mx + 0.4 * mean) / 100);
+            }
+        }
+        onRunningChanged: np.level = running ? 0 : -1
+    }
+
     component SkipButton: Pill {
         required property string dir
         label: dir === "prev" ? "\u{f04ae}" : "\u{f04ad}"
@@ -241,16 +262,43 @@ Row {
                 id: label
                 x: 12
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.verticalCenterOffset: -1
+                anchors.verticalCenterOffset: -3      // room for the waves above the line
                 text: np.text
                 textFormat: Text.StyledText
                 width: Math.min(implicitWidth, Math.max(40, np.maxTextWidth))
                 elide: Text.ElideRight
                 color: body.lit ? Theme.crust : np.tint
                 font.family: Theme.font
-                font.pixelSize: 13
+                font.pixelSize: 12
                 font.weight: Font.DemiBold
                 Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Easing.OutQuint } }
+            }
+
+            // waves riding on the line's played part (SeekWaves); they stay
+            // while hovering — dark on the lit pill, rising off the thick
+            // seek-mode line
+            SeekWaves {
+                x: line.x
+                width: line.width
+                height: 10
+                y: parent.height - 3 - height         // on the thin line's top; stays put in seek mode
+                visible: np.seekable
+                frac: line.shownFrac
+                playing: np.playing
+                level: np.level
+                // on the lit (filled) pill: dark, like the line and the title
+                color: body.lit ? Theme.crust : np.tint
+                active: BarState.bottomShown
+                scale: 0.9
+                // compressed: the two counter-moving layers are separate
+                // bumps (troughs stay a little above the line — they only
+                // meet it at the playhead), same wavelength a bit
+                // under half a wave apart so they nearly interleave and pass
+                // each other; the third is faint
+                lambda1: 52
+                gap: 2.1
+                third: 0.35
+                floorH: 0.25
             }
 
             // progress line: dim track + elapsed in the player's colour;
@@ -262,7 +310,7 @@ Row {
                 x: 7
                 width: parent.width - 14
                 height: big ? 5 : 2
-                y: parent.height - 3 - height
+                y: parent.height - 1 - height         // low: the waves get the room above
                 Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
                 readonly property real shownFrac: mouse.dragging ? mouse.dragFrac : np.frac

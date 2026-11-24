@@ -36,7 +36,11 @@
 //   Alt+Shift+arrows  move the tile that way, dwindle's movewindow (SUPER+SHIFT+arrows)
 //   Alt+Ctrl+arrows   resize the tile 40 px: → ↓ grow, ← ↑ shrink (SUPER+CTRL+arrows)
 //                     (the arrow keys only act inside a split view: on a lone tab
-//                     Alt+←/→ stay back/forward, Ctrl+Alt+←/→ Zen's space switch)
+//                     Ctrl+Alt+←/→ stay Zen's space switch)
+//   Ctrl+← / Ctrl+→   back / forward (customKeys.json rebinds goBackKb/goForwardKb
+//                     from Alt+←/→; this script covers a focused page, whose own
+//                     Ctrl+←/→ word jump would eat them). A text field keeps the
+//                     word jump, in the page and in the URL bar
 //   Alt+T             flip the focused tile's split row ↔ column (togglesplit)
 //   Ctrl+W            closes the focused tile (Zen's own; the others re-tile)
 //
@@ -1396,7 +1400,7 @@
       const ctrlAlt = e.ctrlKey && e.altKey && !e.metaKey && !e.shiftKey;
       const ARROW = { ArrowLeft: "l", ArrowRight: "r", ArrowUp: "u", ArrowDown: "d" };
       // the arrow keys only belong to the tiles inside a split view; on a lone
-      // tab Alt+←/→ stay back / forward and Ctrl+Alt+←/→ Zen's space switch
+      // tab Ctrl+Alt+←/→ stay Zen's space switch
       const inSplit = () => !!groupOf(current());
       let done = false;
       if (alt && e.code === "Tab" && !e.shiftKey) { openPicker(true); done = true; }
@@ -1419,12 +1423,29 @@
       else if (ctrlAlt && ARROW[e.code] && inSplit()) { resizeDir(ARROW[e.code]); done = true; }
       else if (ctrl && !e.shiftKey && e.code === "KeyT") { tileNew(); done = true; }
       else if (ctrl && e.code === "Tab") { cycleTile(e.shiftKey ? -1 : 1); done = true; }
+      else if (ctrl && !e.shiftKey && (e.code === "ArrowLeft" || e.code === "ArrowRight"))
+        done = historyKey(e.code === "ArrowLeft" ? -1 : 1);
       if (done) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
       }
     } catch (err) { log(err); }
+  }
+
+  // Ctrl+←/→ = back / forward. With the chrome focused the goBackKb/goForwardKb
+  // <key>s (customKeys.json) do it and the URL bar keeps its word jump; a page
+  // eats Ctrl+←/→ itself (cmd_wordPrevious, even off a text field), so for a
+  // focused page it is done here — unless a text field / editor in it has focus
+  // (the widget's IME state follows the page's focused editable) or caret
+  // browsing (F7) is on.
+  function historyKey(dir) {
+    const f = Services.focus.focusedElement;
+    if (!f || f.localName !== "browser") return false;
+    if (window.windowUtils.IMEStatus !== Ci.nsIDOMWindowUtils.IME_STATUS_DISABLED) return false;
+    if (Services.prefs.getBoolPref("accessibility.browsewithcaret", false)) return false;
+    document.getElementById(dir < 0 ? "Browser:Back" : "Browser:Forward")?.doCommand();
+    return true;
   }
 
   function onKeyUp(e) {

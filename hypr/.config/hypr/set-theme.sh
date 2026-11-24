@@ -3,7 +3,9 @@
 # (~/.config/quickshell/ThemePicker.qml), which calls this.
 #
 #   set-theme.sh <id>          mocha tokyonight gruvbox nord rosepine
-#                              everforest dracula kanagawa
+#                              everforest dracula kanagawa winter
+#                              (winter = a SEASONAL theme: palette + the
+#                              shell's snow effects + its wallpaper)
 #   set-theme.sh <id>-light    the same themes' light flavours (mocha-light =
 #                              Catppuccin Latte, rosepine-light = Rosé Pine Dawn …)
 #   set-theme.sh --mode dark|light   the current theme in that mode
@@ -61,8 +63,19 @@ newaccent=$($PY "$RICE" map-accent "$accent" "$current" "$id")
 # dock reloads its icons when the theme id changes).
 RICE_PALETTE="$THEME/palette.json.tmp" $PY "$HYPR/dock-theme-icons.py" >/dev/null 2>&1
 
+# Seasonal themes (winter …) — read before the palette is replaced
+pal_key() { $PY -c "import json,sys
+try: print(json.load(open(sys.argv[1])).get(sys.argv[2], ''))
+except Exception: print('')" "$1" "$2"; }
+old_season=$(pal_key "$THEME/palette.json" season)
+old_wall=$(pal_key "$THEME/palette.json" wallpaper)
+new_season=$(pal_key "$THEME/palette.json.tmp" season)
+new_wall=$(pal_key "$THEME/palette.json.tmp" wallpaper)
+
 printf '%s\n' "$id" > "$THEME/name"
 mv -f "$THEME/palette.json.tmp" "$THEME/palette.json"
+# the theme a season replaced (Settings › Appearance › Season "Back to …")
+[ -n "$new_season" ] && [ -z "$old_season" ] && printf '%s\n' "$current" > "$THEME/season-prev-theme"
 
 # Dark / light: the switches that are flags, not colours (everything with
 # colours follows the palette). Light themes are `<id>-light` (rice-theme.py).
@@ -113,6 +126,35 @@ done
 command -v bat >/dev/null && bat cache --build >/dev/null 2>&1
 # theme/name, palette.json, … changed length: keep `git status` clean
 "$HYPR/set-accent.sh" --git-refresh >/dev/null 2>&1 &
+
+# A seasonal theme brings its wallpaper (rice-theme.py `wallpaper`); the one
+# that was up before is kept in theme/season-prev-wallpaper and comes back
+# when a normal theme is picked. A wallpaper you chose yourself while the
+# season was on is left alone. Off: Settings › Appearance › Season ›
+# Seasonal wallpaper (theme/season-fx.json "wallpaper": false).
+season_wallpaper() {
+    local prevf="$THEME/season-prev-wallpaper" cur want=""
+    cur=$(cat "$HYPR/wallpaper" 2>/dev/null)
+    if [ -n "$new_season" ]; then
+        [ "$($PY -c "import json
+try: print(json.load(open('$THEME/season-fx.json')).get('wallpaper', True))
+except Exception: print(True)")" = True ] || return 0
+        [ -f "$new_wall" ] || return 0
+        if [ -z "$old_season" ]; then
+            [ -n "$cur" ] && [ "$cur" != "$new_wall" ] && printf '%s\n' "$cur" > "$prevf"
+            want="$new_wall"
+        elif [ "$cur" = "$old_wall" ]; then
+            want="$new_wall"                # winter night -> winter day
+        fi
+    elif [ -n "$old_season" ] && [ -f "$prevf" ]; then
+        [ "$cur" = "$old_wall" ] && want=$(cat "$prevf")
+        rm -f "$prevf"
+    fi
+    [ -n "$want" ] && [ "$want" != "$cur" ] && [ -f "$want" ] \
+        && setsid -f "$HYPR/set-wallpaper.sh" "$want" >/dev/null 2>&1
+    return 0
+}
+[ "${1:-}" = --restore ] || season_wallpaper
 
 hyprctl reload >/dev/null
 pkill -USR2 -x ghostty 2>/dev/null     # Ghostty >= 1.2 reloads its config

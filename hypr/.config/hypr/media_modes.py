@@ -202,19 +202,87 @@ def read_api(api):
             "loop": FROM_API.get(p["repeat_state"], "None")}
 
 
+# Why the buttons are hidden, when the Web API is the reason (2026-11-21: the
+# app owner's Premium lapsed and every request got 403 — the buttons just
+# vanished with no word why). The bar's tooltip shows the short line; the
+# reasons the user can act on also get ONE notification per TELL_EVERY.
+WHY = {
+    "premium": ("Spotify Premium needed",
+                "Spotify refuses this setup's requests while the account has no "
+                "Premium — shuffle / repeat come back on their own a few hours "
+                "after it's renewed"),
+    "login": ("Spotify login needed",
+              "Log in to Spotify from the bar (the Spotify pill) to get "
+              "shuffle / repeat for the phone"),
+    "rate": ("Spotify rate limit", ""),
+    "offline": ("Spotify unreachable", ""),
+}
+TELL = ("premium", "login")
+TELL_EVERY = 6 * 3600
+
+
+def why_of(err):
+    status = getattr(err, "status", 0)
+    if status == 403 and "premium" in str(getattr(err, "body", "")).lower():
+        return "premium"
+    if status == 429:
+        return "rate"
+    if status == 401:
+        return "login"
+    return f"http {status}" if status else "offline"
+
+
+def hidden_reason():
+    """-> a short line for the bar's tooltip when the Web API is why the ⇄ ⟲
+    buttons are hidden, else "" (also "" while it simply has no answer:
+    Spotify asleep on the phone)"""
+    d = load()
+    why = d.get("why")
+    if d.get("shuffle") is not None or not why:
+        return ""
+    title = WHY[why][0] if why in WHY else f"Spotify answered {why.upper()}"
+    return f"Shuffle / repeat unavailable: {title}"
+
+
+def _tell(new, why):
+    """One notification per reason per TELL_EVERY (state lives in CACHE, so
+    both bar pills and the CLI share it)."""
+    if why not in TELL:
+        return
+    told = new.setdefault("told", {})
+    if time.time() - told.get(why, 0) < TELL_EVERY:
+        return
+    told[why] = time.time()
+    title, body = WHY[why]
+    _spotify().notify("Shuffle / repeat unavailable: " + title, body)
+
+
 def _fetch(key):
     asked = time.time()                     # TTLs run from the ask, as the bar ticks
-    got, err = None, None
+    got, err, why = None, None, None
     try:                                    # not under LOCK: a click mustn't wait for it
         api = client()
-        got = read_api(api) if api.logged_in() else None
+        if api.logged_in():
+            got = read_api(api)
+        else:
+            why = "login"
     except Exception as e:                              # noqa: BLE001 — offline, 429, …
         err = e
+        why = why_of(e)
     with locked():
         old = load()
         new = dict(old, at=asked, key=key)
         now = time.time()
-        if err is None:
+        if why:
+            new["why"] = why
+        else:
+            new.pop("why", None)
+            new.pop("told", None)                       # it works again: tell anew next time
+        if why and err is None:                         # not logged in: nothing to keep
+            new.update(shuffle=None, loop=None)
+        if why:
+            _tell(new, why)
+        if err is None and why is None:
             got = got or {"shuffle": None, "loop": None}
             held = {k: old.get(k) for k in ("shuffle", "loop")}
             if now < old.get("hold_until", 0) and got != held:
@@ -229,9 +297,9 @@ def _fetch(key):
             if now - new.get("ok_at", 0) > STALE:       # a blip keeps the last read
                 new.update(shuffle=None, loop=None)
         save(new)
-    if (old.get("shuffle"), old.get("loop")) != (new.get("shuffle"), new.get("loop")) \
-            and on_change:
-        on_change()
+    if (old.get("shuffle"), old.get("loop"), old.get("why")) \
+            != (new.get("shuffle"), new.get("loop"), new.get("why")) and on_change:
+        on_change()                         # the tooltip's reason line too
 
 
 def _fetch_bg(key):

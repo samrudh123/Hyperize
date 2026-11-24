@@ -16,7 +16,8 @@ QS="$HOME/.local/bin/qs"
 
 # Through hyprctl so it lands in the session scope (landmine 12), then wait
 # for its IPC socket before showing the dock ("Not ready" exits non-zero).
-hyprctl dispatch exec "$QS" >/dev/null
+# (qs-run.sh: brings it back if it crashes)
+hyprctl dispatch exec "$HOME/.config/hypr/qs-run.sh" >/dev/null
 for _ in $(seq 1 50); do
     "$QS" ipc call dock open >/dev/null 2>&1 && exit 0
     sleep 0.1

@@ -148,7 +148,9 @@ def identity(instance):
 
 def classify_phone(ident):
     app = ident.lower()
-    if app.startswith("spotify"):
+    # Spotifusion (a third-party Spotify client) wears Spotify's green too —
+    # the colour only: it is NOT Spotify to the Web API (no ⇄ ⟲, no Resume)
+    if app.startswith("spotify") or app.startswith("spotifusion"):
         return "spotify"
     if "youtube music" in app or "yt music" in app:
         return "ytmusic"

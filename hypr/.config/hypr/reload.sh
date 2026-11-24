@@ -54,7 +54,8 @@ restart_bar() {
     "$QS" kill >/dev/null 2>&1
     sleep 1
     # Through hyprctl, so it lives in the session scope (landmine 12).
-    hyprctl dispatch exec "$QS" >/dev/null
+    # (qs-run.sh: brings it back if it crashes)
+    hyprctl dispatch exec "$HOME/.config/hypr/qs-run.sh" >/dev/null
     for _ in $(seq 1 40); do
         "$QS" ipc show >/dev/null 2>&1 && hyprctl layers 2>/dev/null | grep -q "namespace: qs-bar," && break
         sleep 0.25

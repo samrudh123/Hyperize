@@ -1,5 +1,6 @@
 // Settings › Terminal: the greeting a new terminal prints (zsh fortunefetch):
-// fastfetch's logo, the cowsay cow + fortune under it, and which fastfetch
+// fastfetch's logo, the cowsay cow + a quote under it (from the ticked quote
+// categories: classic fortune, inspiration, jokes, …), and which fastfetch
 // details show. ~/.config/fastfetch/greeting.py does the work (state / set /
 // preview); the preview stays pinned above the options and redraws after
 // every pick, with the same fortune until "New fortune".
@@ -18,6 +19,7 @@ Item {
     property string logo: st ? st.logo : ""
     property string cow: st ? st.cow : ""
     property var on: ({})                 // module / extra id → bool
+    property var qon: ({})                // quote category id → bool
     property var pv: null                 // greeting.py preview
     property string fortune: ""
     property bool big: false              // the preview takes the whole page
@@ -41,6 +43,9 @@ Item {
                     const o = {};
                     for (const m of s.modules.concat(s.extras)) o[m.id] = m.on;
                     page.on = o;
+                    const q = {};
+                    for (const c of s.quotes) q[c.id] = c.on;
+                    page.qon = q;
                     page.st = s;
                 } catch (e) {}
                 page.refresh();
@@ -69,6 +74,14 @@ Item {
 
     function pickLogo(id) { if (id !== logo) { logo = id; set(["logo", id]); } }
     function pickCow(id) { if (id !== cow) { cow = id; set(["cow", id]); } }
+    function flipQuote(id) {
+        const o = Object.assign({}, qon);
+        if (o[id] && Object.keys(o).filter(k => o[k]).length === 1) return;   // one stays ticked
+        o[id] = !o[id];
+        qon = o;
+        fortune = "";                     // the next preview draws from the new set
+        set(["quote", id, o[id] ? "1" : "0"]);
+    }
     function flip(id) {
         const o = Object.assign({}, on);
         o[id] = !o[id];
@@ -120,7 +133,7 @@ Item {
         }
         Text {
             width: parent.width
-            text: "The greeting a new terminal prints (and `ff`): the logo, the cow with a fortune, and fastfetch's details."
+            text: "The greeting a new terminal prints (and `ff`): the logo, the cow with a quote, and fastfetch's details."
             color: Theme.overlay1
             wrapMode: Text.Wrap
             font.family: Theme.font
@@ -178,9 +191,9 @@ Item {
                         size: 26
                         iconSize: 13
                         icon: "\u{f0450}"
-                        text: "New fortune"
+                        text: "New quote"
                         enabled: page.cow !== "none"
-                        tip: "Same logo and cow, another fortune"
+                        tip: "Same logo and cow, another quote"
                         onClicked: page.newFortune()
                     }
                     IconBtn {
@@ -351,7 +364,7 @@ Item {
                     width: parent.width - 24
                     spacing: 6
                     Repeater {
-                        model: page.st ? [{ id: "none", name: "No fortune", icon: "\u{f0156}" },
+                        model: page.st ? [{ id: "none", name: "No quote", icon: "\u{f0156}" },
                                           { id: "random", name: "Random", icon: "\u{f049d}" }]
                                          .concat(page.st.cows.map(c => ({ id: c, name: c, icon: "" }))) : []
                         delegate: Chip {
@@ -362,6 +375,47 @@ Item {
                             onActivated: page.pickCow(modelData.id)
                         }
                     }
+                }
+            }
+        }
+
+        // quote categories: each greeting picks one of the ticked ones at
+        // random, then a quote from it
+        SettingsCard {
+            title: "Quotes"
+            icon: "\u{f0757}"
+            opacity: page.cow === "none" ? 0.5 : 1
+            Column {
+                width: parent.width
+                topPadding: 12
+                bottomPadding: 12
+                spacing: 10
+                Flow {
+                    x: 12
+                    width: parent.width - 24
+                    spacing: 6
+                    Repeater {
+                        model: page.st ? page.st.quotes : []
+                        delegate: Chip {
+                            required property var modelData
+                            label: modelData.name
+                            glyph: modelData.icon
+                            note: modelData.count ? (modelData.count >= 1000 ? (modelData.count / 1000).toFixed(1) + "k" : String(modelData.count)) : ""
+                            toggle: true
+                            checked: !!page.qon[modelData.id]
+                            onActivated: page.flipQuote(modelData.id)
+                        }
+                    }
+                }
+                Text {
+                    x: 16
+                    width: parent.width - 32
+                    text: page.cow === "none" ? "The cow is off (No quote), so no quote shows."
+                        : "Each greeting picks one ticked category at random, then a quote from it. At least one stays ticked."
+                    wrapMode: Text.Wrap
+                    color: Theme.overlay0
+                    font.family: Theme.font
+                    font.pixelSize: 11
                 }
             }
         }
@@ -416,7 +470,7 @@ Item {
         Text {
             width: parent.width
             leftPadding: 4
-            text: "Applies to new terminals. greeting.py writes ~/.config/fastfetch/greeting.env (logo + cow) and config.jsonc's modules (so plain `fastfetch` shows the same details)."
+            text: "Applies to new terminals. greeting.py writes ~/.config/fastfetch/greeting.env (logo, cow, quote files in ~/.config/fastfetch/quotes) and config.jsonc's modules (so plain `fastfetch` shows the same details)."
             wrapMode: Text.Wrap
             color: Theme.overlay0
             font.family: Theme.font
@@ -424,11 +478,13 @@ Item {
         }
     }
 
-    // a pill to pick: a cow, or a detail (toggle: ✓ / dim)
+    // a pill to pick: a cow, or a detail / quote category (toggle: ✓ / dim);
+    // note = a dim count after the label
     component Chip: Rectangle {
         id: chip
         property string label
         property string glyph
+        property string note
         property bool checked
         property bool toggle: false
         signal activated()
@@ -474,6 +530,14 @@ Item {
                 font.family: Theme.font
                 font.pixelSize: 12
                 font.weight: chip.checked ? Font.DemiBold : Font.Normal
+            }
+            Text {
+                visible: chip.note !== ""
+                anchors.verticalCenter: parent.verticalCenter
+                text: chip.note
+                color: chip.checked ? Theme.alpha(chip.fg, 0.7) : Theme.overlay1
+                font.family: Theme.font
+                font.pixelSize: 10
             }
         }
         MouseArea {

@@ -471,6 +471,7 @@ PopupWindow {
         BarState.activePopup = pop;
         BarState.kbItem = null;
         BarState.kbMode = false;            // openByKeyboard sets it after this
+        winterOpened();
         opened();
     }
     function close() {
@@ -483,9 +484,10 @@ PopupWindow {
         kbRestore.stop();
         // the content stays exactly as it is (no reverse stagger) and the
         // window keeps its size, so only the card itself fades and settles
-        heldH = implicitHeight;
+        heldH = implicitHeight - capRoom;
         closing = true;
         isOpen = false;
+        winterClosed();
         BarState.releaseGrab(pop);
         introAnim.stop();
         openAnim.stop();
@@ -502,13 +504,72 @@ PopupWindow {
     color: "transparent"
     anchor.item: pill
     anchor.rect.x: !pill ? 0 : alignLeft ? leftMargin - pillX : pill.width / 2
-    anchor.rect.y: !pill ? 0 : edge === Edges.Bottom ? pill.height + 8 : -8
+    anchor.rect.y: !pill ? 0 : edge === Edges.Bottom ? pill.height + 8 - capRoom : -8
     anchor.gravity: alignLeft ? edge | Edges.Right : edge
     anchor.adjustment: PopupAdjustment.Slide
     implicitWidth: panelWidth
     // held while closing: content that empties on close (backends that only
     // run while open) used to resize the card mid-fade — the shake
-    implicitHeight: closing ? heldH : body.childrenRect.height + 2 * pad
+    implicitHeight: (closing ? heldH : body.childrenRect.height + 2 * pad) + capRoom
+
+    // ── winter (SeasonState) ────────────────────────────────────────────────
+    // Snow settles on the card's top edge while it's open and falls off when
+    // it collapses; frost grows in the card's corners. The window gets
+    // `capRoom` px above the card for the snow (top-bar panels: the anchor
+    // moves up by as much, so the card stays where it was) and only the card
+    // takes clicks. Not winter: capRoom 0, nothing changes.
+    readonly property int capRoom: SeasonState.capsOn ? SeasonState.popMax + 3 : 0
+    property real snowT0: 0
+    mask: cardMask                            // = the whole window when capRoom is 0
+    Region { id: cardMask; item: card }
+    // the card on its screen (the bars span the screen from x 0; top bar at
+    // y 0, bottom bar at the bottom) — for the falling snow, drawn by the
+    // screen's WinterOverlay after this window is gone
+    function cardRect() {
+        if (!pill || !screen) return null;
+        const p = pill.mapToItem(null, 0, 0);
+        const barH = Theme.islands ? 42 : 40;
+        const down = edge === Edges.Bottom;
+        const by = down ? 0 : screen.height - barH;
+        let x = alignLeft ? leftMargin : p.x + pill.width / 2 - panelWidth / 2;
+        x = Math.max(0, Math.min(screen.width - panelWidth, x));
+        const ch = card.height;
+        return { mon: screen.name, x: x, y: down ? by + p.y + pill.height + 8 : by + p.y - 8 - ch,
+                 w: panelWidth, h: ch };
+    }
+    function snowDepth(nowMs) {
+        if (!capRoom || !snowT0) return 0;
+        return SeasonState.popMax * Math.min(1, 0.1 + (nowMs - snowT0) / SeasonState.popGrow);
+    }
+    function winterOpened() {
+        if (!capRoom) return;
+        snowT0 = Date.now();
+        rectLater.restart();
+    }
+    function winterClosed() {
+        rectLater.stop();
+        if (!capRoom) return;
+        const r = cardRect();
+        const d = snowDepth(Date.now());
+        snowT0 = 0;
+        SeasonState.setPopupRect(pop, null);
+        if (r) SeasonState.drop(r.mon, r.x + 8, r.y, r.w - 16, d);
+    }
+    Timer { id: rectLater; interval: 420; onTriggered: if (pop.isOpen) SeasonState.setPopupRect(pop, pop.cardRect()) }
+    onImplicitHeightChanged: if (isOpen && capRoom) rectLater.restart()
+    SnowCap {
+        id: popCap
+        visible: pop.capRoom > 0 && pop.isOpen && depth > 0.3
+        x: 8
+        width: card.width - 16
+        y: card.y + base - height
+        maxDepth: SeasonState.popMax
+        depth: pop.snowDepth(SeasonState.now)
+        seed: pop.panelWidth % 311
+        taperL: 14
+        taperR: 14
+        opacity: card.opacity
+    }
 
     // the focus grab (click outside / Esc closes us) is BarState's one
     // shared grab — see BarState.grabFor; the bars are in it too, so their
@@ -589,8 +650,9 @@ PopupWindow {
         id: card
         readonly property color panelTint: pop.tint     // Theme.tintOf finds it
         readonly property var panelPopup: pop           // Dropdown finds it
+        y: pop.capRoom
         width: parent.width
-        height: parent.height
+        height: parent.height - pop.capRoom
         radius: 18
         color: Theme.panel(Theme.mantle)
         border.width: 1
@@ -618,6 +680,19 @@ PopupWindow {
             return t && t.focus && t.visible && pop.inside(t) ? t : null;
         }
         onWinFocusChanged: if (winFocus && winFocus !== card && pop.inside(winFocus)) { BarState.kbItem = winFocus; pop.noteKb(winFocus); }
+
+        // winter: frost feathers in the corners, under the content
+        ShaderEffect {
+            anchors.fill: parent
+            visible: SeasonState.frostOn
+            blending: true
+            fragmentShader: Qt.resolvedUrl("shaders/frost.frag.qsb")
+            property size itemSize: Qt.size(width, height)
+            property real seed: pop.panelWidth % 97
+            property real strength: Theme.light ? 0.9 : 0.75
+            property real radius: card.radius
+            property color frostColor: Theme.light ? "#9fb6d6" : "#dce9ff"
+        }
 
         Item {
             id: body

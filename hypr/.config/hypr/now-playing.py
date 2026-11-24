@@ -53,6 +53,7 @@ I_SPOTIFY = "\U000F04C7"   # md-spotify
 I_YOUTUBE = "\U000F05C3"   # md-youtube
 I_MUSIC = "\U000F075A"     # md-music
 I_PHONE = "\U000F011C"     # md-cellphone
+I_WAVES = "\U000F078D"     # md-waves (Spotifusion)
 I_PAUSE = "\U000F03E4"     # md-pause
 I_FIREFOX = "\U000F0239"   # md-firefox
 I_BRAVE = "\U000F059F"     # md-web
@@ -158,7 +159,9 @@ def classify_phone(ident):
     """'YouTube Music - My Phone' -> 'ytmusic'. Matches Morphe/ReVanced
     builds too, which keep "YouTube" / "YouTube Music" in their names."""
     app = ident.lower()
-    if app.startswith("spotify"):
+    # Spotifusion (a third-party Spotify client) wears Spotify's green too —
+    # the colour only: it is NOT Spotify to the Web API (no ⇄ ⟲, no Resume)
+    if app.startswith("spotify") or app.startswith("spotifusion"):
         return "spotify"
     if "youtube music" in app or "yt music" in app:
         return "ytmusic"
@@ -174,6 +177,8 @@ def describe(inst):
         ident = identity(inst)
         app = classify_phone(ident)
         icon = {"spotify": I_SPOTIFY, "youtube": I_YOUTUBE, "ytmusic": I_MUSIC}.get(app, I_PHONE)
+        if ident.lower().startswith("spotifusion"):
+            icon = I_WAVES                  # Spotify's green, its own icon
         app_name, _, device = ident.partition(" - ")
         return app, icon, f"{app_name or 'Phone'} on {device or 'phone'}", True
     if name.lower().startswith("youtubemusic") or name.startswith("youtube-music"):
@@ -470,9 +475,13 @@ def render(scope=None):
         pct = max(0, min(100, round(position * 100 / length)))
         classes.append(f"p{pct}")
         when = f"\n{clock(position)} / {clock(length)}"
-    shuffle, loop = media_modes.state(inst, colour == "spotify", f"{status} {title}",
+    # the Web API only knows real Spotify — not Spotifusion, which shares the colour
+    real_spotify = colour == "spotify" and not who.lower().startswith("spotifusion")
+    shuffle, loop = media_modes.state(inst, real_spotify, f"{status} {title}",
                                       status == "Playing", modes=modes_of(inst))
+    why = media_modes.hidden_reason() if media_modes.web_shown and not shuffle else ""
     tooltip = (f"{who}: {title}" + (f" — {artist}" if artist else "") + when
+               + (f"\n{why}" if why else "")
                + "\nClick: play/pause · Right-click: players · Scroll: seek")
     out = {"text": text, "tooltip": html.escape(tooltip), "class": classes,
            # for the bar plugin (--cffi): what a click / drag on the line needs

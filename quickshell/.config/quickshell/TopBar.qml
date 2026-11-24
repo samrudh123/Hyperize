@@ -116,11 +116,14 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "qs-bar"          // layerrule blur-qs-bars
     color: "transparent"
+    // winter theme: fairy lights along the islands / the panel (WinterTrim)
+    readonly property string winterTrim: "lights"
 
     Rectangle {
         anchors.fill: parent
         visible: !Theme.islands
         color: Theme.alpha(Theme.base, 0.80)
+        WinterTrim { ledgeRadius: 0 }
         Rectangle {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
             height: 1

@@ -22,6 +22,8 @@ Item {
         color: Theme.alpha(Theme.base, 0.86)
         border.width: 1
         border.color: Theme.alpha(Theme.surface1, 0.8)
+        // winter: snow on the bottom bar's islands, lights on the top bar's
+        WinterTrim { ledgeRadius: parent.radius }
     }
 
     Row {
