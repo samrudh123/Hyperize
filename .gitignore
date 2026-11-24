@@ -43,3 +43,7 @@ media-title-sync/.local/share/firefox-media-title-sync/*.xpi
 
 # set-accent.sh's per-theme template cache (tpl_for rebuilds it on demand)
 hypr/.config/hypr/theme/rendered/
+
+# runtime state: what a seasonal theme replaced (set-theme.sh), restored on leaving it
+hypr/.config/hypr/theme/season-prev-wallpaper
+hypr/.config/hypr/theme/season-prev-theme
