@@ -203,7 +203,7 @@ SettingsPage {
                 { k: "idle", icon: "\u{f0f36}", t: "Snowed in when idle", s: "Left alone, the screen frosts over and fills with snow; move the mouse to wipe it away (hold Shift to move without wiping while the snow keeps piling up — draw in the snow)  ·  never while a video plays" },
                 { k: "frost", icon: "\u{f05a3}", t: "Frosted panels", s: "Ice feathers in the corners of the bar panels" },
                 { k: "lights", icon: "\u{f0335}", t: "Fairy lights", s: "Twinkling lights strung along the top bar" },
-                { k: "wallpaper", icon: "\u{f0e09}", t: "Seasonal wallpaper", s: "Winter Night: aurora over a snowy lake (live) · Winter Day: a lone tree in snow  ·  your own wallpaper comes back after" }
+                { k: "wallpaper", icon: "\u{f0e09}", t: "Seasonal wallpaper", s: "Winter Day: a lone tree in snow (Winter Night keeps yours)  ·  your own wallpaper comes back after" }
             ]
             delegate: SettingsRow {
                 required property var modelData

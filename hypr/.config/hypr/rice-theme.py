@@ -109,7 +109,7 @@ THEMES = {
     # accents, one warm candle-and-lantern pair (peach, yellow) for contrast.
     "winter": {
         "name": "Winter Night", "accent": "sky", "season": "winter",
-        "wallpaper": "aurora-mountain-lake-live.mp4",
+        # no `wallpaper`: Winter Night keeps whatever is up (user, 2026-11-26)
         "colors": "f2dfe6 eec3cf e6b3de b9a7f2 ef7a8b d4677a f6b98a f3d898 9fdcb6 86e1d6 "
                   "9fdcf7 6cc4ea 86b4f7 bccbfc e3eefb c8d6ea aebdd6 8fa0bd 7a8ba9 667795 "
                   "4c5b78 3a4763 2a3550 1a2338 151d2f 101726",

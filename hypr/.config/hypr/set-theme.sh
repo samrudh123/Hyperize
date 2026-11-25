@@ -127,7 +127,7 @@ command -v bat >/dev/null && bat cache --build >/dev/null 2>&1
 # theme/name, palette.json, … changed length: keep `git status` clean
 "$HYPR/set-accent.sh" --git-refresh >/dev/null 2>&1 &
 
-# A seasonal theme brings its wallpaper (rice-theme.py `wallpaper`); the one
+# A seasonal theme may bring its wallpaper (rice-theme.py `wallpaper`); the one
 # that was up before is kept in theme/season-prev-wallpaper and comes back
 # when a normal theme is picked. A wallpaper you chose yourself while the
 # season was on is left alone. Off: Settings › Appearance › Season ›
@@ -135,19 +135,20 @@ command -v bat >/dev/null && bat cache --build >/dev/null 2>&1
 season_wallpaper() {
     local prevf="$THEME/season-prev-wallpaper" cur want=""
     cur=$(cat "$HYPR/wallpaper" 2>/dev/null)
-    if [ -n "$new_season" ]; then
+    if [ -n "$new_season" ] && [ -n "$new_wall" ]; then
         [ "$($PY -c "import json
 try: print(json.load(open('$THEME/season-fx.json')).get('wallpaper', True))
 except Exception: print(True)")" = True ] || return 0
         [ -f "$new_wall" ] || return 0
-        if [ -z "$old_season" ]; then
+        if [ -z "$old_season" ] || [ -z "$old_wall" ]; then
             [ -n "$cur" ] && [ "$cur" != "$new_wall" ] && printf '%s\n' "$cur" > "$prevf"
             want="$new_wall"
         elif [ "$cur" = "$old_wall" ]; then
             want="$new_wall"                # winter night -> winter day
         fi
     elif [ -n "$old_season" ] && [ -f "$prevf" ]; then
-        [ "$cur" = "$old_wall" ] && want=$(cat "$prevf")
+        # also season -> a season without a wallpaper (Winter Day -> Night)
+        [ -n "$old_wall" ] && [ "$cur" = "$old_wall" ] && want=$(cat "$prevf")
         rm -f "$prevf"
     fi
     [ -n "$want" ] && [ "$want" != "$cur" ] && [ -f "$want" ] \

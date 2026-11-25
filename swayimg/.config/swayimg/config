@@ -22,30 +22,30 @@ app_id = swayimg
 
 [viewer]
 # zathura's window colour, so a recoloured image sits on it like a page
-window = #13131a
+window = #101726
 transparency = grid
 # a preloaded neighbour would keep its old colours across a `w`
 preload = 0
 history = 0
 
 [slideshow]
-window = #13131a
-transparency = #13131a
+window = #101726
+transparency = #101726
 
 [gallery]
-window = #13131a
-background = #16161e
-select = #24283b
-border_color = #7aa2f7
+window = #101726
+background = #151d2f
+select = #2a3550
+border_color = #86b4f7
 border_width = 3
 padding = 8
 
 [font]
 name = JetBrainsMono Nerd Font
 size = 12
-color = #c0caf5
+color = #e3eefb
 shadow = #00000000
-background = #13131acc
+background = #101726cc
 
 [info]
 info_timeout = 4
