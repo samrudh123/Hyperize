@@ -84,6 +84,8 @@ mv -f "$THEME/palette.json.tmp" "$THEME/palette.json"
 #   * GTK3's prefer-dark (Hyprland runs no XSettings daemon; settings.ini)
 #   * Papirus-Mocha's base icons: Papirus-Dark's pale symbolic icons vanish on
 #     light paper, so it inherits Papirus-Light there (folders stay Catppuccin)
+#   * Zoom's own Appearance key in zoomus.conf (zoom.sh; next Zoom start —
+#     it reads the key only when it starts)
 # Claude Code, Neovim and LibreOffice read "mode" from palette.json /
 # rice-theme.py themselves.
 apply_mode() {
@@ -104,6 +106,7 @@ apply_mode() {
             gsettings set org.gnome.desktop.interface icon-theme Papirus-Mocha
         fi
     fi
+    "$HOME/.config/hypr/zoom.sh" --mode-only "$mode"
 }
 apply_mode "$id"
 

@@ -25,7 +25,26 @@ PanelPopup {
     readonly property var st: rec ? rec.st : ({})
     tint: recording ? (st.state === "paused" ? Theme.yellow : Theme.red) : Theme.flamingo
 
-    function shot(mode) { close(); rec.shot(mode); }
+    // Screen shots wait until the panel is really gone: the card's fade-out
+    // (200 ms) and then the window unmapping, plus a beat for the compositor
+    // to present a frame without it — otherwise grim caught the panel mid-fade.
+    // Region/Window go straight away (slurp / the active window aren't hurt).
+    property bool screenPending: false
+    function shot(mode) {
+        close();
+        if (mode === "screen") { screenPending = true; screenFallback.restart(); }
+        else rec.shot(mode);
+    }
+    function fireScreen() {
+        if (!screenPending) return;
+        screenPending = false;
+        screenFallback.stop();
+        rec.shot("screen");
+    }
+    onShownChanged: if (!shown && screenPending) screenAfterHide.restart()
+    onOpened: { screenPending = false; screenAfterHide.stop(); screenFallback.stop(); }
+    Timer { id: screenAfterHide; interval: 200; onTriggered: pop.fireScreen() }
+    Timer { id: screenFallback; interval: 900; onTriggered: pop.fireScreen() }   // if `shown` never flips
     function record(args) { close(); rec.run(args); }
 
     function stage(k) { return Math.max(0, Math.min(1, (pop.intro - k * 0.12) / (1 - k * 0.12))); }

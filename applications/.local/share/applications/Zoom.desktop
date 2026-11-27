@@ -1,0 +1,15 @@
+[Desktop Entry]
+# Override of /usr/share/applications/Zoom.desktop: launches through
+# ~/.config/hypr/zoom.sh (rice dark/light mode + portal file dialogs).
+Name=Zoom Workplace
+Comment=Zoom Video Conference
+Exec=/home/samrudh/.config/hypr/zoom.sh %U
+Icon=Zoom
+Terminal=false
+Type=Application
+Encoding=UTF-8
+Categories=Network;Application;
+StartupWMClass=zoom
+MimeType=x-scheme-handler/zoommtg;x-scheme-handler/zoomus;x-scheme-handler/tel;x-scheme-handler/callto;x-scheme-handler/zoomphonecall;x-scheme-handler/zoomphonesms;x-scheme-handler/zoomcontactcentercall;application/x-zoom
+X-KDE-Protocols=zoommtg;zoomus;tel;callto;zoomphonecall;zoomphonesms;zoomcontactcentercall;
+Name[en_US]=Zoom Workplace
